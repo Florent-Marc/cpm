@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.Pane?>
+
+
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="160.0" prefWidth="372.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.InfoController">
+   <children>
+      <Button layoutX="320.0" layoutY="125.0" mnemonicParsing="false" text="Back" onMouseClicked="#back" fx:id="back"/>
+      <Label alignment="TOP_CENTER" contentDisplay="CENTER" layoutX="14.0" layoutY="14.0" prefHeight="121.0" prefWidth="346.0" text="[Warning] this program is purely experimental and is dedicated to the content creator. it is currently in restricted access during development. This program is dedicated to dynamx but is not produced directly by dynmax so please do not disturb them with this program. If you have any bugs or questions I invite you to come to the disccord I will answer them as soon as possible . by MK" textAlignment="CENTER" textFill="#f70000" wrapText="true" />
+      <Button layoutX="256.0" layoutY="125.0" mnemonicParsing="false" text="Discord" onMouseClicked="#discord" />
+   </children>
+</Pane>
