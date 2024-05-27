@@ -20,6 +20,9 @@ public class Block {
     private String Translation;
     private String Textures;
     private Boolean UseComplexCollision;
+    //props
+    private String CenterOfGravityOffset;
+    private String EmptyMass;
 
 
     public Block() {
@@ -88,7 +91,9 @@ public class Block {
                 "RenderDistance : " + RenderDistance,
                 "Rotation : " + Rotation,
                 "Textures : " + Textures,
-                "UseComplexCollision : " + UseComplexCollision};
+                "UseComplexCollision : " + UseComplexCollision,
+                "CenterOfGravityOffset : " + CenterOfGravityOffset,
+                "EmptyMass : " + EmptyMass};
     }
 
     public String getItemRotation() {
@@ -161,5 +166,21 @@ public class Block {
 
     public void setUseComplexCollision(Boolean useComplexCollision) {
         UseComplexCollision = useComplexCollision;
+    }
+
+    public String getCenterOfGravityOffset() {
+        return CenterOfGravityOffset;
+    }
+
+    public void setCenterOfGravityOffset(String centerOfGravityOffset) {
+        CenterOfGravityOffset = centerOfGravityOffset;
+    }
+
+    public String getEmptyMass() {
+        return EmptyMass;
+    }
+
+    public void setEmptyMass(String emptyMass) {
+        EmptyMass = emptyMass;
     }
 }

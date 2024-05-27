@@ -121,6 +121,27 @@ public class LoaderBlock {
                     itemTranslate = itemTranslate.substring(1);
                     block.setItemTranslation(itemTranslate);
                 }
+                /*
+                prop_barriere{
+                    EmptyMass: 50
+                    CenterOfGravityOffset: 0.0 0.0 0.0
+                    Bounciness: 0.5
+                    DespawnTime: 20000
+                    ContinuousCollisionDetection: true
+                    SpawnOffset: 0 0.9 0
+                }
+                 */
+                if (line.contains("EmptyMass")) {
+                    String emptyMass = line.split(":")[1];
+                    emptyMass = emptyMass.substring(1);
+                    block.setEmptyMass(emptyMass);
+                }
+                if (line.contains("CenterOfGravityOffset")) {
+                    String centerOfGravityOffset = line.split(":")[1];
+                    centerOfGravityOffset = centerOfGravityOffset.substring(1);
+                    block.setCenterOfGravityOffset(centerOfGravityOffset);
+                }
+
 
             }
             fr.close();
@@ -134,5 +155,74 @@ public class LoaderBlock {
 
     public static List<Block> getBlocks() {
         return blocks;
+    }
+
+    //get file of the block with the name
+    public static File getFile(String blockname){
+        File dir = new File(Config.getLastdirectory());
+        File[] files = dir.listFiles();
+        if (files == null){
+            return null;
+        }
+        for (File f : files){
+            if (f.getName().contains("assets") || f.getName().contains("pack_info.dynx")){
+                continue;
+            }
+            if (f.isDirectory()){
+                File[] files2 = f.listFiles();
+                if (files2 == null){
+                    return null;
+                }
+                for (File f2 : files2){
+                    if (f2.isDirectory()){
+                        File[] files3 = f2.listFiles();
+                        if (files3 == null){
+                            return null;
+                        }
+                        for (File f3 : files3){
+                            if (!f3.getName().contains("block_"))continue;
+                            if(isBlock(f3, blockname)){
+                                return new File(f3.getAbsolutePath());
+                            }
+                        }
+                    }else {
+                        if (!f2.getName().contains("block_"))continue;
+                        if(isBlock(f2, blockname)){
+                            return new File(f2.getAbsolutePath());
+                        }
+                    }
+                }
+            }else {
+                if (!f.getName().contains("block_"))continue;
+
+                if (isBlock(f, blockname)) {
+                    return new File(f.getAbsolutePath());
+                }
+            }
+        }
+        return null;
+    }
+
+
+    //methode for get name in file
+    public static boolean isBlock(File f, String name) {
+        try {
+            FileReader fr = new FileReader(f);
+            BufferedReader br = new BufferedReader(fr);
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains("Name")) {
+                    String name2 = line.split(":")[1];
+                    name2 = name2.substring(1);
+                    if (name2.equals(name)) {
+                        return true;
+                    }
+                }
+            }
+            fr.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }
