@@ -50,7 +50,7 @@
                                     <ChoiceBox layoutX="158.0" layoutY="141.0" prefWidth="150.0" fx:id="choiceBox" />
                                     <TextField layoutX="92.0" layoutY="36.0" fx:id="itemrotation"/>
                                     <TextField layoutX="107.0" layoutY="62.0" fx:id="itemtranslation"/>
-                                    <TextField layoutX="76.0" layoutY="89.0" />
+                                    <TextField layoutX="76.0" layoutY="89.0" fx:id="itemscale"/>
                                     <TextField layoutX="66.0" layoutY="116.0" fx:id="IconText"/>
                                  </children>
                               </AnchorPane>
@@ -67,7 +67,7 @@
             </AnchorPane>
           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
                <children>
-                  <Button layoutX="204.0" layoutY="358.0" mnemonicParsing="false" text="save" />
+                  <Button layoutX="204.0" layoutY="358.0" mnemonicParsing="false" text="save" onMouseClicked="#save"/>
                </children>
             </AnchorPane>
         </items>
