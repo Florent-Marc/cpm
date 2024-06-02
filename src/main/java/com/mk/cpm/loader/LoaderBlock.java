@@ -69,6 +69,10 @@ public class LoaderBlock {
             StringBuffer sb = new StringBuffer();
             String line;
             while ((line = br.readLine()) != null) {
+                //check si elle n'est pas vide
+                if (line.isEmpty()){
+                    continue;
+                }
                 sb.append(line);
                 sb.append("\n");
                 if (line.contains("Name")) {
@@ -141,9 +145,48 @@ public class LoaderBlock {
                     centerOfGravityOffset = centerOfGravityOffset.substring(1);
                     block.setCenterOfGravityOffset(centerOfGravityOffset);
                 }
-
-
+                if (line.contains("DespawnTime")) {
+                    String despawnTime = line.split(":")[1];
+                    despawnTime = despawnTime.substring(1);
+                    block.setDespawnTime(despawnTime);
+                }
+                if (line.contains("Item3DRenderLocation")) {
+                    String item3DRenderLocation = line.split(":")[1];
+                    item3DRenderLocation = item3DRenderLocation.substring(1);
+                    block.setItem3DRenderLocation(item3DRenderLocation);
+                }
+                if (line.contains("IconText")) {
+                    String iconText = line.split(":")[1];
+                    iconText = iconText.substring(1);
+                    block.setIconText(iconText);
+                }
+                if (line.contains("Textures")) {
+                    String textures = line.split(":")[1];
+                    textures = textures.substring(1);
+                    block.setTextures(textures);
+                }
+                if (line.contains("Rotate")) {
+                    String rotation = line.split(":")[1];
+                    rotation = rotation.substring(1);
+                    block.setRotation(rotation);
+                }
+                if (line.contains("RenderDistance")) {
+                    String renderDistance = line.split(":")[1];
+                    renderDistance = renderDistance.substring(1);
+                    block.setRenderDistance(renderDistance);
+                }
+                if (line.contains("LightLevel")) {
+                    String lightLevel = line.split(":")[1];
+                    lightLevel = lightLevel.substring(1);
+                    block.setLightLevel(lightLevel);
+                }
+                if (line.contains("Material:")) {
+                    String material = line.split(":")[1];
+                    material = material.substring(1);
+                    block.setMaterial(material);
+                }
             }
+
             fr.close();
         } catch (IOException e) {
             e.printStackTrace();

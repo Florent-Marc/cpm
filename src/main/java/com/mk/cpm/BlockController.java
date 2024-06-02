@@ -32,6 +32,17 @@ public class BlockController implements Initializable {
     public TextField itemtranslation;
     public TextField itemscale;
     public TextField IconText;
+    public TextField LightLevel;
+    public TextField Material;
+    public TextField RenderDistance;
+    public TextField Scale;
+    public TextField Rotation;
+    public TextField Translation;
+    public TextField Textures;
+    public TextField UseComplexCollision;
+    public TextField EmptyMass;
+    public TextField CenterOfGravityOffset;
+    public TextField RespawnTime;
 
 
     @Override
@@ -65,6 +76,45 @@ public class BlockController implements Initializable {
             itemscale.setText(block.getItemScale());
         }
         choiceBox.getItems().addAll("NONE","WORLD","ALL");
+        choiceBox.getSelectionModel().selectFirst();
+        if (block.getLightLevel() != null) {
+            LightLevel.setText(block.getLightLevel());
+        }
+        if (block.getMaterial() != null) {
+            Material.setText(block.getMaterial());
+        }
+        if (block.getRenderDistance() != null) {
+            RenderDistance.setText(block.getRenderDistance());
+        }
+        if (block.getScale() != null) {
+            Scale.setText(block.getScale());
+        }
+        if (block.getRotation() != null) {
+            Rotation.setText(block.getRotation());
+        }
+        if (block.getTranslation() != null) {
+            Translation.setText(block.getTranslation());
+        }
+        if (block.getTextures() != null) {
+            Textures.setText(block.getTextures());
+        }
+        if (block.getUseComplexCollision() != null) {
+            UseComplexCollision.setText(String.valueOf(block.getUseComplexCollision()));
+        }
+        if (block.getEmptyMass() != null) {
+            EmptyMass.setText(block.getEmptyMass());
+        }
+        if (block.getCenterOfGravityOffset() != null) {
+            CenterOfGravityOffset.setText(block.getCenterOfGravityOffset());
+        }
+        if (block.getDespawnTime() != null) {
+            RespawnTime.setText(block.getDespawnTime());
+        }
+        //icon
+        if (block.getIconText() != null) {
+            IconText.setText(block.getIconText());
+        }
+
     }
 
     @FXML
@@ -102,6 +152,41 @@ public class BlockController implements Initializable {
             if(!IconText.getText().isEmpty()){
                 fw.write("IconText: " + IconText.getText() + "\n");
             }
+            if(!LightLevel.getText().isEmpty()){
+                fw.write("LightLevel: " + LightLevel.getText() + "\n");
+            }
+            if(!Material.getText().isEmpty()){
+                fw.write("Material: " + Material.getText() + "\n");
+            }
+            if(!RenderDistance.getText().isEmpty()){
+                fw.write("RenderDistance: " + RenderDistance.getText() + "\n");
+            }
+            if(!Scale.getText().isEmpty()){
+                fw.write("Scale: " + Scale.getText() + "\n");
+            }
+            if(!Rotation.getText().isEmpty()){
+                fw.write("Rotate: " + Rotation.getText() + "\n");
+            }
+            if(!Translation.getText().isEmpty()){
+                fw.write("Translate: " + Translation.getText() + "\n");
+            }
+            if(!Textures.getText().isEmpty()){
+                fw.write("Textures: " + Textures.getText() + "\n");
+            }
+            if(!UseComplexCollision.getText().isEmpty()){
+                fw.write("UseComplexCollisions: " + UseComplexCollision.getText() + "\n");
+            }
+            if(!EmptyMass.getText().isEmpty()){
+                String name = MainController.blockselected.getName();
+                //get first word
+                String[] words = name.split(" ");
+                fw.write("Prop_"+words[0]+"{" + "\n");
+                fw.write("  EmptyMass: " + EmptyMass.getText() + "\n");
+                fw.write("  CenterOfGravityOffset: " + CenterOfGravityOffset.getText() + "\n");
+                fw.write("  DespawnTime: " + RespawnTime.getText() + "\n");
+                fw.write("}" + "\n");
+            }
+
             fw.close();
             Stage stage = (Stage) name.getScene().getWindow();
             stage.close();

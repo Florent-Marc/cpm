@@ -11,6 +11,8 @@ public class Block {
     private String ItemRotation;
     private String ItemTranslation;
     private String ItemScale;
+    private String IconText;
+    private String Item3DRenderLocation;
     //advanced
     private String LightLevel;
     private String Material;
@@ -23,6 +25,8 @@ public class Block {
     //props
     private String CenterOfGravityOffset;
     private String EmptyMass;
+    private String DespawnTime;
+
 
 
     public Block() {
@@ -93,7 +97,10 @@ public class Block {
                 "Textures : " + Textures,
                 "UseComplexCollision : " + UseComplexCollision,
                 "CenterOfGravityOffset : " + CenterOfGravityOffset,
-                "EmptyMass : " + EmptyMass};
+                "EmptyMass : " + EmptyMass,
+                "IconText : " + IconText,
+                "Item3DRenderLocation : " + Item3DRenderLocation,
+                "DespawnTime : " + DespawnTime};
     }
 
     public String getItemRotation() {
@@ -182,5 +189,29 @@ public class Block {
 
     public void setEmptyMass(String emptyMass) {
         EmptyMass = emptyMass;
+    }
+
+    public String getIconText() {
+        return IconText;
+    }
+
+    public void setIconText(String iconText) {
+        IconText = iconText;
+    }
+
+    public String getItem3DRenderLocation() {
+        return Item3DRenderLocation;
+    }
+
+    public void setItem3DRenderLocation(String item3DRenderLocation) {
+        Item3DRenderLocation = item3DRenderLocation;
+    }
+
+    public String getDespawnTime() {
+        return DespawnTime;
+    }
+
+    public void setDespawnTime(String despawnTime) {
+        DespawnTime = despawnTime;
     }
 }
