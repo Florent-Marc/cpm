@@ -9,4 +9,6 @@ module com.mk.cpm {
 
     opens com.mk.cpm to javafx.fxml;
     exports com.mk.cpm;
+    exports com.mk.cpm.controller;
+    opens com.mk.cpm.controller to javafx.fxml;
 }

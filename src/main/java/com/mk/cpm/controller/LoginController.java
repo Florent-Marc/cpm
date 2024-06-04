@@ -1,5 +1,6 @@
-package com.mk.cpm;
+package com.mk.cpm.controller;
 
+import com.mk.cpm.HelloApplication;
 import com.mk.cpm.config.Config;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -9,7 +10,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;

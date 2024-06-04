@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.Pane?>
 
 
-<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="342.0" prefWidth="270.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.LoginController" >
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="342.0" prefWidth="270.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.LoginController" >
    <children>
       <PasswordField layoutX="61.0" layoutY="237.0" fx:id="pwd"/>
       <Button layoutX="113.0" layoutY="278.0" mnemonicParsing="false" text="Login" fx:id="login" onAction="#login"/>

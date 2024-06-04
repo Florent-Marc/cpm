@@ -1,4 +1,4 @@
-package com.mk.cpm;
+package com.mk.cpm.controller;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;

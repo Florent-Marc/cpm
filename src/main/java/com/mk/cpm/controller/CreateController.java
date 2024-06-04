@@ -1,7 +1,6 @@
-package com.mk.cpm;
+package com.mk.cpm.controller;
 
 import com.mk.cpm.config.Config;
-import com.mk.cpm.loader.LoaderPack;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;

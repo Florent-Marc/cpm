@@ -6,7 +6,7 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.Pane?>
 
-<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="215.0" prefWidth="367.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.CreateController">
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="215.0" prefWidth="367.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.CreateController">
    <children>
       <ChoiceBox fx:id="choicebox" layoutX="21.0" layoutY="28.0" prefWidth="150.0" onMouseClicked="#se"/>
       <Button fx:id="select" layoutX="21.0" layoutY="59.0" mnemonicParsing="false" onMouseClicked="#select" text="Select obj" />
