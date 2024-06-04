@@ -50,7 +50,6 @@ public class CreateController implements Initializable{
 
         if (selectedFile != null) {
             // Le fichier a été sélectionné, vous pouvez maintenant l'utiliser
-            System.out.println("Fichier sélectionné: " + selectedFile.getAbsolutePath());
             file.setText(selectedFile.getAbsolutePath());
             fileSelected = selectedFile;
         } else {

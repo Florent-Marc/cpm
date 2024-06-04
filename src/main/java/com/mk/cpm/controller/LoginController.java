@@ -108,7 +108,6 @@ public class LoginController implements Initializable {
         } else {
             System.out.println("Network error: " + con);
             System.out.println("POST request not worked");
-            System.out.println("Check your network connection");
             return false;
         }
     }

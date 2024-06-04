@@ -35,7 +35,6 @@ public class PackCreateController implements Initializable {
         if (isdnxpack.isSelected()){
             file = new File(Config.getLastdirectory()+"\\pack_info.dynx");
             file.getParentFile().mkdirs();
-            System.out.println(file.getAbsolutePath());
         }else {
             file = new File(Config.getLastdirectory()+"\\"+name.getText()+"\\pack_info.dynx");
             file.getParentFile().mkdirs();
