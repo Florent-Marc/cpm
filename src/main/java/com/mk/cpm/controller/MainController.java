@@ -1,5 +1,6 @@
-package com.mk.cpm;
+package com.mk.cpm.controller;
 
+import com.mk.cpm.HelloApplication;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Block;
 import com.mk.cpm.loader.LoaderBlock;
@@ -7,7 +8,6 @@ import com.mk.cpm.loader.LoaderPack;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
-import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -15,14 +15,11 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.DirectoryStream;
-import java.util.Arrays;
 import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
@@ -32,6 +29,7 @@ public class MainController implements Initializable {
     public static Block blockselected;
     public static Stage create;
     public static Stage modify;
+    public static Stage createpack;
     public static Object packname;
 
     @FXML
@@ -43,6 +41,7 @@ public class MainController implements Initializable {
     public Button remove;
     public ChoiceBox choice;
     public Menu editmenu;
+    public MenuItem newpack;
 
 
     @Override
@@ -65,6 +64,9 @@ public class MainController implements Initializable {
             ObservableList<Object> l2 = FXCollections.observableArrayList();
             l2.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
             pack.setItems(l2);
+            newpack.setDisable(false);
+        }else {
+            newpack.setDisable(true);
         }
     }
 
@@ -85,6 +87,7 @@ public class MainController implements Initializable {
         left.setText("Contents : " + l.size() + " Block(s)");
         packname = pack.getSelectionModel().getSelectedItem();
         add.setVisible(true);
+        newpack.setDisable(false);
     }
 
     @FXML
@@ -149,6 +152,12 @@ public class MainController implements Initializable {
             l.add(block.getName());
         }
         this.list.setItems(l);
+    }
+    //refresh pack list
+    public void refreshpack(){
+        ObservableList<Object> l = FXCollections.observableArrayList();
+        l.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
+        this.pack.setItems(l);
     }
 
 
@@ -238,5 +247,22 @@ public class MainController implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @FXML
+    public void ne(ActionEvent actionEvent) {
+
+        createpack = new Stage();
+        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("packCreate.fxml"));
+        Scene scene = null;
+        try {
+            scene = new Scene(fxmlLoader.load());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        createpack.setTitle("CPM-UI (InProgress)");
+        createpack.setScene(scene);
+        createpack.setResizable(false);
+        createpack.show();
     }
 }
