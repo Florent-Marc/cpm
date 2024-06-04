@@ -4,9 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 public class LoaderPack {
@@ -27,12 +31,14 @@ public class LoaderPack {
             }
             if (f.getName().contains(".dnxpack")){
                 File f2 = new File(f.getAbsolutePath());
-                try {
-                    ZipInputStream d = new ZipInputStream(new FileInputStream(f2));
-                    ZipEntry entry;
-                    while ((entry = d.getNextEntry()) != null) {
-                        if (entry.getName().equals("pack_info.dynx")){
-                            p.add(f.getName()+" (Soon)");
+                System.out.println(f2.getAbsolutePath());
+                try (ZipFile zipFile = new ZipFile(f2)) {
+                    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+                    while (entries.hasMoreElements()) {
+                        ZipEntry entry = entries.nextElement();
+                        if(entry.getName().equals("pack_info.dynx")){
+                            p.add(f.getName());
                         }
                     }
                 } catch (IOException e) {

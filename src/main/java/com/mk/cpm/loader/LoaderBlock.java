@@ -3,6 +3,7 @@ package com.mk.cpm.loader;
 import com.mk.cpm.config.Config;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -13,20 +14,28 @@ public class LoaderBlock {
 
 
     //get all block in the directory
-    public static List<Block> getBlocksByPack(String s){
+    public static List<Block> getBlocksByPack(Object s){
         if (blocks ==null){
             blocks = new java.util.ArrayList<>();
         }
         List<Block> b = new java.util.ArrayList<>();
         File file = new File(Config.getLastdirectory() +"/"+ s);
+        String[] ban = {"assets", "pack_info.dynx"};
         //get all dir in the directory
         //check if file contains .dnxpack
         if (file.getName().contains(".dnxpack")){
+            List<Object> objects = new java.util.ArrayList<>();
+            objects = (List<Object>) LoaderDynx.loadContentDynxPack(file.getAbsolutePath());
+            for (Object o : objects){
+                if (o instanceof Block){
+                    b.add((Block) o);
+
+                }
+            }
             blocks = b;
             return b;
         }
         File[] files = file.listFiles();
-        String[] ban = {"assets", "pack_info.dynx"};
         if (files == null){
             blocks = b;
             return b;
@@ -188,6 +197,133 @@ public class LoaderBlock {
             }
 
             fr.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return block;
+    }
+    //create block with buffered reader
+    public static Block createBlock(BufferedReader br) {
+        Block block = new Block();
+        try {
+            StringBuffer sb = new StringBuffer();
+            String line;
+            while ((line = br.readLine()) != null) {
+                //check si elle n'est pas vide
+                if (line.isEmpty()){
+                    continue;
+                }
+                sb.append(line);
+                sb.append("\n");
+                if (line.contains("Name")) {
+                    String name = line.split(":")[1];
+                    name = name.substring(1);
+                    block.setName(name);
+                }
+                if (line.contains("Description")) {
+                    String desc = line.split(":")[1];
+                    desc = desc.substring(1);
+                    block.setDesc(desc);
+                }
+                if (line.contains("Model")) {
+                    String model = line.split(":")[1];
+                    model = model.substring(1);
+                    block.setModel(model);
+                }
+                if (line.contains("Scale")) {
+                    String scale = line.split(":")[1];
+                    scale = scale.substring(1);
+                    block.setScale(scale);
+                }
+                if (line.contains("Translate")) {
+                    String translation = line.split(":")[1];
+                    translation = translation.substring(1);
+                    block.setTranslation(translation);
+                }
+                if (line.contains("CreativeTab")) {
+                    String creativeTab = line.split(":")[1];
+                    creativeTab = creativeTab.substring(1);
+                    block.setCreativeTab(creativeTab);
+                }
+                if (line.contains("ItemRotate")) {
+                    String itemRotate = line.split(":")[1];
+                    itemRotate = itemRotate.substring(1);
+                    block.setItemRotation(itemRotate);
+                }
+                if (line.contains("UseComplexCollisions")) {
+                    String useComplexCollision = line.split(":")[1];
+                    useComplexCollision = useComplexCollision.substring(1);
+                    block.setUseComplexCollision(Boolean.parseBoolean(useComplexCollision));
+                }
+                if (line.contains("ItemScale")) {
+                    String itemScale = line.split(":")[1];
+                    itemScale = itemScale.substring(1);
+                    block.setItemScale(itemScale);
+                }
+                if (line.contains("ItemTranslate")) {
+                    String itemTranslate = line.split(":")[1];
+                    itemTranslate = itemTranslate.substring(1);
+                    block.setItemTranslation(itemTranslate);
+                }
+                /*
+                prop_barriere{
+                    EmptyMass: 50
+                    CenterOfGravityOffset: 0.0 0.0 0.0
+                    Bounciness
+
+                 */
+                if (line.contains("EmptyMass")) {
+                    String emptyMass = line.split(":")[1];
+                    emptyMass = emptyMass.substring(1);
+                    block.setEmptyMass(emptyMass);
+                }
+                if (line.contains("CenterOfGravityOffset")) {
+                    String centerOfGravityOffset = line.split(":")[1];
+                    centerOfGravityOffset = centerOfGravityOffset.substring(1);
+                    block.setCenterOfGravityOffset(centerOfGravityOffset);
+                }
+                if (line.contains("DespawnTime")) {
+                    String despawnTime = line.split(":")[1];
+                    despawnTime = despawnTime.substring(1);
+                    block.setDespawnTime(despawnTime);
+                }
+                if (line.contains("Item3DRenderLocation")) {
+                    String item3DRenderLocation = line.split(":")[1];
+                    item3DRenderLocation = item3DRenderLocation.substring(1);
+                    block.setItem3DRenderLocation(item3DRenderLocation);
+                }
+                if (line.contains("IconText")) {
+                    String iconText = line.split(":")[1];
+                    iconText = iconText.substring(1);
+                    block.setIconText(iconText);
+                }
+                if (line.contains("Textures")) {
+                    String textures = line.split(":")[1];
+                    textures = textures.substring(1);
+                    block.setTextures(textures);
+                }
+                if (line.contains("Rotate")) {
+                    String rotation = line.split(":")[1];
+                    rotation = rotation.substring(1);
+                    block.setRotation(rotation);
+                }
+                if (line.contains("RenderDistance")) {
+                    String renderDistance = line.split(":")[1];
+                    renderDistance = renderDistance.substring(1);
+                    block.setRenderDistance(renderDistance);
+                }
+                if (line.contains("LightLevel")) {
+                    String lightLevel = line.split(":")[1];
+                    lightLevel = lightLevel.substring(1);
+                    block.setLightLevel(lightLevel);
+                }
+                if (line.contains("Material:")) {
+                    String material = line.split(":")[1];
+                    material = material.substring(1);
+                    block.setMaterial(material);
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }

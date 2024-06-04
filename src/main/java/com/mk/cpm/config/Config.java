@@ -72,4 +72,8 @@ public class Config {
     public static void setLastdirectory(String lastdirectory) {
         Config.lastdirectory = lastdirectory;
     }
+    //get path cache
+    public static String getCachePath() {
+        return System.getenv("APPDATA") + "/cpm/cache";
+    }
 }

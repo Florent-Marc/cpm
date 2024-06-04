@@ -106,7 +106,9 @@ public class LoginController implements Initializable {
             String jsonResponse = response.toString();
             return jsonResponse.contains("\"authenticated\":true");
         } else {
+            System.out.println("Network error: " + con);
             System.out.println("POST request not worked");
+            System.out.println("Check your network connection");
             return false;
         }
     }

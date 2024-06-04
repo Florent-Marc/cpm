@@ -108,7 +108,7 @@ public class CreateController implements Initializable{
             return;
         }
         //TODO check if file existe deja
-        String packname = MainController.packname;
+        Object packname = MainController.packname;
         //check if dir blocks exist
         //if not create it
         if (!new File(Config.getLastdirectory()+"/"+packname+"/blocks").exists()){

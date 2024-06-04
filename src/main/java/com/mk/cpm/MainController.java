@@ -32,14 +32,14 @@ public class MainController implements Initializable {
     public static Block blockselected;
     public static Stage create;
     public static Stage modify;
+    public static Object packname;
 
     @FXML
     public ListView<String> list;
-    public ListView<String> pack;
+    public ListView<Object> pack;
     public ListView<String> info;
     public Label left;
     public Button add;
-    public static String packname;
     public Button remove;
     public ChoiceBox choice;
     public Menu editmenu;
@@ -62,7 +62,7 @@ public class MainController implements Initializable {
             if (Config.getLastdirectory().isEmpty()) {
                 return;
             }
-            ObservableList<String> l2 = FXCollections.observableArrayList();
+            ObservableList<Object> l2 = FXCollections.observableArrayList();
             l2.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
             pack.setItems(l2);
         }
@@ -216,7 +216,7 @@ public class MainController implements Initializable {
             return;
         }
         if(selectedFile.isDirectory()){
-            ObservableList<String> l = FXCollections.observableArrayList();
+            ObservableList<Object> l = FXCollections.observableArrayList();
             l.addAll(new LoaderPack().getPacks(selectedFile));
             pack.setItems(l);
             list.getItems().clear();
