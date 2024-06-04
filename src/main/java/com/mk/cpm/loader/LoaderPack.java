@@ -31,13 +31,12 @@ public class LoaderPack {
             }
             if (f.getName().contains(".dnxpack")){
                 File f2 = new File(f.getAbsolutePath());
-                System.out.println(f2.getAbsolutePath());
                 try (ZipFile zipFile = new ZipFile(f2)) {
                     Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
                     while (entries.hasMoreElements()) {
                         ZipEntry entry = entries.nextElement();
-                        if(entry.getName().equals("pack_info.dynx")){
+                        if(entry.getName().equals("pack_info.dynx")||entry.getName().equals("MpsRepositories.dnx")){
                             p.add(f.getName());
                         }
                     }
