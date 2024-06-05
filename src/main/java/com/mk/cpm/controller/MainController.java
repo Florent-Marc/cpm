@@ -2,9 +2,7 @@ package com.mk.cpm.controller;
 
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.config.Config;
-import com.mk.cpm.loader.Block;
-import com.mk.cpm.loader.LoaderBlock;
-import com.mk.cpm.loader.LoaderPack;
+import com.mk.cpm.loader.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -26,7 +24,7 @@ public class MainController implements Initializable {
 
     public static MainController mainController;
 
-    public static Block blockselected;
+    public static Object blockselected;
     public static Stage create;
     public static Stage modify;
     public static Stage createpack;
@@ -79,12 +77,20 @@ public class MainController implements Initializable {
         remove.setVisible(true);
         remove.setDisable(true);
         choice.setVisible(true);
+        int b = 0;
+        int a = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
         for (Block block : LoaderBlock.getBlocksByPack(pack.getSelectionModel().getSelectedItem())) {
-            l.add(block.getName());
+            l.add("(b)"+block.getName());
+            b++;
+        }
+        for (Armor armor : LoaderArmor.getArmorByPack(pack.getSelectionModel().getSelectedItem())) {
+            l.add("(a)"+armor.getName());
+            a++;
         }
         list.setItems(l);
-        left.setText("Contents : " + l.size() + " Block(s)");
+        info.getItems().clear();
+        left.setText("Contents : " + b + " Blocks and " + a + " Armors");
         packname = pack.getSelectionModel().getSelectedItem();
         add.setVisible(true);
         newpack.setDisable(false);
@@ -96,23 +102,46 @@ public class MainController implements Initializable {
             remove.setDisable(true);
             return;
         }
-        for (Block block : LoaderBlock.getBlocks()) {
-            if (block.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                blockselected = block;
-                remove.setDisable(false);
-                ObservableList<String> gf = FXCollections.observableArrayList();
-                for (String s : block.getInfos()) {
-                    //check if null
-                    if (s == null) {
-                        continue;
+        if (list.getSelectionModel().getSelectedItem().contains("(b)")) {
+            for (Block block : LoaderBlock.getBlocks()) {
+                if (block.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
+                    blockselected = block;
+                    remove.setDisable(false);
+                    ObservableList<String> gf = FXCollections.observableArrayList();
+                    for (String s : block.getInfos()) {
+                        //check if null
+                        if (s == null) {
+                            continue;
+                        }
+                        if (s.contains("null")) {
+                            continue;
+                        }
+                        gf.add(s);
                     }
-                    if (s.contains("null")) {
-                        continue;
-                    }
-                    gf.add(s);
-                }
-                info.setItems(gf);
+                    info.setItems(gf);
 
+                }
+            }
+        }
+        if (list.getSelectionModel().getSelectedItem().contains("(a)")) {
+            for (Armor armor : LoaderArmor.getArmor()) {
+                if (armor.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
+                    blockselected = armor;
+                    remove.setDisable(false);
+                    ObservableList<String> gf = FXCollections.observableArrayList();
+                    for (String s : armor.getInfos()) {
+                        //check if null
+                        if (s == null) {
+                            continue;
+                        }
+                        if (s.contains("null")) {
+                            continue;
+                        }
+                        gf.add(s);
+                    }
+                    info.setItems(gf);
+
+                }
             }
         }
 

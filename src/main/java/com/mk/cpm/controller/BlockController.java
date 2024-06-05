@@ -15,6 +15,8 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 public class BlockController implements Initializable {
+
+    private Block block;
     @FXML
     public Tab tabprop;
     public CheckBox isprop;
@@ -42,7 +44,13 @@ public class BlockController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        Block block = MainController.blockselected;
+        if (MainController.blockselected instanceof Block){
+             block= (Block) MainController.blockselected;
+        }
+        if (block == null) {
+            Stage stage = (Stage) name.getScene().getWindow();
+            stage.close();
+        }
         if (block.getEmptyMass() !=null) {
             tabprop.setDisable(false);
             isprop.setSelected(true);
@@ -123,7 +131,7 @@ public class BlockController implements Initializable {
 
     @FXML
     public void save(MouseEvent mouseEvent) {
-        File f = LoaderBlock.getFile(MainController.blockselected.getName());
+        File f = LoaderBlock.getFile(block.getName());
         if (f == null) {
             return;
         }
@@ -172,7 +180,7 @@ public class BlockController implements Initializable {
                 fw.write("UseComplexCollisions: " + UseComplexCollision.getText() + "\n");
             }
             if(!EmptyMass.getText().isEmpty()){
-                String name = MainController.blockselected.getName();
+                String name = block.getName();
                 //get first word
                 String[] words = name.split(" ");
                 fw.write("Prop_"+words[0]+"{" + "\n");
