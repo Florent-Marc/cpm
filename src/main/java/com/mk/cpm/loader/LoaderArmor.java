@@ -1,6 +1,7 @@
 package com.mk.cpm.loader;
 
 import com.mk.cpm.config.Config;
+import com.mk.cpm.loader.object.Armor;
 
 import java.io.BufferedReader;
 import java.io.File;

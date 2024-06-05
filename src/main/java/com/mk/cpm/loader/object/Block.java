@@ -1,4 +1,4 @@
-package com.mk.cpm.loader;
+package com.mk.cpm.loader.object;
 
 public class Block {
 

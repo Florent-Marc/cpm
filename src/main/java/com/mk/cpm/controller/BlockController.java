@@ -1,6 +1,6 @@
 package com.mk.cpm.controller;
 
-import com.mk.cpm.loader.Block;
+import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.LoaderBlock;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;

@@ -3,6 +3,8 @@ package com.mk.cpm.controller;
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.*;
+import com.mk.cpm.loader.object.Armor;
+import com.mk.cpm.loader.object.Block;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
