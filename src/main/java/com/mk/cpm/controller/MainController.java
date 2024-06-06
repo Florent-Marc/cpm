@@ -55,7 +55,7 @@ public class MainController implements Initializable {
         remove.setVisible(false);
         remove.setDisable(true);
         choice.setVisible(false);
-        choice.getItems().addAll("Soon !");
+        choice.getItems().addAll("All","Block", "Armor");
         choice.getSelectionModel().selectFirst();
         if (Config.getLastdirectory() != null) {
             if (Config.getLastdirectory().isEmpty()) {
@@ -82,13 +82,18 @@ public class MainController implements Initializable {
         int b = 0;
         int a = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
-        for (Block block : LoaderBlock.getBlocksByPack(pack.getSelectionModel().getSelectedItem())) {
-            l.add("(b)"+block.getName());
-            b++;
+        String choice = this.choice.getSelectionModel().getSelectedItem().toString();
+        if (choice.equals("Block")||choice.equals("All")) {
+            for (Block block : LoaderBlock.getBlocksByPack(pack.getSelectionModel().getSelectedItem())) {
+                l.add("(b)" + block.getName());
+                b++;
+            }
         }
-        for (Armor armor : LoaderArmor.getArmorByPack(pack.getSelectionModel().getSelectedItem())) {
-            l.add("(a)"+armor.getName());
-            a++;
+        if (choice.equals("Armor")||choice.equals("All")) {
+            for (Armor armor : LoaderArmor.getArmorByPack(pack.getSelectionModel().getSelectedItem())) {
+                l.add("(a)" + armor.getName());
+                a++;
+            }
         }
         list.setItems(l);
         info.getItems().clear();
@@ -179,8 +184,16 @@ public class MainController implements Initializable {
     //refresh block list
     public void refresh(){
         ObservableList<String> l = FXCollections.observableArrayList();
-        for (Block block : LoaderBlock.getBlocksByPack(packname)) {
-            l.add(block.getName());
+        String choice = this.choice.getSelectionModel().getSelectedItem().toString();
+        if (choice.equals("Block")||choice.equals("All")) {
+            for (Block block : LoaderBlock.getBlocksByPack(packname)) {
+                l.add("(b)" + block.getName());
+            }
+        }
+        if (choice.equals("Armor")||choice.equals("All")) {
+            for (Armor armor : LoaderArmor.getArmorByPack(packname)) {
+                l.add("(a)" + armor.getName());
+            }
         }
         this.list.setItems(l);
     }
@@ -295,5 +308,10 @@ public class MainController implements Initializable {
         createpack.setScene(scene);
         createpack.setResizable(false);
         createpack.show();
+    }
+
+    @FXML
+    public void choice(ActionEvent actionEvent) {
+        refresh();
     }
 }

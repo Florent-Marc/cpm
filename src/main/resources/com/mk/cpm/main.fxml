@@ -78,7 +78,7 @@
                         <ListView fx:id="list" layoutY="50.0" onMouseClicked="#listf" prefHeight="498.0" prefWidth="440.0" />
                         <Button fx:id="add" layoutX="97.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#add" text="+" />
                         <Button fx:id="remove" layoutX="133.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#remove" prefHeight="26.0" prefWidth="25.0" text="-" />
-                        <ChoiceBox layoutX="276.0" layoutY="16.0" prefWidth="150.0" fx:id="choice"/>
+                        <ChoiceBox layoutX="276.0" layoutY="16.0" prefWidth="150.0" fx:id="choice" onAction="#choice" />
               </children>
             </AnchorPane>
           </content>
