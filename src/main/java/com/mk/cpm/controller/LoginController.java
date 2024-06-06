@@ -10,6 +10,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
@@ -30,15 +31,11 @@ public class LoginController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        //https://cdn.discordapp.com/icons/1133059121931878451/395bfcf2ed461023861ba147f6c98ae9.webp?size=128
-        /*
-        Image i = new Image("ok");
-        if (i.isError()){
-            System.out.println(i.getUrl());
-        }
+        //http://62.4.21.235/logo.png
+        Image i = new Image("http://62.4.21.235/logo.png");
         image.setImage(i);
 
-         */
+
         if (Config.getUser() !=null) {
             user.setText(Config.getUser());
         }
