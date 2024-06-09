@@ -5,6 +5,7 @@ import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.*;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
+import com.mk.cpm.loader.object.Vehicul;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -20,17 +21,19 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
 
     public static MainController mainController;
 
-    public static Object blockselected;
+    public static String blockselected;
     public static Stage create;
     public static Stage modify;
     public static Stage createpack;
-    public static Object packname;
+    public static String packname;
 
     @FXML
     public ListView<String> list;
@@ -55,7 +58,7 @@ public class MainController implements Initializable {
         remove.setVisible(false);
         remove.setDisable(true);
         choice.setVisible(false);
-        choice.getItems().addAll("All","Block", "Armor");
+        choice.getItems().addAll("All","Block", "Armor", "Vehicle", "Item");
         choice.getSelectionModel().selectFirst();
         if (Config.getLastdirectory() != null) {
             if (Config.getLastdirectory().isEmpty()) {
@@ -83,22 +86,46 @@ public class MainController implements Initializable {
         int a = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
         String choice = this.choice.getSelectionModel().getSelectedItem().toString();
+        List<Object> objects = Loader.getBlocksByPack(pack.getSelectionModel().getSelectedItem().toString());
         if (choice.equals("Block")||choice.equals("All")) {
-            for (Block block : LoaderBlock.getBlocksByPack(pack.getSelectionModel().getSelectedItem())) {
-                l.add("(b)" + block.getName());
-                b++;
+            for (Object o : objects) {
+                if (o instanceof Block) {
+                    Block block = (Block) o;
+                    l.add("(b)" + block.getName());
+                    b++;
+                }
             }
         }
         if (choice.equals("Armor")||choice.equals("All")) {
-            for (Armor armor : LoaderArmor.getArmorByPack(pack.getSelectionModel().getSelectedItem())) {
-                l.add("(a)" + armor.getName());
-                a++;
+            for (Object o : objects) {
+                if (o instanceof Armor) {
+                    Armor armor = (Armor) o;
+                    l.add("(a)" + armor.getName());
+                    a++;
+                }
             }
         }
+        if (choice.equals("Vehicle")||choice.equals("All")) {
+            for (Object o : objects) {
+                if (o instanceof Vehicul) {
+                    Vehicul vehicul = (Vehicul) o;
+                    l.add("(v)" + vehicul.getName());
+                }
+            }
+        }
+        if (choice.equals("Item")||choice.equals("All")) {
+            for (Object o : objects) {
+                if (o instanceof Vehicul) {
+                    Vehicul vehicul = (Vehicul) o;
+                    l.add("(i)" + vehicul.getName());
+                }
+            }
+        }
+
         list.setItems(l);
         info.getItems().clear();
         left.setText("Contents : " + b + " Blocks and " + a + " Armors");
-        packname = pack.getSelectionModel().getSelectedItem();
+        packname = pack.getSelectionModel().getSelectedItem().toString();
         add.setVisible(true);
         newpack.setDisable(false);
     }
@@ -109,48 +136,70 @@ public class MainController implements Initializable {
             remove.setDisable(true);
             return;
         }
-        if (list.getSelectionModel().getSelectedItem().contains("(b)")) {
-            for (Block block : LoaderBlock.getBlocks()) {
-                if (block.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                    blockselected = block;
-                    remove.setDisable(false);
-                    ObservableList<String> gf = FXCollections.observableArrayList();
-                    for (String s : block.getInfos()) {
-                        //check if null
-                        if (s == null) {
-                            continue;
-                        }
-                        if (s.contains("null")) {
-                            continue;
-                        }
-                        gf.add(s);
-                    }
-                    info.setItems(gf);
 
+            for (Object block : Loader.getObject()) {
+                if ((block instanceof Block)) {
+                    Block b = (Block) block;
+                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
+                        blockselected = ((Block) block).getName();
+                        remove.setDisable(false);
+                        ObservableList<String> gf = FXCollections.observableArrayList();
+                        for (String s : b.getInfos()) {
+                            //check if null
+                            if (s == null) {
+                                continue;
+                            }
+                            if (s.contains("null")) {
+                                continue;
+                            }
+                            gf.add(s);
+                        }
+                        info.setItems(gf);
+
+                    }
+                }
+                if ((block instanceof Armor)) {
+                    Armor b = (Armor) block;
+                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
+                        blockselected = ((Armor) block).getName();
+                        remove.setDisable(false);
+                        ObservableList<String> gf = FXCollections.observableArrayList();
+                        for (String s : b.getInfos()) {
+                            //check if null
+                            if (s == null) {
+                                continue;
+                            }
+                            if (s.contains("null")) {
+                                continue;
+                            }
+                            gf.add(s);
+                        }
+                        info.setItems(gf);
+
+                    }
+                }
+                if ((block instanceof Vehicul)) {
+                    Vehicul b = (Vehicul) block;
+                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
+                        blockselected = ((Vehicul) block).getName();
+                        remove.setDisable(false);
+                        ObservableList<String> gf = FXCollections.observableArrayList();
+                        for (String s : b.getInfos()) {
+                            //check if null
+                            if (s == null) {
+                                continue;
+                            }
+                            if (s.contains("null")) {
+                                continue;
+                            }
+                            gf.add(s);
+                        }
+                        info.setItems(gf);
+
+                    }
                 }
             }
-        }
-        if (list.getSelectionModel().getSelectedItem().contains("(a)")) {
-            for (Armor armor : LoaderArmor.getArmor()) {
-                if (armor.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                    blockselected = armor;
-                    remove.setDisable(false);
-                    ObservableList<String> gf = FXCollections.observableArrayList();
-                    for (String s : armor.getInfos()) {
-                        //check if null
-                        if (s == null) {
-                            continue;
-                        }
-                        if (s.contains("null")) {
-                            continue;
-                        }
-                        gf.add(s);
-                    }
-                    info.setItems(gf);
 
-                }
-            }
-        }
 
         if (mouseEvent.getClickCount() == 2) {
 
@@ -186,13 +235,31 @@ public class MainController implements Initializable {
         ObservableList<String> l = FXCollections.observableArrayList();
         String choice = this.choice.getSelectionModel().getSelectedItem().toString();
         if (choice.equals("Block")||choice.equals("All")) {
-            for (Block block : LoaderBlock.getBlocksByPack(packname)) {
-                l.add("(b)" + block.getName());
+            for (Object block : Loader.getBlocksByPack(packname)) {
+                if (block instanceof Block){
+                    l.add("(b)" + ((Block) block).getName());
+                }
             }
         }
         if (choice.equals("Armor")||choice.equals("All")) {
-            for (Armor armor : LoaderArmor.getArmorByPack(packname)) {
-                l.add("(a)" + armor.getName());
+            for (Object block : Loader.getBlocksByPack(packname)) {
+                if (block instanceof Armor){
+                    l.add("(a)" + ((Armor) block).getName());
+                }
+            }
+        }
+        if (choice.equals("Vehicle")||choice.equals("All")) {
+            for (Object block : Loader.getBlocksByPack(packname)) {
+                if (block instanceof Vehicul){
+                    l.add("(v)" + ((Vehicul) block).getName());
+                }
+            }
+        }
+        if (choice.equals("Item")||choice.equals("All")) {
+            for (Object block : Loader.getBlocksByPack(packname)) {
+                if (block instanceof Vehicul){
+                    l.add("(i)" + ((Vehicul) block).getName());
+                }
             }
         }
         this.list.setItems(l);
@@ -210,46 +277,49 @@ public class MainController implements Initializable {
         if (list.getSelectionModel().getSelectedItem() == null) {
             return;
         }
-        for (Block block : LoaderBlock.getBlocks()) {
-            if (block.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                //remove dir of block
-                File f = new File("pack/" + packname + "/assets/dynamxmod/models/" + block.getModel()).getParentFile();
-                //remove dir
-                if (f.exists()) {
-                    f.deleteOnExit();
-                }
-                //remove .dynx file
-                File f2 = new File("pack/" + packname);
-                //find file in dir
-                for (File f3 : f2.listFiles()) {
-                    //pack check pack_info.dynx and assets
-                    if(f3.getName().equals("pack_info.dynx")||f3.getName().equals("assets")){
-                        continue;
+        for (Object block : Loader.getObject()) {
+            if (block instanceof Block) {
+                Block b = (Block) block;
+                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
+                    //remove dir of block
+                    File f = new File("pack/" + packname + "/assets/dynamxmod/models/" + b.getModel()).getParentFile();
+                    //remove dir
+                    if (f.exists()) {
+                        f.deleteOnExit();
                     }
-                    if (f3.isDirectory()){
-                        for (File f4 : f3.listFiles()){
-                            if(f4.isDirectory()){
-                                for (File f5 : f4.listFiles()) {
-                                    if (f5.getName().equals("block_"+block.getName() + ".dynx")) {
-                                        f5.deleteOnExit();
-                                        f5.delete();
-                                        break;
+                    //remove .dynx file
+                    File f2 = new File("pack/" + packname);
+                    //find file in dir
+                    for (File f3 : f2.listFiles()) {
+                        //pack check pack_info.dynx and assets
+                        if (f3.getName().equals("pack_info.dynx") || f3.getName().equals("assets")) {
+                            continue;
+                        }
+                        if (f3.isDirectory()) {
+                            for (File f4 : f3.listFiles()) {
+                                if (f4.isDirectory()) {
+                                    for (File f5 : f4.listFiles()) {
+                                        if (f5.getName().equals("block_" + b.getName() + ".dynx")) {
+                                            f5.deleteOnExit();
+                                            f5.delete();
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            if (f4.getName().equals("block_"+block.getName() + ".dynx")) {
-                                f4.deleteOnExit();
-                                f4.delete();
-                                break;
+                                if (f4.getName().equals("block_" + b.getName() + ".dynx")) {
+                                    f4.deleteOnExit();
+                                    f4.delete();
+                                    break;
+                                }
                             }
                         }
-                    }
-                    if (f3.getName().equals("block_"+block.getName() + ".dynx")) {
-                        f3.deleteOnExit();
-                        f3.delete();
-                        break;
-                    }
+                        if (f3.getName().equals("block_" + b.getName() + ".dynx")) {
+                            f3.deleteOnExit();
+                            f3.delete();
+                            break;
+                        }
 
+                    }
                 }
             }
         }

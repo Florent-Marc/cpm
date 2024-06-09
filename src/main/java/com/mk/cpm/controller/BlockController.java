@@ -1,7 +1,7 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Block;
-import com.mk.cpm.loader.LoaderBlock;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -44,8 +44,19 @@ public class BlockController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        if (MainController.blockselected instanceof Block){
-             block= (Block) MainController.blockselected;
+        if (MainController.blockselected == null) {
+            return;
+        }
+        if (MainController.blockselected.isEmpty()){
+            return;
+        }
+        for (Object o : Loader.getObject()) {
+            if (o instanceof Block) {
+                Block b = (Block) o;
+                if (b.getName().equals(MainController.blockselected.replace("(b)",""))) {
+                    block = b;
+                }
+            }
         }
         if (block == null) {
             Stage stage = (Stage) name.getScene().getWindow();
@@ -72,8 +83,8 @@ public class BlockController implements Initializable {
         if (block.getItemRotation() != null) {
             itemrotation.setText(block.getItemRotation());
         }
-        if (block.getItemTranslation() != null) {
-            itemtranslation.setText(block.getItemTranslation());
+        if (block.getItem().getItemTranslate() != null) {
+            itemtranslation.setText(block.getItem().getItemTranslate());
         }
         if (block.getItemScale() != null) {
             itemscale.setText(block.getItemScale());
@@ -131,7 +142,7 @@ public class BlockController implements Initializable {
 
     @FXML
     public void save(MouseEvent mouseEvent) {
-        File f = LoaderBlock.getFile(block.getName());
+        File f = null;
         if (f == null) {
             return;
         }
