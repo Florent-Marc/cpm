@@ -1,5 +1,9 @@
 package com.mk.cpm.loader.object;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 public class Armor extends Item {
 
     private String ArmorHead;
@@ -12,27 +16,32 @@ public class Armor extends Item {
     private String Textures;
     private String Toughness;
     private String DamageReduction;
+    private List<String> infos;
+    private Item item;
+
+    @Override
+    public Object load(File file) {
+        this.infos = new ArrayList<>();
+        this.item = (Item) super.load(file);
+        this.infos.addAll(this.item.getInfos());
+        this.ArmorArms = getValues(infos,file, "ArmorArms");
+        this.ArmorBody = getValues(infos,file, "ArmorBody");
+        this.ArmorFoot = getValues(infos,file, "ArmorFoot");
+        this.ArmorHead = getValues(infos,file, "ArmorHead");
+        this.ArmorLegs = getValues(infos,file, "ArmorLegs");
+        this.DamageReduction = getValues(infos,file, "DamageReduction");
+        this.Durability = getValues(infos,file, "Durability");
+        this.Textures = getValues(infos,file, "Textures");
+        this.Toughness = getValues(infos,file, "Toughness");
+        return this;
+    }
 
     public Armor() {
     }
 
     @Override
-    public String[] getInfos() {
-        String[] infos = new String[super.getInfos().length + 9];
-        infos[0] = "ArmorHead: " + ArmorHead;
-        infos[1] = "ArmorBody: " + ArmorBody;
-        infos[2] = "ArmorArms: " + ArmorArms;
-        infos[3] = "ArmorLegs: " + ArmorLegs;
-        infos[4] = "ArmorFoot: " + ArmorFoot;
-        infos[5] = "Durability: " + Durability;
-        infos[6] = "Textures: " + Textures;
-        infos[7] = "Toughness: " + Toughness;
-        infos[8] = "DamageReduction: " + DamageReduction;
-        String[] superInfos = super.getInfos();
-        for (int i = 0; i < superInfos.length; i++) {
-            infos[i + 9] = superInfos[i];
-        }
-        return infos;
+    public List<String> getInfos() {
+        return this.infos;
     }
 
     public String getArmorHead() {

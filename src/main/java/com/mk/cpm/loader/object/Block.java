@@ -1,18 +1,16 @@
 package com.mk.cpm.loader.object;
 
-public class Block {
+import com.mk.cpm.loader.DataModifier;
 
-    //required
-    private String name;
-    private String desc;
-    private String model;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Block extends Item implements DataModifier {
+
     //item
-    private String CreativeTab;
-    private String ItemRotation;
-    private String ItemTranslation;
-    private String ItemScale;
-    private String IconText;
-    private String Item3DRenderLocation;
     //advanced
     private String LightLevel;
     private String Material;
@@ -26,35 +24,13 @@ public class Block {
     private String CenterOfGravityOffset;
     private String EmptyMass;
     private String DespawnTime;
-
+    private List<String> infos;
+    private Item item;
 
 
     public Block() {
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getDesc() {
-        return desc;
-    }
-
-    public String getModel() {
-        return model;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDesc(String desc) {
-        this.desc = desc;
-    }
-
-    public void setModel(String model) {
-        this.model = model;
-    }
 
     public String getScale() {
         return Scale;
@@ -72,60 +48,44 @@ public class Block {
         Translation = translation;
     }
 
-    public String getCreativeTab() {
-        return CreativeTab;
+
+    public Item getItem() {
+        return item;
     }
 
-    public void setCreativeTab(String creativeTab) {
-        CreativeTab = creativeTab;
+    public void setItem(Item item) {
+        this.item = item;
     }
 
-    public String[] getInfos() {
-        return new String[]{"Name : " + name,
-                "Description : " + desc,
-                "Model : " + model,
-                "Scale : " + Scale,
-                "Translation : " + Translation,
-                "CreativeTab : " + CreativeTab,
-                "ItemRotation : " + ItemRotation,
-                "ItemTranslation : " + ItemTranslation,
-                "ItemScale : " + ItemScale,
-                "LightLevel : " + LightLevel,
-                "Material : " + Material,
-                "RenderDistance : " + RenderDistance,
-                "Rotation : " + Rotation,
-                "Textures : " + Textures,
-                "UseComplexCollision : " + UseComplexCollision,
-                "CenterOfGravityOffset : " + CenterOfGravityOffset,
-                "EmptyMass : " + EmptyMass,
-                "IconText : " + IconText,
-                "Item3DRenderLocation : " + Item3DRenderLocation,
-                "DespawnTime : " + DespawnTime};
+    @Override
+    public Object load(File file) {
+        this.item = (Item) super.load(file);
+        this.infos = new ArrayList<>();
+        this.infos = super.getInfos();
+        this.LightLevel = getValues(infos, file, "LightLevel");
+        this.Material = getValues(infos, file, "Material");
+        this.RenderDistance = getValues(infos, file, "RenderDistance");
+        this.Scale = getValues(infos, file, "Scale");
+        this.Rotation = getValues(infos, file, "Rotate");
+        this.Translation = getValues(infos, file, "Translate");
+        this.Textures = getValues(infos, file, "Variants:");
+        this.UseComplexCollision = Boolean.parseBoolean(getValues(infos, file, "UseComplexCollision"));
+        this.CenterOfGravityOffset = getValues(infos, file, "CenterOfGravityOffset");
+        this.EmptyMass = getValues(infos, file, "EmptyMass");
+        this.DespawnTime = getValues(infos, file, "DespawnTime");
+        return this;
     }
 
-    public String getItemRotation() {
-        return ItemRotation;
+    @Override
+    public void save(FileWriter file) {
+
     }
 
-    public void setItemRotation(String itemRotation) {
-        ItemRotation = itemRotation;
+    @Override
+    public List<String> getInfos() {
+        return this.infos;
     }
 
-    public String getItemTranslation() {
-        return ItemTranslation;
-    }
-
-    public void setItemTranslation(String itemTranslation) {
-        ItemTranslation = itemTranslation;
-    }
-
-    public String getItemScale() {
-        return ItemScale;
-    }
-
-    public void setItemScale(String itemScale) {
-        ItemScale = itemScale;
-    }
 
     public String getLightLevel() {
         return LightLevel;
@@ -191,21 +151,6 @@ public class Block {
         EmptyMass = emptyMass;
     }
 
-    public String getIconText() {
-        return IconText;
-    }
-
-    public void setIconText(String iconText) {
-        IconText = iconText;
-    }
-
-    public String getItem3DRenderLocation() {
-        return Item3DRenderLocation;
-    }
-
-    public void setItem3DRenderLocation(String item3DRenderLocation) {
-        Item3DRenderLocation = item3DRenderLocation;
-    }
 
     public String getDespawnTime() {
         return DespawnTime;

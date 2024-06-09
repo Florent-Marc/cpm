@@ -1,6 +1,15 @@
 package com.mk.cpm.loader.object;
 
-public class Item {
+import com.mk.cpm.loader.DataModifier;
+import com.mk.cpm.loader.DataUtils;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Item extends DataUtils implements DataModifier {
 
     //required
     private String name;
@@ -14,6 +23,7 @@ public class Item {
     private String IconText;
     private String Item3DRenderLocation;
     private String MaxItemStackSize;
+    private List<String> infos;
 
     public Item() {
     }
@@ -99,18 +109,30 @@ public class Item {
         Item3DRenderLocation = item3DRenderLocation;
     }
 
-    public String[] getInfos() {
-        return new String[]{"Name : " + name,
-            "Description : " + desc,
-            "Model : " + model,
-            "CreativeTab : " + CreativeTab,
-            "ItemRotation : " + ItemRotation,
-            "ItemTranslation : " + ItemTranslate,
-            "ItemScale : " + ItemScale,
-            "IconText : " + IconText,
-            "Item3DRenderLocation : " + Item3DRenderLocation,
-            "MaxItemStackSize : " + MaxItemStackSize
-        };
+    @Override
+    public Object load(File file) {
+        this.infos = new ArrayList<>();
+        this.name = getValues(infos, file, "Name");
+        this.desc = getValues(infos, file, "Description");
+        this.model = getValues(infos, file, "Model");
+        this.CreativeTab = getValues(infos, file, "CreativeTab");
+        this.ItemRotation = getValues(infos, file, "ItemRotate");
+        this.ItemTranslate = getValues(infos, file, "ItemTranslate");
+        this.ItemScale = getValues(infos, file, "ItemScale");
+        this.IconText = getValues(infos, file, "IconText");
+        this.Item3DRenderLocation = getValues(infos, file, "Item3DRenderLocation");
+        this.MaxItemStackSize = getValues(infos, file, "MaxItemStackSize");
+        return this;
+    }
+
+    @Override
+    public void save(FileWriter file) {
+
+    }
+
+    @Override
+    public List<String> getInfos() {
+        return this.infos;
     }
 
 }
