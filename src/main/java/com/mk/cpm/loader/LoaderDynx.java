@@ -1,6 +1,9 @@
 package com.mk.cpm.loader;
 
+import com.mk.cpm.loader.object.Block;
+
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -21,10 +24,12 @@ public class LoaderDynx {
                 if (entry.getName().contains("block_")) {
                     try (InputStream inputStream = zipFile.getInputStream(entry);
                          BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-                        objects.add(LoaderBlock.createBlock(reader));
+                        //Create file temp for block
+                        Block block = new Block();
+                        objects.add(block);
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            System.out.println(line);
+                            //System.out.println(line);
                         }
                     }
                 }
