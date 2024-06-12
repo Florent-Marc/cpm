@@ -1,4 +1,4 @@
-package com.mk.cpm.loader;
+package com.mk.cpm.loader.utils;
 
 import java.io.*;
 import java.util.ArrayList;
