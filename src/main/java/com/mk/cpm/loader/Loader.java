@@ -1,10 +1,12 @@
 package com.mk.cpm.loader;
 
+import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.object.Item;
 import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.pack.ZipExtractor;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,27 +51,27 @@ public class Loader {
         }
     }
 
+
     //get all and return object item ,block ,armor ,vehicul with Config.getLastdirectory()
     public static List<Object> getBlocksByPack(String s){
         if (s == null){
             return new ArrayList<>();
         }
         List<Object> objects = new ArrayList<>();
-        File file = new File(Config.getLastdirectory() +"/"+ s);
+        File file;
+        if (Main.isDynxPack){
+            try {
+                ZipExtractor.extractZip(Config.getLastdirectory()+ "/" + s, Config.getCachePath()+"/pack/"+s);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            file = new File(Config.getCachePath()+"/pack/"+s);
+        }else {
+            file = new File(Config.getLastdirectory() + "/" + s);
+        }
         String[] ban = {"assets", "pack_info.dynx"};
         //get all dir in the directory
         //check if file contains .dnxpack
-        if (file.getName().contains(".dnxpack")){
-            objects = (List<Object>) LoaderDynx.loadContentDynxPack(file.getAbsolutePath());
-            for (Object o : objects){
-                if (o instanceof Block){
-                    Block block = (Block) o;
-                    System.out.println(block.getName());
-
-                }
-            }
-            return objects;
-        }
         File[] files = listFiles(file.getAbsolutePath()).stream().map(Path::toFile).toArray(File[]::new);
         if (files == null){
             return objects;

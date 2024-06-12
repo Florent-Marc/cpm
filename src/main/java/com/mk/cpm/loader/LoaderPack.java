@@ -37,7 +37,9 @@ public class LoaderPack {
                     while (entries.hasMoreElements()) {
                         ZipEntry entry = entries.nextElement();
                         if(entry.getName().equals("pack_info.dynx")||entry.getName().equals("MpsRepositories.dnx")){
-                            p.add(f.getName());
+                            if (!p.contains(f.getName())) {
+                                p.add(f.getName());
+                            }
                         }
                     }
                 } catch (IOException e) {
@@ -46,5 +48,15 @@ public class LoaderPack {
             }
         }
         return p;
+    }
+
+    public static void deleteDirectory(File directory) {
+        File[] allContents = directory.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        directory.delete();
     }
 }

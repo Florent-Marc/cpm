@@ -1,10 +1,12 @@
 package com.mk.cpm.controller;
 
 import com.mk.cpm.HelloApplication;
+import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.*;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
+import com.mk.cpm.loader.object.Item;
 import com.mk.cpm.loader.object.Vehicul;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
-import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
@@ -75,63 +76,21 @@ public class MainController implements Initializable {
 
 
     @FXML
-    public void pack(MouseEvent mouseEvent) {
+    public void packSelecter(MouseEvent mouseEvent) {
         if (pack.getSelectionModel().getSelectedItem() == null) {
             return;
         }
         remove.setVisible(true);
         remove.setDisable(true);
         choice.setVisible(true);
-        int b = 0;
-        int a = 0;
-        ObservableList<String> l = FXCollections.observableArrayList();
-        String choice = this.choice.getSelectionModel().getSelectedItem().toString();
-        List<Object> objects = Loader.getBlocksByPack(pack.getSelectionModel().getSelectedItem().toString());
-        if (choice.equals("Block")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Block) {
-                    Block block = (Block) o;
-                    l.add("(b)" + block.getName());
-                    b++;
-                }
-            }
-        }
-        if (choice.equals("Armor")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Armor) {
-                    Armor armor = (Armor) o;
-                    l.add("(a)" + armor.getName());
-                    a++;
-                }
-            }
-        }
-        if (choice.equals("Vehicle")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Vehicul) {
-                    Vehicul vehicul = (Vehicul) o;
-                    l.add("(v)" + vehicul.getName());
-                }
-            }
-        }
-        if (choice.equals("Item")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Vehicul) {
-                    Vehicul vehicul = (Vehicul) o;
-                    l.add("(i)" + vehicul.getName());
-                }
-            }
-        }
-
-        list.setItems(l);
-        info.getItems().clear();
-        left.setText("Contents : " + b + " Blocks and " + a + " Armors");
+        refresh();
         packname = pack.getSelectionModel().getSelectedItem().toString();
         add.setVisible(true);
         newpack.setDisable(false);
     }
 
     @FXML
-    public void listf(MouseEvent mouseEvent) {
+    public void ObjectSelecter(MouseEvent mouseEvent) {
         if (list.getSelectionModel().getSelectedItem() == null) {
             remove.setDisable(true);
             return;
@@ -202,25 +161,26 @@ public class MainController implements Initializable {
 
 
         if (mouseEvent.getClickCount() == 2) {
-
-            modify = new Stage();
-            FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("blockModifier.fxml"));
-            Scene scene = null;
-            try {
-                scene = new Scene(fxmlLoader.load());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            if (blockselected.contains("(b)")) {
+                modify = new Stage();
+                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("blockModifier.fxml"));
+                Scene scene = null;
+                try {
+                    scene = new Scene(fxmlLoader.load());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                modify.setTitle("CPM-UI (InProgress)");
+                modify.setScene(scene);
+                modify.show();
             }
-            modify.setTitle("CPM-UI (InProgress)");
-            modify.setScene(scene);
-            modify.show();
 
         }
 
     }
 
     @FXML
-    public void add(MouseEvent mouseEvent) throws IOException {
+    public void addObject(MouseEvent mouseEvent) throws IOException {
         Stage stage = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("create.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
@@ -232,37 +192,62 @@ public class MainController implements Initializable {
 
     //refresh block list
     public void refresh(){
+        if (pack.getSelectionModel().getSelectedItem() == null) {
+            return;
+        }
+        int b = 0;
+        int a = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
+
         String choice = this.choice.getSelectionModel().getSelectedItem().toString();
+        String packname = pack.getSelectionModel().getSelectedItem().toString();
+        if (packname.contains(".dnxpack")) {
+            Main.isDynxPack = true;
+        }else {
+            Main.isDynxPack = false;
+        }
+        List<Object> objects = Loader.getBlocksByPack(packname);
         if (choice.equals("Block")||choice.equals("All")) {
-            for (Object block : Loader.getBlocksByPack(packname)) {
-                if (block instanceof Block){
-                    l.add("(b)" + ((Block) block).getName());
+            for (Object o : objects) {
+                if (o instanceof Block) {
+                    Block block = (Block) o;
+                    l.add("(b)" + block.getName());
+                    b++;
                 }
             }
         }
         if (choice.equals("Armor")||choice.equals("All")) {
-            for (Object block : Loader.getBlocksByPack(packname)) {
-                if (block instanceof Armor){
-                    l.add("(a)" + ((Armor) block).getName());
+            for (Object o : objects) {
+                if (o instanceof Armor) {
+                    Armor armor = (Armor) o;
+                    l.add("(a)" + armor.getName());
+                    a++;
                 }
             }
         }
         if (choice.equals("Vehicle")||choice.equals("All")) {
-            for (Object block : Loader.getBlocksByPack(packname)) {
-                if (block instanceof Vehicul){
-                    l.add("(v)" + ((Vehicul) block).getName());
+            for (Object o : objects) {
+                if (o instanceof Vehicul) {
+                    Vehicul vehicul = (Vehicul) o;
+                    l.add("(v)" + vehicul.getName());
                 }
             }
         }
         if (choice.equals("Item")||choice.equals("All")) {
-            for (Object block : Loader.getBlocksByPack(packname)) {
-                if (block instanceof Vehicul){
-                    l.add("(i)" + ((Vehicul) block).getName());
+            for (Object o : objects) {
+                if (o instanceof Item) {
+                    Item item = (Item) o;
+                    //check if list contains item
+                    if (!l.contains("(v)" + item.getName())&&!l.contains("(a)" + item.getName())&&!l.contains("(b)" + item.getName())){
+                        l.add("(i)" + item.getName());
+                    }
                 }
             }
         }
-        this.list.setItems(l);
+        list.getItems().clear();
+        list.setItems(l);
+        info.getItems().clear();
+        left.setText("Contents : " + b + " Blocks and " + a + " Armors");
     }
     //refresh pack list
     public void refreshpack(){
@@ -364,7 +349,7 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void ne(ActionEvent actionEvent) {
+    public void packCreateButton(ActionEvent actionEvent) {
 
         createpack = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("packCreate.fxml"));

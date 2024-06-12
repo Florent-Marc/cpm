@@ -24,7 +24,7 @@
       <menus>
         <Menu mnemonicParsing="false" text="File">
           <items>
-            <MenuItem mnemonicParsing="false" text="New pack" onAction="#ne" fx:id="newpack"/>
+            <MenuItem mnemonicParsing="false" text="New pack" onAction="#packCreateButton" fx:id="newpack"/>
             <SeparatorMenuItem mnemonicParsing="false" />
             <MenuItem mnemonicParsing="false" text="Open folder work …" onAction="#open" />
             <Menu mnemonicParsing="false" text="Open Recent (Soon)" />
@@ -67,7 +67,7 @@
                 <Color red="0.624" green="0.624" blue="0.624" fx:id="x2" />
               </textFill>
             </Label>
-                  <ListView fx:id="pack" layoutY="50.0" onMouseClicked="#pack" prefHeight="499.0" prefWidth="222.0" />
+                  <ListView fx:id="pack" layoutY="50.0" onMouseClicked="#packSelecter" prefHeight="499.0" prefWidth="222.0" />
           </children>
         </AnchorPane>
         <ScrollPane prefHeight="-1.0" prefWidth="-1.0">
@@ -75,8 +75,8 @@
             <AnchorPane id="Content" minHeight="-1.0" minWidth="-1.0" prefHeight="545.0" prefWidth="430.0">
               <children>
                 <Label alignment="CENTER" font="$x1" layoutX="14.0" layoutY="14.0" style="&#10;" text="Contents" textAlignment="CENTER" textFill="$x2" wrapText="false" />
-                        <ListView fx:id="list" layoutY="50.0" onMouseClicked="#listf" prefHeight="498.0" prefWidth="440.0" />
-                        <Button fx:id="add" layoutX="97.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#add" text="+" />
+                        <ListView fx:id="list" layoutY="50.0" onMouseClicked="#ObjectSelecter" prefHeight="498.0" prefWidth="440.0" />
+                        <Button fx:id="add" layoutX="97.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#addObject" text="+" />
                         <Button fx:id="remove" layoutX="133.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#remove" prefHeight="26.0" prefWidth="25.0" text="-" />
                         <ChoiceBox layoutX="276.0" layoutY="16.0" prefWidth="150.0" fx:id="choice" onAction="#choice" />
               </children>
