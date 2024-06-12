@@ -13,6 +13,7 @@ public class Config {
 
     private static String user = "";
     private static String lastdirectory = "";
+    private static boolean debug = false;
 
     //json simple create json with user and lastdirectory
     public Config(String user, String lastdirectory) {
@@ -25,6 +26,7 @@ public class Config {
         JSONObject obj = new JSONObject();
         obj.put("user", getUser());
         obj.put("lastdirectory", getLastdirectory());
+        obj.put("debug", isDebug());
         try {
             File file = new File(System.getenv("APPDATA") + "/cpm/config.json");
             file.getParentFile().mkdirs();
@@ -38,6 +40,8 @@ public class Config {
     }
 
     public static void load() {
+        //clear le dossier pack
+
         //load the config from %appdata%/cpm/config.json
         //check if the file exists
         //if not create it
@@ -48,6 +52,7 @@ public class Config {
                 JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(System.getenv("APPDATA") + "/cpm/config.json"));
                 user = (String) jsonObject.get("user");
                 lastdirectory = (String) jsonObject.get("lastdirectory");
+                debug = (boolean) jsonObject.get("debug");
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
@@ -75,5 +80,13 @@ public class Config {
     //get path cache
     public static String getCachePath() {
         return System.getenv("APPDATA") + "/cpm/cache";
+    }
+
+    public static boolean isDebug() {
+        return debug;
+    }
+
+    public static void setDebug(boolean debug) {
+        Config.debug = debug;
     }
 }
