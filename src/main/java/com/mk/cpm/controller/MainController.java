@@ -52,8 +52,6 @@ public class MainController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         ObservableList<String> l = FXCollections.observableArrayList();
         editmenu.setDisable(true);
-        //l.addAll(new LoaderPack().getPacks());
-        //pack.setItems(l);
         add.setVisible(false);
         mainController = this;
         remove.setVisible(false);
@@ -185,6 +183,7 @@ public class MainController implements Initializable {
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("create.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
         stage.setTitle("CPM-UI");
+        stage.getIcons().add(HelloApplication.logo);
         stage.setScene(scene);
         stage.show();
         create = stage;
@@ -316,6 +315,7 @@ public class MainController implements Initializable {
     public void open(ActionEvent actionEvent) {
         System.out.println("open");
         Stage stage = new Stage();
+        stage.getIcons().add(HelloApplication.logo);
         DirectoryChooser fileChooser = new DirectoryChooser();
         fileChooser.setTitle("Open dir pack");
         File selectedFile = fileChooser.showDialog(stage);
@@ -360,6 +360,7 @@ public class MainController implements Initializable {
             throw new RuntimeException(e);
         }
         createpack.setTitle("CPM-UI (InProgress)");
+        createpack.getIcons().add(HelloApplication.logo);
         createpack.setScene(scene);
         createpack.setResizable(false);
         createpack.show();
