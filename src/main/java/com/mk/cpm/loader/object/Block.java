@@ -1,8 +1,7 @@
 package com.mk.cpm.loader.object;
 
-import com.mk.cpm.loader.DataModifier;
+import com.mk.cpm.loader.utils.DataModifier;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;

@@ -107,7 +107,7 @@ public class DataUtils {
                     if (infos == null){
                         new ArrayList<>();
                     }
-                    String temp = parametre + ": " + line.split(":")[1].trim();
+                    String temp = parametre.replace(":","") + ": " + line.split(":")[1].trim();
                     infos.add(temp);
                     return line.split(":")[1].trim();
                 }
