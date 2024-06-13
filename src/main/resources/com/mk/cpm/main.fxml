@@ -28,6 +28,7 @@
             <SeparatorMenuItem mnemonicParsing="false" />
             <MenuItem mnemonicParsing="false" text="Open folder work …" onAction="#open" />
             <Menu mnemonicParsing="false" text="Open Recent (Soon)" />
+            <MenuItem mnemonicParsing="false" text="Refresh" onAction="#refreshpack" />
             <SeparatorMenuItem mnemonicParsing="false" />
             <MenuItem mnemonicParsing="false" text="Preferences… (Soon)" />
             <SeparatorMenuItem mnemonicParsing="false" />

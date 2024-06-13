@@ -35,7 +35,6 @@ public class MainController implements Initializable {
     public static Stage modify;
     public static Stage createpack;
     public static String packname;
-    public Object fileselected;
 
     @FXML
     public ListView<String> list;
@@ -251,10 +250,13 @@ public class MainController implements Initializable {
         left.setText("Contents : " + b + " Blocks and " + a + " Armors");
     }
     //refresh pack list
+    @FXML
     public void refreshpack(){
         ObservableList<Object> l = FXCollections.observableArrayList();
         l.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
         this.pack.setItems(l);
+        this.list.getItems().clear();
+
     }
 
 
