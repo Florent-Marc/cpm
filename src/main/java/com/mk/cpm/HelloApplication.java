@@ -25,13 +25,14 @@ public class HelloApplication extends Application {
         stage.setResizable(false);
         stage.show();
         s = scene;
-
+        DiscordRPC.initRPC();
         //login 270 342
     }
 
 
     public static void main(String[] args) {
         launch();
+
     }
 
 }
