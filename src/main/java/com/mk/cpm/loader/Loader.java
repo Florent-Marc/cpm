@@ -119,4 +119,5 @@ public class Loader {
     public static List<Object> getObject() {
         return objectsList;
     }
+
 }

@@ -7,7 +7,9 @@ import java.util.List;
 
 public interface DataModifier {
     Object load(File file);
-    void save(FileWriter file);
+
+    default void save(File file) {
+    }
 
     List<String> getInfos();
 }

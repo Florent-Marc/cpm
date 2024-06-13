@@ -119,20 +119,29 @@ public class DataUtils {
 
     }
 
-    public void setValues(FileWriter file, String parameter, String value) {
+    public void setValues(File file, String parameter, String value) {
         if (file == null) return;
         if (parameter == null) return;
         if (value == null) return;
         if (parameter.isEmpty()) return;
         if (value.isEmpty()) return;
+        FileWriter fileWriter = null;
         try {
-            file.write(parameter + ": " + value + "\n");
+            fileWriter = new FileWriter(file, true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            fileWriter.write(parameter + ": " + value + "\n");
+            fileWriter.flush();
+            fileWriter.close();
         } catch (Exception e) {
             System.out.println("Error in setValues");
             System.out.println("File " + file);
             System.out.println("Parameter " + parameter);
             System.out.println("Value " + value);
         }
+
     }
 
 
