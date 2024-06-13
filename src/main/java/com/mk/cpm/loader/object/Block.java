@@ -25,6 +25,7 @@ public class Block extends Item implements DataModifier {
     private String DespawnTime;
     private List<String> infos;
     private Item item;
+    private File file;
 
 
     public Block() {
@@ -58,6 +59,7 @@ public class Block extends Item implements DataModifier {
 
     @Override
     public Object load(File file) {
+        this.file = file;
         this.item = (Item) super.load(file);
         this.infos = new ArrayList<>();
         this.infos = super.getInfos();
@@ -76,9 +78,21 @@ public class Block extends Item implements DataModifier {
     }
 
     @Override
-    public void save(FileWriter file) {
-
+    public void save(File file) {
+        super.save(file);
+        setValues(file, "LightLevel", LightLevel);
+        setValues(file, "Material", Material);
+        setValues(file, "RenderDistance", RenderDistance);
+        setValues(file, "Scale", Scale);
+        setValues(file, "Rotate", Rotation);
+        setValues(file, "Translate", Translation);
+        setValues(file, "Variants:", Textures);
+        setValues(file, "UseComplexCollision", UseComplexCollision.toString());
+        setValues(file, "CenterOfGravityOffset", CenterOfGravityOffset);
+        setValues(file, "EmptyMass", EmptyMass);
+        setValues(file, "DespawnTime", DespawnTime);
     }
+
 
     @Override
     public List<String> getInfos() {
@@ -157,5 +171,17 @@ public class Block extends Item implements DataModifier {
 
     public void setDespawnTime(String despawnTime) {
         DespawnTime = despawnTime;
+    }
+
+    public void setInfos(List<String> infos) {
+        this.infos = infos;
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
     }
 }

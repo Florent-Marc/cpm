@@ -125,8 +125,17 @@ public class Item extends DataUtils implements DataModifier {
     }
 
     @Override
-    public void save(FileWriter file) {
-
+    public void save(File file) {
+        setValues(file, "Name", name);
+        setValues(file, "Description", desc);
+        setValues(file, "Model", model);
+        setValues(file, "CreativeTab", CreativeTab);
+        setValues(file, "ItemRotate", ItemRotation);
+        setValues(file, "ItemTranslate", ItemTranslate);
+        setValues(file, "ItemScale", ItemScale);
+        setValues(file, "IconText", IconText);
+        setValues(file, "Item3DRenderLocation", Item3DRenderLocation);
+        setValues(file, "MaxItemStackSize", MaxItemStackSize);
     }
 
     @Override

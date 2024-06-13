@@ -57,7 +57,7 @@ public class Shape extends DataUtils implements DataModifier {
     }
 
     @Override
-    public void save(FileWriter file) {
+    public void save(File file) {
 
     }
 

@@ -188,7 +188,7 @@ public class Seat extends DataUtils implements DataModifier{
     }
 
     @Override
-    public void save(FileWriter file) {
+    public void save(File file) {
 
     }
 

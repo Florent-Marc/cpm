@@ -4,7 +4,6 @@ import com.mk.cpm.loader.utils.DataModifier;
 import com.mk.cpm.loader.utils.DataUtils;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +32,7 @@ public class Wheel extends DataUtils implements DataModifier {
     }
 
     @Override
-    public void save(FileWriter file) {
+    public void save(File file) {
         setValues(file, "AttachedWheel", AttachedWheel);
         setValues(file, "DrivingWheel", DrivingWheel);
         setValues(file, "IsRight", IsRight);

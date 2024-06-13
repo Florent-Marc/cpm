@@ -1,7 +1,9 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Block;
+import com.mk.cpm.loader.pack.ZipCompressor;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -47,17 +49,7 @@ public class BlockController implements Initializable {
         if (MainController.blockselected == null) {
             return;
         }
-        if (MainController.blockselected.isEmpty()){
-            return;
-        }
-        for (Object o : Loader.getObject()) {
-            if (o instanceof Block) {
-                Block b = (Block) o;
-                if (b.getName().equals(MainController.blockselected.replace("(b)",""))) {
-                    block = b;
-                }
-            }
-        }
+        block = (Block) MainController.blockselected;
         if (block == null) {
             Stage stage = (Stage) name.getScene().getWindow();
             stage.close();
@@ -142,71 +134,60 @@ public class BlockController implements Initializable {
 
     @FXML
     public void save(MouseEvent mouseEvent) {
-        File f = null;
+        if (block == null) {
+            return;
+        }
+        block.setCreativeTab(CreativeTab.getText());
+        block.setModel(model.getText());
+        block.setDesc(desc.getText());
+        block.setName(name.getText());
+        block.setItemRotation(itemrotation.getText());
+        block.getItem().setItemTranslate(itemtranslation.getText());
+        block.setItemScale(itemscale.getText());
+        block.setLightLevel(LightLevel.getText());
+        block.setMaterial(Material.getText());
+        block.setRenderDistance(RenderDistance.getText());
+        block.setScale(Scale.getText());
+        block.setRotation(Rotation.getText());
+        block.setTranslation(Translation.getText());
+        block.setTextures(Textures.getText());
+        block.setUseComplexCollision(Boolean.parseBoolean(UseComplexCollision.getText()));
+        if (isprop.isSelected()) {
+            block.setEmptyMass(EmptyMass.getText());
+            block.setCenterOfGravityOffset(CenterOfGravityOffset.getText());
+            block.setDespawnTime(RespawnTime.getText());
+        } else {
+            block.setEmptyMass(null);
+            block.setCenterOfGravityOffset(null);
+            block.setDespawnTime(null);
+        }
+        block.setIconText(IconText.getText());
+        block.setCreativeTab(CreativeTab.getText());
+        File f = block.getFile();
         if (f == null) {
             return;
         }
+        //clear file
         try {
-            FileWriter fw = new FileWriter(f);
-            fw.write("Name: " + name.getText() + "\n");
-            fw.write("Description: " + desc.getText() + "\n");
-            fw.write("Model: " + model.getText() + "\n");
-            if(!CreativeTab.getText().isEmpty()){
-                fw.write("CreativeTab: " + CreativeTab.getText() + "\n");
-            }
-            if(!itemrotation.getText().isEmpty()){
-                fw.write("ItemRotate: " + itemrotation.getText() + "\n");
-            }
-            if(!itemtranslation.getText().isEmpty()){
-                fw.write("ItemTranslate: " + itemtranslation.getText() + "\n");
-            }
-            if(!itemscale.getText().isEmpty()){
-                fw.write("ItemScale: " + itemscale.getText() + "\n");
-            }
-            if(!IconText.getText().isEmpty()){
-                fw.write("IconText: " + IconText.getText() + "\n");
-            }
-            if(!LightLevel.getText().isEmpty()){
-                fw.write("LightLevel: " + LightLevel.getText() + "\n");
-            }
-            if(!Material.getText().isEmpty()){
-                fw.write("Material: " + Material.getText() + "\n");
-            }
-            if(!RenderDistance.getText().isEmpty()){
-                fw.write("RenderDistance: " + RenderDistance.getText() + "\n");
-            }
-            if(!Scale.getText().isEmpty()){
-                fw.write("Scale: " + Scale.getText() + "\n");
-            }
-            if(!Rotation.getText().isEmpty()){
-                fw.write("Rotate: " + Rotation.getText() + "\n");
-            }
-            if(!Translation.getText().isEmpty()){
-                fw.write("Translate: " + Translation.getText() + "\n");
-            }
-            if(!Textures.getText().isEmpty()){
-                fw.write("Textures: " + Textures.getText() + "\n");
-            }
-            if(!UseComplexCollision.getText().isEmpty()){
-                fw.write("UseComplexCollisions: " + UseComplexCollision.getText() + "\n");
-            }
-            if(!EmptyMass.getText().isEmpty()){
-                String name = block.getName();
-                //get first word
-                String[] words = name.split(" ");
-                fw.write("Prop_"+words[0]+"{" + "\n");
-                fw.write("  EmptyMass: " + EmptyMass.getText() + "\n");
-                fw.write("  CenterOfGravityOffset: " + CenterOfGravityOffset.getText() + "\n");
-                fw.write("  DespawnTime: " + RespawnTime.getText() + "\n");
-                fw.write("}" + "\n");
-            }
-
-            fw.close();
-            Stage stage = (Stage) name.getScene().getWindow();
-            stage.close();
-            MainController.mainController.refresh();
+            FileWriter fileWriter = new FileWriter(f);
+            fileWriter.write("");
+            fileWriter.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
+        this.block.save(f);
+        if (f.getPath().contains("\\cpm\\cache")) {
+            try {
+                String source = Config.getCachePath() + "/pack/" + MainController.packname;
+                String dest = Config.getLastdirectory() + "/" + MainController.packname;
+                ZipCompressor.compressFolder(source, dest);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        Stage stage = (Stage) name.getScene().getWindow();
+        stage.close();
+        MainController.mainController.refresh();
+
     }
 }

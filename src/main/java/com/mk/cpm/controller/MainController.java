@@ -30,11 +30,12 @@ public class MainController implements Initializable {
 
     public static MainController mainController;
 
-    public static String blockselected;
+    public static Object blockselected;
     public static Stage create;
     public static Stage modify;
     public static Stage createpack;
     public static String packname;
+    public Object fileselected;
 
     @FXML
     public ListView<String> list;
@@ -98,7 +99,7 @@ public class MainController implements Initializable {
                 if ((block instanceof Block)) {
                     Block b = (Block) block;
                     if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = ((Block) block).getName();
+                        blockselected = block;
                         remove.setDisable(false);
                         ObservableList<String> gf = FXCollections.observableArrayList();
                         for (String s : b.getInfos()) {
@@ -118,7 +119,7 @@ public class MainController implements Initializable {
                 if ((block instanceof Armor)) {
                     Armor b = (Armor) block;
                     if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = ((Armor) block).getName();
+                        blockselected = b;
                         remove.setDisable(false);
                         ObservableList<String> gf = FXCollections.observableArrayList();
                         for (String s : b.getInfos()) {
@@ -138,7 +139,7 @@ public class MainController implements Initializable {
                 if ((block instanceof Vehicul)) {
                     Vehicul b = (Vehicul) block;
                     if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = ((Vehicul) block).getName();
+                        blockselected = b;
                         remove.setDisable(false);
                         ObservableList<String> gf = FXCollections.observableArrayList();
                         for (String s : b.getInfos()) {
@@ -159,7 +160,7 @@ public class MainController implements Initializable {
 
 
         if (mouseEvent.getClickCount() == 2) {
-            if (blockselected.contains("(b)")) {
+            if (blockselected instanceof Block) {
                 modify = new Stage();
                 FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("blockModifier.fxml"));
                 Scene scene = null;
@@ -169,6 +170,7 @@ public class MainController implements Initializable {
                     throw new RuntimeException(e);
                 }
                 modify.setTitle("CPM-UI (InProgress)");
+                modify.getIcons().add(HelloApplication.logo);
                 modify.setScene(scene);
                 modify.show();
             }
