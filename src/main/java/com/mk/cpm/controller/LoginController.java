@@ -39,14 +39,23 @@ public class LoginController implements Initializable {
         if (Config.getUser() !=null) {
             user.setText(Config.getUser());
         }
-
+        pwd.setOnAction(event -> {
+            if (!pwd.getText().isEmpty()){
+                connect();
+            }
+        });
     }
 
     @FXML
     public void login(ActionEvent actionEvent) throws IOException {
+        connect();
+    }
+
+    private void connect() {
         Stage stage = (Stage) login.getScene().getWindow();
         Config.setUser(user.getText());
         Config.saveConfig();
+
         try {
             String username = user.getText();
             String password = pwd.getText();
