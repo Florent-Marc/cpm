@@ -169,6 +169,7 @@ public class MainController implements Initializable {
                     throw new RuntimeException(e);
                 }
                 modify.setTitle("CPM-UI (InProgress)");
+                modify.setResizable(false);
                 modify.getIcons().add(HelloApplication.logo);
                 modify.setScene(scene);
                 modify.show();
@@ -183,6 +184,22 @@ public class MainController implements Initializable {
                     throw new RuntimeException(e);
                 }
                 modify.setTitle("CPM-UI (InProgress)");
+                modify.setResizable(false);
+                modify.getIcons().add(HelloApplication.logo);
+                modify.setScene(scene);
+                modify.show();
+            }
+            if (blockselected instanceof Vehicul) {
+                modify = new Stage();
+                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("vehiculModifier.fxml"));
+                Scene scene = null;
+                try {
+                    scene = new Scene(fxmlLoader.load());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                modify.setTitle("CPM-UI (InProgress)");
+                modify.setResizable(false);
                 modify.getIcons().add(HelloApplication.logo);
                 modify.setScene(scene);
                 modify.show();

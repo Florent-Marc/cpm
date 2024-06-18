@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="540.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.VehiculController">
+   <children>
+      <SplitPane dividerPositions="0.501311647429171" prefHeight="552.0" prefWidth="764.0">
+        <items>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="460.0" prefWidth="334.0">
+               <children>
+                  <TabPane prefHeight="540.0" prefWidth="379.0" tabClosingPolicy="UNAVAILABLE">
+                    <tabs>
+                      <Tab text="Basic">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <Label layoutX="14.0" layoutY="14.0" text="Name" />
+                                    <Label layoutX="14.0" layoutY="42.0" text="Description" />
+                                    <Label layoutX="14.0" layoutY="69.0" text="Model" />
+                                    <TextField fx:id="name" layoutX="53.0" layoutY="10.0" />
+                                    <TextField fx:id="desc" layoutX="80.0" layoutY="37.0" />
+                                    <TextField fx:id="model" layoutX="55.0" layoutY="64.0" />
+                                    <Label layoutX="14.0" layoutY="175.0" text="DragCoefficient" />
+                                    <Label layoutX="14.0" layoutY="201.0" text="EmptyMass" />
+                                    <Label layoutX="14.0" layoutY="228.0" text="AngularDamping" />
+                                    <Label layoutX="15.0" layoutY="255.0" text="LinearDamping" />
+                                    <Label layoutX="14.0" layoutY="282.0" text="DefaultEngine" />
+                                    <Label layoutX="15.0" layoutY="309.0" text="DefaultSounds" />
+                                    <Label layoutX="15.0" layoutY="337.0" text="DefaultZoomLevel" />
+                                    <Label layoutX="15.0" layoutY="362.0" text="MaxVehicleSpeed" />
+                                    <Label layoutX="15.0" layoutY="389.0" text="PlayerStandOnTop" />
+                                    <Label layoutX="16.0" layoutY="415.0" text="ScaleModifier" />
+                                    <Label layoutX="17.0" layoutY="442.0" text="ShapeYOffset" />
+                                    <Label layoutX="14.0" layoutY="150.0" text="CenterOfGravityOffset" />
+                                    <Label layoutX="162.0" layoutY="108.0" text="Advanced" />
+                                    <TextField fx:id="DragCoefficient" layoutX="108.0" layoutY="170.0" />
+                                    <TextField fx:id="EmptyMass" layoutX="108.0" layoutY="196.0" />
+                                    <TextField fx:id="AngularDamping" layoutX="108.0" layoutY="223.0" />
+                                    <TextField fx:id="LinearDamping" layoutX="108.0" layoutY="250.0" />
+                                    <TextField fx:id="DefaultEngine" layoutX="108.0" layoutY="277.0" />
+                                    <TextField fx:id="DefaultSounds" layoutX="108.0" layoutY="304.0" />
+                                    <TextField fx:id="DefaultZoomLevel" layoutX="108.0" layoutY="331.0" />
+                                    <TextField fx:id="MaxVehicleSpeed" layoutX="108.0" layoutY="358.0" />
+                                    <TextField fx:id="PlayerStandOnTop" layoutX="108.0" layoutY="385.0" />
+                                    <TextField fx:id="ScaleModifier" layoutX="108.0" layoutY="411.0" />
+                                    <TextField fx:id="ShapeYOffset" layoutX="108.0" layoutY="438.0" />
+                                    <TextField fx:id="CenterOfGravityOffset" layoutX="108.0" layoutY="146.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </Tab>
+                      <Tab text="Item config">
+                        <content>
+                          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <TextField fx:id="CreativeTab" layoutX="83.0" layoutY="10.0" />
+                                    <Label layoutX="14.0" layoutY="14.0" text="CreativeTab" />
+                                    <Label layoutX="15.0" layoutY="40.0" text="ItemRotation" />
+                                    <Label layoutX="15.0" layoutY="66.0" text="ItemTranslation" />
+                                    <Label layoutX="15.0" layoutY="93.0" text="ItemScale" />
+                                    <Label layoutX="15.0" layoutY="120.0" text="IconText" />
+                                    <Label layoutX="15.0" layoutY="145.0" text="Item3DRenderLocation" />
+                                    <ChoiceBox fx:id="choiceBox" layoutX="158.0" layoutY="141.0" prefWidth="150.0" />
+                                    <TextField fx:id="itemrotation" layoutX="92.0" layoutY="36.0" />
+                                    <TextField fx:id="itemtranslation" layoutX="107.0" layoutY="62.0" />
+                                    <TextField fx:id="itemscale" layoutX="76.0" layoutY="89.0" />
+                                    <TextField fx:id="IconText" layoutX="66.0" layoutY="116.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </Tab>
+                        <Tab text="Wheels">
+                           <content>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <TextField fx:id="Namew" layoutX="105.0" layoutY="44.0" />
+                                    <Label layoutX="14.0" layoutY="14.0" text="Select" />
+                                    <ChoiceBox layoutX="104.0" layoutY="12.0" prefWidth="150.0" />
+                                    <Label layoutX="15.0" layoutY="46.0" text="Name" />
+                                    <TextField fx:id="AttachedWheel" layoutX="105.0" layoutY="70.0" />
+                                    <Label layoutX="15.0" layoutY="72.0" text="AttachedWheel" />
+                                    <TextField fx:id="DrivingWheel" layoutX="105.0" layoutY="96.0" />
+                                    <Label layoutX="15.0" layoutY="98.0" text="DrivingWheel" />
+                                    <TextField fx:id="IsSteerable" layoutX="105.0" layoutY="148.0" />
+                                    <Label layoutX="15.0" layoutY="150.0" text="IsSteerable" />
+                                    <TextField fx:id="MaxTurn" layoutX="105.0" layoutY="174.0" />
+                                    <Label layoutX="15.0" layoutY="176.0" text="MaxTurn" />
+                                    <TextField fx:id="Position" layoutX="105.0" layoutY="200.0" />
+                                    <Label layoutX="15.0" layoutY="202.0" text="Position" />
+                                    <TextField fx:id="DependsOn" layoutX="105.0" layoutY="226.0" />
+                                    <Label layoutX="15.0" layoutY="264.0" text="DependsOn" />
+                                    <TextField fx:id="MudGuard" layoutX="105.0" layoutY="314.0" />
+                                    <Label layoutX="15.0" layoutY="316.0" text="MudGuard" />
+                                    <TextField fx:id="RotationPoint" layoutX="105.0" layoutY="340.0" />
+                                    <Label layoutX="15.0" layoutY="342.0" text="RotationPoint" />
+                                    <TextField fx:id="Scale" layoutX="105.0" layoutY="366.0" />
+                                    <Label layoutX="15.0" layoutY="368.0" text="Scale" />
+                                    <TextField fx:id="Suspension" layoutX="105.0" layoutY="392.0" />
+                                    <Label layoutX="15.0" layoutY="394.0" text="Suspension" />
+                                    <Label layoutX="152.0" layoutY="235.0" text="Advanced" />
+                                    <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
+                                    <CheckBox layoutX="16.0" layoutY="126.0" mnemonicParsing="false" text="IsRight" />
+                                    <CheckBox layoutX="15.0" layoutY="292.0" mnemonicParsing="false" text="HandBrakingWheel" />
+                                 </children>
+                              </AnchorPane>
+                           </content>
+                        </Tab>
+                        <Tab text="Seats">
+                           <content>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="511.0" prefWidth="348.0">
+                                 <children>
+                                    <Label layoutX="15.0" layoutY="60.0" text="Name" />
+                                    <TextField fx:id="name1" layoutX="61.0" layoutY="55.0" />
+                                    <Label layoutX="16.0" layoutY="14.0" text="Select" />
+                                    <ChoiceBox layoutX="65.0" layoutY="10.0" prefWidth="150.0" />
+                                    <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" text="+" />
+                                    <Label layoutX="15.0" layoutY="86.0" text="Position" />
+                                    <TextField fx:id="name11" layoutX="61.0" layoutY="81.0" />
+                                    <Label layoutX="15.0" layoutY="173.0" text="CameraPositionY" />
+                                    <TextField fx:id="name12" layoutX="119.0" layoutY="168.0" />
+                                    <Label layoutX="15.0" layoutY="199.0" text="CameraRotation" />
+                                    <TextField fx:id="name112" layoutX="119.0" layoutY="194.0" />
+                                    <Label layoutX="15.0" layoutY="225.0" text="DependsOn" />
+                                    <TextField fx:id="name1111" layoutX="119.0" layoutY="220.0" />
+                                    <Label layoutX="15.0" layoutY="251.0" text="LinkedDoorPart" />
+                                    <TextField fx:id="name121" layoutX="119.0" layoutY="246.0" />
+                                    <Label layoutX="15.0" layoutY="277.0" text="MaxPitch" />
+                                    <TextField fx:id="name1121" layoutX="119.0" layoutY="272.0" />
+                                    <Label layoutX="15.0" layoutY="303.0" text="MaxYaw" />
+                                    <TextField fx:id="name11111" layoutX="119.0" layoutY="298.0" />
+                                    <Label layoutX="15.0" layoutY="329.0" text="MinPitch" />
+                                    <TextField fx:id="name1211" layoutX="119.0" layoutY="324.0" />
+                                    <Label layoutX="15.0" layoutY="355.0" text="MinYaw" />
+                                    <TextField fx:id="name11211" layoutX="119.0" layoutY="350.0" />
+                                    <Label layoutX="15.0" layoutY="381.0" text="PlayerPosition" />
+                                    <TextField fx:id="name111111" layoutX="119.0" layoutY="376.0" />
+                                    <Label layoutX="15.0" layoutY="407.0" text="PlayerSize" />
+                                    <TextField fx:id="name12111" layoutX="119.0" layoutY="402.0" />
+                                    <Label layoutX="15.0" layoutY="433.0" text="Rotation" />
+                                    <TextField fx:id="name112111" layoutX="119.0" layoutY="428.0" />
+                                    <Label layoutX="15.0" layoutY="459.0" text="Scale" />
+                                    <TextField fx:id="name1111111" layoutX="119.0" layoutY="454.0" />
+                                    <Label layoutX="163.0" layoutY="142.0" text="Advanced" />
+                                    <Label layoutX="15.0" layoutY="485.0" text="ShouldLimitFieldOfView" />
+                                    <TextField fx:id="name11111111" layoutX="152.0" layoutY="480.0" />
+                                    <CheckBox layoutX="15.0" layoutY="112.0" mnemonicParsing="false" text="Driver" />
+                                 </children>
+                              </AnchorPane>
+                           </content>
+                        </Tab>
+                        <Tab text="Shapes">
+                           <content>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <TextField fx:id="Names" layoutX="105.0" layoutY="44.0" />
+                                    <Label layoutX="14.0" layoutY="14.0" text="Select" />
+                                    <ChoiceBox layoutX="104.0" layoutY="12.0" prefWidth="150.0" />
+                                    <Label layoutX="15.0" layoutY="46.0" text="Name" />
+                                    <TextField fx:id="Scales" layoutX="105.0" layoutY="70.0" />
+                                    <Label layoutX="15.0" layoutY="74.0" text="Scale" />
+                                    <TextField fx:id="Positions" layoutX="105.0" layoutY="96.0" />
+                                    <Label layoutX="15.0" layoutY="98.0" text="Position" />
+                                    <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
+                                 </children>
+                              </AnchorPane>
+                           </content>
+                        </Tab>
+                        <Tab disable="true" text="Engine">
+                           <content>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <TextField fx:id="CreativeTab1111" layoutX="83.0" layoutY="10.0" />
+                                    <Label layoutX="14.0" layoutY="14.0" text="CreativeTab" />
+                                 </children>
+                              </AnchorPane>
+                           </content>
+                        </Tab>
+                    </tabs>
+                  </TabPane>
+               </children>
+            </AnchorPane>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="465.0" prefWidth="288.0">
+               <children>
+                  <Button layoutX="325.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#save" text="save" />
+               </children>
+            </AnchorPane>
+        </items>
+      </SplitPane>
+   </children>
+</VBox>
