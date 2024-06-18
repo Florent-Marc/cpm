@@ -8,14 +8,14 @@
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.Pane?>
 
-<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="342.0" prefWidth="270.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.LoginController">
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="342.0" prefWidth="270.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.LoginController" fx:id="back">
    <children>
       <PasswordField fx:id="pwd" layoutX="61.0" layoutY="237.0" />
       <Button fx:id="login" layoutX="113.0" layoutY="278.0" mnemonicParsing="false" onAction="#login" text="Login" />
       <TextField fx:id="user" layoutX="61.0" layoutY="167.0" />
       <Label layoutX="121.0" layoutY="140.0" text="User" />
       <Label layoutX="110.0" layoutY="211.0" text="Password" />
-      <Button layoutX="234.0" layoutY="303.0" mnemonicParsing="false" onMouseClicked="#info" text="?" />
+      <Button layoutX="234.0" layoutY="303.0" mnemonicParsing="false" onMouseClicked="#info" text="?" fx:id="info"/>
       <ImageView fx:id="image" fitHeight="128.0" fitWidth="128.0" layoutX="70.0" layoutY="7.0" pickOnBounds="true" preserveRatio="true" />
       <Label layoutX="14.0" layoutY="307.0" text="Version : 0.4" />
    </children>

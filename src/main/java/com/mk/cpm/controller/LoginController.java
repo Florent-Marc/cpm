@@ -13,6 +13,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
 import java.io.*;
@@ -28,12 +29,24 @@ public class LoginController implements Initializable {
     public Button login;
     public PasswordField pwd;
     public TextField user;
+    public Button info;
+    public Pane back;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         //http://62.4.21.235/logo.png
         Image i = new Image("http://62.4.21.235/logo.png");
         image.setImage(i);
+        //orange
+        /*
+        back.setStyle("-fx-background-color: rgb(25,26,37);");
+        user.setStyle("-fx-background-color: rgb(38,39,56);");
+        pwd.setStyle("-fx-background-color: rgb(38,39,56);");
+        login.setStyle("-fx-background-color: rgb(231,118,13);");
+        login.setTextFill(javafx.scene.paint.Color.WHITE);
+        info.setStyle("-fx-background-color: rgb(231,118,13);");
+
+         */
 
 
         if (Config.getUser() !=null) {
