@@ -173,6 +173,20 @@ public class MainController implements Initializable {
                 modify.setScene(scene);
                 modify.show();
             }
+            if (blockselected instanceof Armor) {
+                modify = new Stage();
+                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("armorModifier.fxml"));
+                Scene scene = null;
+                try {
+                    scene = new Scene(fxmlLoader.load());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                modify.setTitle("CPM-UI (InProgress)");
+                modify.getIcons().add(HelloApplication.logo);
+                modify.setScene(scene);
+                modify.show();
+            }
 
         }
 

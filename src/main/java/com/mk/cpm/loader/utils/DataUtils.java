@@ -176,7 +176,47 @@ public class DataUtils {
         }
     }
 
-    //get all name of section with name
+    public void setMultiValues(File file, String section, Map<String, String> values) {
+        if (file == null) return;
+        if (section == null) return;
+        if (values == null) return;
+        if (section.isEmpty()) return;
+        if (values.isEmpty()) return;
+        FileWriter fileWriter = null;
+        try {
+            fileWriter = new FileWriter(file, true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            fileWriter.write(section + "\n");
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                if (entry.getKey() == null) {
+                    continue;
+                }
+                if (entry.getValue() == null) {
+                    continue;
+                }
+                if (entry.getKey().isEmpty()) {
+                    continue;
+                }
+                if (entry.getValue().isEmpty()) {
+                    continue;
+                }
+                fileWriter.write(entry.getKey() + ": " + entry.getValue() + "\n");
+            }
+            fileWriter.flush();
+            fileWriter.close();
+        } catch (Exception e) {
+            System.out.println("Error in setMultiValues");
+            System.out.println("File " + file);
+            System.out.println("Section " + section);
+            System.out.println("Values " + values);
+        }
+    }
+
+
+        //get all name of section with name
     public List<String> getSections(File file, String name) {
         if (file == null) return null;
         if (name == null) return null;

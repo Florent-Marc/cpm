@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="457.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.ArmorController">
+   <children>
+      <SplitPane dividerPositions="0.5635026737967913">
+        <items>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="460.0" prefWidth="334.0">
+               <children>
+                  <TabPane prefHeight="457.0" prefWidth="334.0" tabClosingPolicy="UNAVAILABLE">
+                    <tabs>
+                      <Tab text="Basic">
+                        <content>
+                          <AnchorPane>
+                                 <children>
+                                    <Label layoutX="14.0" layoutY="14.0" text="Name" />
+                                    <Label layoutX="14.0" layoutY="42.0" text="Description" />
+                                    <Label layoutX="14.0" layoutY="69.0" text="Model" />
+                                    <TextField fx:id="name" layoutX="53.0" layoutY="10.0" />
+                                    <TextField fx:id="desc" layoutX="80.0" layoutY="37.0" />
+                                    <TextField fx:id="model" layoutX="55.0" layoutY="64.0" />
+                                    <Label layoutX="141.0" layoutY="102.0" text="Advanced" />
+                                    <Label layoutX="14.0" layoutY="126.0" text="ArmorArms" />
+                                    <Label layoutX="14.0" layoutY="152.0" text="ArmorBody" />
+                                    <Label layoutX="14.0" layoutY="179.0" text="ArmorFoot" />
+                                    <Label layoutX="15.0" layoutY="206.0" text="ArmorHead" />
+                                    <Label layoutX="14.0" layoutY="233.0" text="ArmorLegs" />
+                                    <Label layoutX="15.0" layoutY="260.0" text="DamageReduction" />
+                                    <Label layoutX="15.0" layoutY="288.0" text="Durability" />
+                                    <Label layoutX="15.0" layoutY="313.0" text="Textures" />
+                                    <TextField fx:id="ArmorArms" layoutX="85.0" layoutY="122.0" />
+                                    <TextField fx:id="ArmorBody" layoutX="85.0" layoutY="148.0" />
+                                    <TextField fx:id="ArmorFoot" layoutX="85.0" layoutY="175.0" />
+                                    <TextField fx:id="ArmorHead" layoutX="85.0" layoutY="202.0" />
+                                    <TextField fx:id="ArmorLegs" layoutX="85.0" layoutY="229.0" />
+                                    <TextField fx:id="DamageReduction" layoutX="101.0" layoutY="256.0" />
+                                    <TextField fx:id="Durability" layoutX="85.0" layoutY="284.0" />
+                                    <TextField fx:id="Textures" layoutX="85.0" layoutY="309.0" />
+                                    <TextField fx:id="Toughness" layoutX="85.0" layoutY="336.0" />
+                                    <TextField fx:id="Enchantability" layoutX="105.0" layoutY="362.0" />
+                                    <TextField fx:id="EquipSound" layoutX="85.0" layoutY="389.0" />
+                                    <Label layoutX="15.0" layoutY="340.0" text="Toughness" />
+                                    <Label layoutX="16.0" layoutY="366.0" text="Enchantability" />
+                                    <Label layoutX="17.0" layoutY="393.0" text="EquipSound" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </Tab>
+                      <Tab text="Item config">
+                        <content>
+                          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <TextField fx:id="CreativeTab" layoutX="83.0" layoutY="10.0" />
+                                    <Label layoutX="14.0" layoutY="14.0" text="CreativeTab" />
+                                    <Label layoutX="15.0" layoutY="40.0" text="ItemRotation" />
+                                    <Label layoutX="15.0" layoutY="66.0" text="ItemTranslation" />
+                                    <Label layoutX="15.0" layoutY="93.0" text="ItemScale" />
+                                    <Label layoutX="15.0" layoutY="120.0" text="IconText" />
+                                    <Label layoutX="15.0" layoutY="145.0" text="Item3DRenderLocation" />
+                                    <ChoiceBox fx:id="choiceBox" layoutX="158.0" layoutY="141.0" prefWidth="150.0" />
+                                    <TextField fx:id="itemrotation" layoutX="92.0" layoutY="36.0" />
+                                    <TextField fx:id="itemtranslation" layoutX="107.0" layoutY="62.0" />
+                                    <TextField fx:id="itemscale" layoutX="76.0" layoutY="89.0" />
+                                    <TextField fx:id="IconText" layoutX="66.0" layoutY="116.0" />
+                                 </children>
+                              </AnchorPane>
+                        </content>
+                      </Tab>
+                    </tabs>
+                  </TabPane>
+               </children>
+            </AnchorPane>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="434.0" prefWidth="255.0">
+               <children>
+                  <Button layoutX="208.0" layoutY="420.0" mnemonicParsing="false" onMouseClicked="#save" text="save" />
+               </children>
+            </AnchorPane>
+        </items>
+      </SplitPane>
+   </children>
+</VBox>
