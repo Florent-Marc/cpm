@@ -189,6 +189,7 @@ public class DataUtils {
             throw new RuntimeException(e);
         }
         try {
+            fileWriter.write("\n");
             fileWriter.write(section + "\n");
             for (Map.Entry<String, String> entry : values.entrySet()) {
                 if (entry.getKey() == null) {
@@ -203,8 +204,9 @@ public class DataUtils {
                 if (entry.getValue().isEmpty()) {
                     continue;
                 }
-                fileWriter.write(entry.getKey() + ": " + entry.getValue() + "\n");
+                fileWriter.write("  "+entry.getKey() + ": " + entry.getValue() + "\n");
             }
+            fileWriter.write("}\n");
             fileWriter.flush();
             fileWriter.close();
         } catch (Exception e) {
