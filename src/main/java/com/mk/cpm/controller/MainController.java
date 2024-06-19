@@ -228,6 +228,8 @@ public class MainController implements Initializable {
         }
         int b = 0;
         int a = 0;
+        int v = 0;
+        int i = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
 
         String choice = this.choice.getSelectionModel().getSelectedItem().toString();
@@ -261,6 +263,7 @@ public class MainController implements Initializable {
                 if (o instanceof Vehicul) {
                     Vehicul vehicul = (Vehicul) o;
                     l.add("(v)" + vehicul.getName());
+                    v++;
                 }
             }
         }
@@ -271,6 +274,7 @@ public class MainController implements Initializable {
                     //check if list contains item
                     if (!l.contains("(v)" + item.getName())&&!l.contains("(a)" + item.getName())&&!l.contains("(b)" + item.getName())){
                         l.add("(i)" + item.getName());
+                        i++;
                     }
                 }
             }
@@ -278,7 +282,21 @@ public class MainController implements Initializable {
         list.getItems().clear();
         list.setItems(l);
         info.getItems().clear();
-        left.setText("Contents : " + b + " Blocks and " + a + " Armors");
+        StringBuilder sb = new StringBuilder();
+        sb.append("Contents : ");
+        if (b>0){
+            sb.append(b + " Blocks ");
+        }
+        if (a>0){
+            sb.append(a + " Armors ");
+        }
+        if (v>0){
+            sb.append(v + " Vehicles ");
+        }
+        if (i>0){
+            sb.append(i + " Items ");
+        }
+        left.setText(sb.toString());
     }
     //refresh pack list
     @FXML
@@ -287,6 +305,7 @@ public class MainController implements Initializable {
         l.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
         this.pack.setItems(l);
         this.list.getItems().clear();
+        this.info.getItems().clear();
 
     }
 
