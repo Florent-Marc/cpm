@@ -48,12 +48,12 @@
                                     <TextField fx:id="LinearDamping" layoutX="108.0" layoutY="250.0" />
                                     <TextField fx:id="DefaultEngine" layoutX="108.0" layoutY="277.0" />
                                     <TextField fx:id="DefaultSounds" layoutX="108.0" layoutY="304.0" />
-                                    <TextField fx:id="DefaultZoomLevel" layoutX="108.0" layoutY="331.0" />
-                                    <TextField fx:id="MaxVehicleSpeed" layoutX="108.0" layoutY="358.0" />
-                                    <TextField fx:id="PlayerStandOnTop" layoutX="108.0" layoutY="385.0" />
+                                    <TextField fx:id="DefaultZoomLevel" layoutX="143.0" layoutY="331.0" />
+                                    <TextField fx:id="MaxVehicleSpeed" layoutX="143.0" layoutY="358.0" />
+                                    <TextField fx:id="PlayerStandOnTop" layoutX="143.0" layoutY="385.0" />
                                     <TextField fx:id="ScaleModifier" layoutX="108.0" layoutY="411.0" />
                                     <TextField fx:id="ShapeYOffset" layoutX="108.0" layoutY="438.0" />
-                                    <TextField fx:id="CenterOfGravityOffset" layoutX="108.0" layoutY="146.0" />
+                                    <TextField fx:id="CenterOfGravityOffset" layoutX="143.0" layoutY="146.0" />
                                  </children>
                               </AnchorPane>
                         </content>
@@ -84,7 +84,7 @@
                                  <children>
                                     <TextField fx:id="Namew" layoutX="105.0" layoutY="44.0" />
                                     <Label layoutX="14.0" layoutY="14.0" text="Select" />
-                                    <ChoiceBox layoutX="104.0" layoutY="12.0" prefWidth="150.0" />
+                                    <ChoiceBox fx:id="wheelist" layoutX="104.0" layoutY="12.0" onAction="#choiceWheel" prefWidth="150.0" />
                                     <Label layoutX="15.0" layoutY="46.0" text="Name" />
                                     <TextField fx:id="AttachedWheel" layoutX="105.0" layoutY="70.0" />
                                     <Label layoutX="15.0" layoutY="72.0" text="AttachedWheel" />
@@ -96,7 +96,7 @@
                                     <Label layoutX="15.0" layoutY="176.0" text="MaxTurn" />
                                     <TextField fx:id="Position" layoutX="105.0" layoutY="200.0" />
                                     <Label layoutX="15.0" layoutY="202.0" text="Position" />
-                                    <TextField fx:id="DependsOn" layoutX="105.0" layoutY="226.0" />
+                                    <TextField fx:id="DependsOn" layoutX="105.0" layoutY="264.0" />
                                     <Label layoutX="15.0" layoutY="264.0" text="DependsOn" />
                                     <TextField fx:id="MudGuard" layoutX="105.0" layoutY="314.0" />
                                     <Label layoutX="15.0" layoutY="316.0" text="MudGuard" />
@@ -108,8 +108,9 @@
                                     <Label layoutX="15.0" layoutY="394.0" text="Suspension" />
                                     <Label layoutX="152.0" layoutY="235.0" text="Advanced" />
                                     <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
-                                    <CheckBox layoutX="16.0" layoutY="126.0" mnemonicParsing="false" text="IsRight" />
-                                    <CheckBox layoutX="15.0" layoutY="292.0" mnemonicParsing="false" text="HandBrakingWheel" />
+                                    <CheckBox fx:id="IsRight" layoutX="16.0" layoutY="126.0" mnemonicParsing="false" text="IsRight" />
+                                    <CheckBox fx:id="HandBrakingWheel" layoutX="15.0" layoutY="292.0" mnemonicParsing="false" text="HandBrakingWheel" />
+                                    <Button layoutX="329.0" layoutY="474.0" mnemonicParsing="false" text="save" onAction="#savewheel"/>
                                  </children>
                               </AnchorPane>
                            </content>
@@ -119,40 +120,41 @@
                               <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="511.0" prefWidth="348.0">
                                  <children>
                                     <Label layoutX="15.0" layoutY="60.0" text="Name" />
-                                    <TextField fx:id="name1" layoutX="61.0" layoutY="55.0" />
+                                    <TextField fx:id="nameseat" layoutX="61.0" layoutY="55.0" />
                                     <Label layoutX="16.0" layoutY="14.0" text="Select" />
-                                    <ChoiceBox layoutX="65.0" layoutY="10.0" prefWidth="150.0" />
+                                    <ChoiceBox fx:id="seatlist" layoutX="65.0" layoutY="10.0" prefWidth="150.0" onAction="#seatChoice"/>
                                     <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" text="+" />
                                     <Label layoutX="15.0" layoutY="86.0" text="Position" />
-                                    <TextField fx:id="name11" layoutX="61.0" layoutY="81.0" />
+                                    <TextField fx:id="Positionseat" layoutX="61.0" layoutY="81.0" />
                                     <Label layoutX="15.0" layoutY="173.0" text="CameraPositionY" />
-                                    <TextField fx:id="name12" layoutX="119.0" layoutY="168.0" />
+                                    <TextField fx:id="CameraPositionY" layoutX="119.0" layoutY="168.0" />
                                     <Label layoutX="15.0" layoutY="199.0" text="CameraRotation" />
-                                    <TextField fx:id="name112" layoutX="119.0" layoutY="194.0" />
+                                    <TextField fx:id="CameraRotation" layoutX="119.0" layoutY="194.0" />
                                     <Label layoutX="15.0" layoutY="225.0" text="DependsOn" />
-                                    <TextField fx:id="name1111" layoutX="119.0" layoutY="220.0" />
+                                    <TextField fx:id="DependsOnseat" layoutX="119.0" layoutY="220.0" />
                                     <Label layoutX="15.0" layoutY="251.0" text="LinkedDoorPart" />
-                                    <TextField fx:id="name121" layoutX="119.0" layoutY="246.0" />
+                                    <TextField fx:id="LinkedDoorPart" layoutX="119.0" layoutY="246.0" />
                                     <Label layoutX="15.0" layoutY="277.0" text="MaxPitch" />
-                                    <TextField fx:id="name1121" layoutX="119.0" layoutY="272.0" />
+                                    <TextField fx:id="MaxPitch" layoutX="119.0" layoutY="272.0" />
                                     <Label layoutX="15.0" layoutY="303.0" text="MaxYaw" />
-                                    <TextField fx:id="name11111" layoutX="119.0" layoutY="298.0" />
+                                    <TextField fx:id="MaxYaw" layoutX="119.0" layoutY="298.0" />
                                     <Label layoutX="15.0" layoutY="329.0" text="MinPitch" />
-                                    <TextField fx:id="name1211" layoutX="119.0" layoutY="324.0" />
+                                    <TextField fx:id="MinPitch" layoutX="119.0" layoutY="324.0" />
                                     <Label layoutX="15.0" layoutY="355.0" text="MinYaw" />
-                                    <TextField fx:id="name11211" layoutX="119.0" layoutY="350.0" />
+                                    <TextField fx:id="MinYaw" layoutX="119.0" layoutY="350.0" />
                                     <Label layoutX="15.0" layoutY="381.0" text="PlayerPosition" />
-                                    <TextField fx:id="name111111" layoutX="119.0" layoutY="376.0" />
+                                    <TextField fx:id="PlayerPosition" layoutX="119.0" layoutY="376.0" />
                                     <Label layoutX="15.0" layoutY="407.0" text="PlayerSize" />
-                                    <TextField fx:id="name12111" layoutX="119.0" layoutY="402.0" />
+                                    <TextField fx:id="PlayerSize" layoutX="119.0" layoutY="402.0" />
                                     <Label layoutX="15.0" layoutY="433.0" text="Rotation" />
-                                    <TextField fx:id="name112111" layoutX="119.0" layoutY="428.0" />
+                                    <TextField fx:id="Rotation" layoutX="61.0" layoutY="428.0" />
                                     <Label layoutX="15.0" layoutY="459.0" text="Scale" />
-                                    <TextField fx:id="name1111111" layoutX="119.0" layoutY="454.0" />
+                                    <TextField fx:id="Scaleseat" layoutX="61.0" layoutY="454.0" />
                                     <Label layoutX="163.0" layoutY="142.0" text="Advanced" />
                                     <Label layoutX="15.0" layoutY="485.0" text="ShouldLimitFieldOfView" />
-                                    <TextField fx:id="name11111111" layoutX="152.0" layoutY="480.0" />
-                                    <CheckBox layoutX="15.0" layoutY="112.0" mnemonicParsing="false" text="Driver" />
+                                    <TextField fx:id="ShouldLimitFieldOfView" layoutX="119.0" layoutY="480.0" />
+                                    <CheckBox layoutX="15.0" layoutY="112.0" mnemonicParsing="false" text="Driver" fx:id="IsDriver"/>
+                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" text="save" onAction="#saveSeat" />
                                  </children>
                               </AnchorPane>
                            </content>
@@ -163,13 +165,14 @@
                                  <children>
                                     <TextField fx:id="Names" layoutX="105.0" layoutY="44.0" />
                                     <Label layoutX="14.0" layoutY="14.0" text="Select" />
-                                    <ChoiceBox layoutX="104.0" layoutY="12.0" prefWidth="150.0" />
+                                    <ChoiceBox fx:id="shapelist" layoutX="104.0" layoutY="12.0" onAction="#choicelist" prefWidth="150.0" />
                                     <Label layoutX="15.0" layoutY="46.0" text="Name" />
                                     <TextField fx:id="Scales" layoutX="105.0" layoutY="70.0" />
                                     <Label layoutX="15.0" layoutY="74.0" text="Scale" />
                                     <TextField fx:id="Positions" layoutX="105.0" layoutY="96.0" />
                                     <Label layoutX="15.0" layoutY="98.0" text="Position" />
                                     <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
+                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" text="save" onAction="#saveshape"/>
                                  </children>
                               </AnchorPane>
                            </content>

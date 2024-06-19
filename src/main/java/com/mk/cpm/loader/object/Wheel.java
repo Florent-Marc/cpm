@@ -5,7 +5,9 @@ import com.mk.cpm.loader.utils.DataUtils;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Wheel extends DataUtils implements DataModifier {
 
@@ -26,30 +28,28 @@ public class Wheel extends DataUtils implements DataModifier {
     private String Suspension;
     private List<String> infos;
 
+
     @Override
-    public Object load(File br) {
+    public Object load(File file) {
         return null;
     }
 
     @Override
     public void save(File file) {
-        setValues(file, "AttachedWheel", AttachedWheel);
-        setValues(file, "DrivingWheel", DrivingWheel);
-        setValues(file, "IsRight", IsRight);
-        setValues(file, "IsSteerable", IsSteerable);
-        setValues(file, "MaxTurn", MaxTurn);
-        setValues(file, "Position", Position);
-        setValues(file, "DependsOn", DependsOn);
-        setValues(file, "HandBrakingWheel", HandBrakingWheel);
-        setValues(file, "MudGuard", MudGuard);
-        setValues(file, "RotationPoint", RotationPoint);
-        setValues(file, "Scale", Scale);
-        setValues(file, "Suspension", Suspension);
-        /*
-        Map<String, String> map = Map.of("AttachedWheel", AttachedWheel, "DrivingWheel", DrivingWheel);
-        setMultiValues(file, "test",map);
-
-         */
+        Map<String, String> map = new HashMap<>();
+        map.put("AttachedWheel", AttachedWheel);
+        map.put("DrivingWheel", DrivingWheel);
+        map.put("IsRight", IsRight);
+        map.put("IsSteerable", IsSteerable);
+        map.put("MaxTurn", MaxTurn);
+        map.put("Position", Position);
+        map.put("DependsOn", DependsOn);
+        map.put("HandBrakingWheel", HandBrakingWheel);
+        map.put("MudGuard", MudGuard);
+        map.put("RotationPoint", RotationPoint);
+        map.put("Scale", Scale);
+        map.put("Suspension", Suspension);
+        setMultiValues(file, Name, map);
     }
 
     @Override
@@ -147,6 +147,18 @@ public class Wheel extends DataUtils implements DataModifier {
 
     public String getSuspension() {
         return Suspension;
+    }
+
+    public String getName() {
+        return Name;
+    }
+
+    public void setName(String name) {
+        Name = name;
+    }
+
+    public void setInfos(List<String> infos) {
+        this.infos = infos;
     }
 
     public void setSuspension(String suspension) {

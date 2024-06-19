@@ -1,17 +1,32 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.config.Config;
+import com.mk.cpm.loader.object.Seat;
+import com.mk.cpm.loader.object.Shape;
 import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.object.Wheel;
+import com.mk.cpm.loader.pack.ZipCompressor;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ResourceBundle;
 
 public class VehiculController implements Initializable {
 
+    public ChoiceBox seatlist;
+    public ChoiceBox shapelist;
     private Vehicul vehicul;
 
     @FXML
@@ -39,6 +54,7 @@ public class VehiculController implements Initializable {
     public TextField ShapeYOffset;
     public TextField CenterOfGravityOffset;
     //wheels
+    public ChoiceBox wheelist;
     public TextField Namew;
     public TextField AttachedWheel;
     public TextField DrivingWheel;
@@ -50,10 +66,29 @@ public class VehiculController implements Initializable {
     public TextField RotationPoint;
     public TextField Scale;
     public TextField Suspension;
+    public CheckBox IsRight;
+    public CheckBox HandBrakingWheel;
     //shape
     public TextField Names;
     public TextField Scales;
     public TextField Positions;
+    //seat
+    public CheckBox IsDriver;
+    public TextField nameseat;
+    public TextField Positionseat;
+    public TextField CameraPositionY;
+    public TextField CameraRotation;
+    public TextField DependsOnseat;
+    public TextField LinkedDoorPart;
+    public TextField MaxPitch;
+    public TextField MaxYaw;
+    public TextField MinPitch;
+    public TextField MinYaw;
+    public TextField PlayerPosition;
+    public TextField PlayerSize;
+    public TextField Rotation;
+    public TextField Scaleseat;
+    public TextField ShouldLimitFieldOfView;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -64,13 +99,13 @@ public class VehiculController implements Initializable {
         if (vehicul == null) {
             return;
         }
-        if (vehicul.getName()!=null) {
+        if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
         }
-        if (vehicul.getDesc()!=null) {
+        if (vehicul.getDesc() != null) {
             desc.setText(vehicul.getDesc());
         }
-        if (vehicul.getModel()!=null) {
+        if (vehicul.getModel() != null) {
             model.setText(vehicul.getModel());
         }
 
@@ -128,9 +163,340 @@ public class VehiculController implements Initializable {
             CenterOfGravityOffset.setText(vehicul.getCenterOfGravityOffset());
         }
 
+        if (vehicul.getWheels() != null) {
+            List<String> wheels = new ArrayList<>();
+            for (int i = 0; i < vehicul.getWheels().size(); i++) {
+                wheels.add(vehicul.getWheels().get(i).getName());
+            }
+            wheelist.getItems().addAll(wheels);
+            wheelist.getSelectionModel().selectFirst();
+        }
+        if (wheelist.getSelectionModel() != null) {
+            Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+            if (wheel.getAttachedWheel() != null) {
+                AttachedWheel.setText(wheel.getAttachedWheel());
+            }
+            if (wheel.getDrivingWheel() != null) {
+                DrivingWheel.setText(wheel.getDrivingWheel());
+            }
+            if (wheel.getIsSteerable() != null) {
+                IsSteerable.setText(wheel.getIsSteerable());
+            }
+            if (wheel.getMaxTurn() != null) {
+                MaxTurn.setText(wheel.getMaxTurn());
+            }
+            if (wheel.getPosition() != null) {
+                Position.setText(wheel.getPosition());
+            }
+            if (wheel.getDependsOn() != null) {
+                DependsOn.setText(wheel.getDependsOn());
+            }
+            if (wheel.getMudGuard() != null) {
+                MudGuard.setText(wheel.getMudGuard());
+            }
+            if (wheel.getRotationPoint() != null) {
+                RotationPoint.setText(wheel.getRotationPoint());
+            }
+            if (wheel.getScale() != null) {
+                Scale.setText(wheel.getScale());
+            }
+            if (wheel.getSuspension() != null) {
+                Suspension.setText(wheel.getSuspension());
+            }
+            if (wheel.getIsRight() != null) {
+                IsRight.setSelected(Boolean.parseBoolean(wheel.getIsRight()));
+            }
+            if (wheel.getHandBrakingWheel() != null) {
+                HandBrakingWheel.setSelected(Boolean.parseBoolean(wheel.getHandBrakingWheel()));
+            }
+
+        }
+
+        if (vehicul.getShapes() != null) {
+            List<String> shapes = new ArrayList<>();
+            for (int i = 0; i < vehicul.getShapes().size(); i++) {
+                shapes.add(vehicul.getShapes().get(i).getName());
+            }
+            shapelist.getItems().addAll(shapes);
+            shapelist.getSelectionModel().selectFirst();
+        }
+        if (shapelist.getSelectionModel() != null) {
+            Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+            if (shape.getName() != null) {
+                Names.setText(shape.getName());
+            }
+            if (shape.getPosition() != null) {
+                Positions.setText(shape.getPosition());
+            }
+            if (shape.getScale() != null) {
+                Scales.setText(shape.getScale());
+            }
+        }
+
+        if (vehicul.getSeats() != null) {
+            List<String> seats = new ArrayList<>();
+            for (int i = 0; i < vehicul.getSeats().size(); i++) {
+                seats.add(vehicul.getSeats().get(i).getName());
+            }
+            seatlist.getItems().addAll(seats);
+            seatlist.getSelectionModel().selectFirst();
+        }
+        if (seatlist.getSelectionModel() != null) {
+            Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+            if (seat.getName() != null) {
+                nameseat.setText(seat.getName());
+            }
+            if (seat.getPosition() != null) {
+                Positionseat.setText(seat.getPosition());
+            }
+            if (seat.getCameraPositionY() != null) {
+                CameraPositionY.setText(seat.getCameraPositionY());
+            }
+            if (seat.getCameraRotation() != null) {
+                CameraRotation.setText(seat.getCameraRotation());
+            }
+            if (seat.getDependsOn() != null) {
+                DependsOnseat.setText(seat.getDependsOn());
+            }
+            if (seat.getLinkedDoorPart() != null) {
+                LinkedDoorPart.setText(seat.getLinkedDoorPart());
+            }
+            if (seat.getMaxPitch() != null) {
+                MaxPitch.setText(seat.getMaxPitch());
+            }
+            if (seat.getMaxYaw() != null) {
+                MaxYaw.setText(seat.getMaxYaw());
+            }
+            if (seat.getMinPitch() != null) {
+                MinPitch.setText(seat.getMinPitch());
+            }
+            if (seat.getMinYaw() != null) {
+                MinYaw.setText(seat.getMinYaw());
+            }
+            if (seat.getPlayerPosition() != null) {
+                PlayerPosition.setText(seat.getPlayerPosition());
+            }
+            if (seat.getPlayerSize() != null) {
+                PlayerSize.setText(seat.getPlayerSize());
+            }
+            if (seat.getRotation() != null) {
+                Rotation.setText(seat.getRotation());
+            }
+            if (seat.getScale() != null) {
+                Scaleseat.setText(seat.getScale());
+            }
+            if (seat.getShouldLimitFieldOfView() != null) {
+                ShouldLimitFieldOfView.setText(seat.getShouldLimitFieldOfView());
+            }
+            if (seat.getDriver() != null) {
+                IsDriver.setSelected(Boolean.parseBoolean(seat.getDriver()));
+            }
+        }
+
+
+    }
+
+    @FXML
+    public void choiceWheel(ActionEvent actionEvent) {
+        Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+        if (wheel.getAttachedWheel() != null) {
+            AttachedWheel.setText(wheel.getAttachedWheel());
+        }
+        if (wheel.getDrivingWheel() != null) {
+            DrivingWheel.setText(wheel.getDrivingWheel());
+        }
+        if (wheel.getIsSteerable() != null) {
+            IsSteerable.setText(wheel.getIsSteerable());
+        }
+        if (wheel.getMaxTurn() != null) {
+            MaxTurn.setText(wheel.getMaxTurn());
+        }
+        if (wheel.getPosition() != null) {
+            Position.setText(wheel.getPosition());
+        }
+        if (wheel.getDependsOn() != null) {
+            DependsOn.setText(wheel.getDependsOn());
+        }
+        if (wheel.getMudGuard() != null) {
+            MudGuard.setText(wheel.getMudGuard());
+        }
+        if (wheel.getRotationPoint() != null) {
+            RotationPoint.setText(wheel.getRotationPoint());
+        }
+        if (wheel.getScale() != null) {
+            Scale.setText(wheel.getScale());
+        }
+        if (wheel.getSuspension() != null) {
+            Suspension.setText(wheel.getSuspension());
+        }
+        if (wheel.getIsRight() != null) {
+            IsRight.setSelected(Boolean.parseBoolean(wheel.getIsRight()));
+        }
+        if (wheel.getHandBrakingWheel() != null) {
+            HandBrakingWheel.setSelected(Boolean.parseBoolean(wheel.getHandBrakingWheel()));
+        }
+    }
+
+    @FXML
+    public void choicelist(ActionEvent actionEvent) {
+        Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+        if (shape.getName() != null) {
+            Names.setText(shape.getName());
+        }
+        if (shape.getPosition() != null) {
+            Positions.setText(shape.getPosition());
+        }
+        if (shape.getScale() != null) {
+            Scales.setText(shape.getScale());
+        }
+    }
+
+    @FXML
+    public void saveshape(ActionEvent actionEvent) {
+        Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+        shape.setName(Names.getText());
+        shape.setPosition(Positions.getText());
+        shape.setScale(Scales.getText());
+    }
+
+    @FXML
+    public void savewheel(ActionEvent actionEvent) {
+        Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+        wheel.setAttachedWheel(AttachedWheel.getText());
+        wheel.setDrivingWheel(DrivingWheel.getText());
+        wheel.setIsSteerable(IsSteerable.getText());
+        wheel.setMaxTurn(MaxTurn.getText());
+        wheel.setPosition(Position.getText());
+        wheel.setDependsOn(DependsOn.getText());
+        wheel.setMudGuard(MudGuard.getText());
+        wheel.setRotationPoint(RotationPoint.getText());
+        wheel.setScale(Scale.getText());
+        wheel.setSuspension(Suspension.getText());
+        wheel.setIsRight(String.valueOf(IsRight.isSelected()));
+        wheel.setHandBrakingWheel(String.valueOf(HandBrakingWheel.isSelected()));
+    }
+
+    @FXML
+    public void saveSeat(ActionEvent actionEvent) {
+        Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+        seat.setName(nameseat.getText());
+        seat.setPosition(Positionseat.getText());
+        seat.setCameraPositionY(CameraPositionY.getText());
+        seat.setCameraRotation(CameraRotation.getText());
+        seat.setDependsOn(DependsOnseat.getText());
+        seat.setLinkedDoorPart(LinkedDoorPart.getText());
+        seat.setMaxPitch(MaxPitch.getText());
+        seat.setMaxYaw(MaxYaw.getText());
+        seat.setMinPitch(MinPitch.getText());
+        seat.setMinYaw(MinYaw.getText());
+        seat.setPlayerPosition(PlayerPosition.getText());
+        seat.setPlayerSize(PlayerSize.getText());
+        seat.setRotation(Rotation.getText());
+        seat.setScale(Scaleseat.getText());
+        seat.setShouldLimitFieldOfView(ShouldLimitFieldOfView.getText());
+        seat.setDriver(String.valueOf(IsDriver.isSelected()));
     }
 
     @FXML
     public void save(MouseEvent mouseEvent) {
+        vehicul.setName(name.getText());
+        vehicul.setDesc(desc.getText());
+        vehicul.setModel(model.getText());
+        vehicul.setCreativeTab(CreativeTab.getText());
+        vehicul.setIconText(IconText.getText());
+        vehicul.setItemRotation(itemrotation.getText());
+        vehicul.getItem().setItemTranslate(itemtranslation.getText());
+        vehicul.setItemScale(itemscale.getText());
+        vehicul.setDragCoefficient(DragCoefficient.getText());
+        vehicul.setEmptyMass(EmptyMass.getText());
+        vehicul.setAngularDamping(AngularDamping.getText());
+        vehicul.setLinearDamping(LinearDamping.getText());
+        vehicul.setDefaultEngine(DefaultEngine.getText());
+        vehicul.setDefaultSounds(DefaultSounds.getText());
+        vehicul.setDefaultZoomLevel(DefaultZoomLevel.getText());
+        vehicul.setMaxVehicleSpeed(MaxVehicleSpeed.getText());
+        vehicul.setPlayerStandOnTop(PlayerStandOnTop.getText());
+        vehicul.setScaleModifier(ScaleModifier.getText());
+        vehicul.setShapeYOffset(ShapeYOffset.getText());
+        vehicul.setCenterOfGravityOffset(CenterOfGravityOffset.getText());
+
+        File f = vehicul.getFile();
+        if (f == null) {
+            return;
+        }
+        //clear file
+        try {
+            FileWriter fileWriter = new FileWriter(f);
+            fileWriter.write("");
+            fileWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.vehicul.save(f);
+        if (f.getPath().contains("\\cpm\\cache")) {
+            try {
+                String source = Config.getCachePath() + "/pack/" + MainController.packname;
+                String dest = Config.getLastdirectory() + "/" + MainController.packname;
+                ZipCompressor.compressFolder(source, dest);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        Stage stage = (Stage) name.getScene().getWindow();
+        stage.close();
+        MainController.mainController.refresh();
+    }
+
+    @FXML
+    public void seatChoice(ActionEvent actionEvent) {
+        Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+        if (seat.getName() != null) {
+            nameseat.setText(seat.getName());
+        }
+        if (seat.getPosition() != null) {
+            Positionseat.setText(seat.getPosition());
+        }
+        if (seat.getCameraPositionY() != null) {
+            CameraPositionY.setText(seat.getCameraPositionY());
+        }
+        if (seat.getCameraRotation() != null) {
+            CameraRotation.setText(seat.getCameraRotation());
+        }
+        if (seat.getDependsOn() != null) {
+            DependsOnseat.setText(seat.getDependsOn());
+        }
+        if (seat.getLinkedDoorPart() != null) {
+            LinkedDoorPart.setText(seat.getLinkedDoorPart());
+        }
+        if (seat.getMaxPitch() != null) {
+            MaxPitch.setText(seat.getMaxPitch());
+        }
+        if (seat.getMaxYaw() != null) {
+            MaxYaw.setText(seat.getMaxYaw());
+        }
+        if (seat.getMinPitch() != null) {
+            MinPitch.setText(seat.getMinPitch());
+        }
+        if (seat.getMinYaw() != null) {
+            MinYaw.setText(seat.getMinYaw());
+        }
+        if (seat.getPlayerPosition() != null) {
+            PlayerPosition.setText(seat.getPlayerPosition());
+        }
+        if (seat.getPlayerSize() != null) {
+            PlayerSize.setText(seat.getPlayerSize());
+        }
+        if (seat.getRotation() != null) {
+            Rotation.setText(seat.getRotation());
+        }
+        if (seat.getScale() != null) {
+            Scaleseat.setText(seat.getScale());
+        }
+        if (seat.getShouldLimitFieldOfView() != null) {
+            ShouldLimitFieldOfView.setText(seat.getShouldLimitFieldOfView());
+        }
+        if (seat.getDriver() != null) {
+            IsDriver.setSelected(Boolean.parseBoolean(seat.getDriver()));
+        }
     }
 }

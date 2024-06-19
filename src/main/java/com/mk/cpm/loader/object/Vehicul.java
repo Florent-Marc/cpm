@@ -25,17 +25,18 @@ public class Vehicul extends Item implements DataModifier {
     private String ScaleModifier;
     private String ShapeYOffset;
     private List<String> infos;
+    private File file;
 
 
     @Override
     public Object load(File file) {
+        this.file = file;
         this.infos = new ArrayList<>();
         this.item = (Item) super.load(file);
         this.Seats = new ArrayList<>();
         for (String name : super.getSections(file, "Seat")) {
             Seat seat = new Seat();
             this.Seats.add((Seat) seat.load(file, name));
-            super.getInfos().addAll(seat.getInfos());
         }
         this.Wheels = new ArrayList<>();
         for (String name : super.getSections(file, "Wheel")) {
@@ -44,15 +45,14 @@ public class Vehicul extends Item implements DataModifier {
             }
             Wheel wheel = new Wheel();
             this.Wheels.add((Wheel) wheel.load(file, name));
-            super.getInfos().addAll(wheel.getInfos());
         }
         this.Shapes = new ArrayList<>();
         for (String name : super.getSections(file, "Shape")) {
             Shape shape = new Shape();
             shape.load(file, name);
             this.Shapes.add(shape);
-            super.getInfos().addAll(shape.getInfos());
         }
+        infos.addAll(super.getInfos());
         this.CenterOfGravityOffset = super.getValues(infos, file, "CenterOfGravityOffset");
         this.DragCoefficient = super.getValues(infos, file, "DragCoefficient");
         this.EmptyMass = super.getValues(infos, file, "EmptyMass");
@@ -65,8 +65,36 @@ public class Vehicul extends Item implements DataModifier {
         this.PlayerStandOnTop = super.getValues(infos, file, "PlayerStandOnTop");
         this.ScaleModifier = super.getValues(infos, file, "ScaleModifier");
         this.ShapeYOffset = super.getValues(infos, file, "ShapeYOffset");
-        infos.addAll(super.getInfos());
+        infos.add("Seats: " + Seats.size());
+        infos.add("Wheels: " + Wheels.size());
+        infos.add("Shapes: " + Shapes.size());
         return this;
+    }
+
+    @Override
+    public void save(File file) {
+        super.save(file);
+        setValues(file, "CenterOfGravityOffset", CenterOfGravityOffset);
+        setValues(file, "DragCoefficient", DragCoefficient);
+        setValues(file, "EmptyMass", EmptyMass);
+        setValues(file, "AngularDamping", AngularDamping);
+        setValues(file, "LinearDamping", LinearDamping);
+        setValues(file, "DefaultEngine", DefaultEngine);
+        setValues(file, "DefaultSounds", DefaultSounds);
+        setValues(file, "DefaultZoomLevel", DefaultZoomLevel);
+        setValues(file, "MaxVehicleSpeed", MaxVehicleSpeed);
+        setValues(file, "PlayerStandOnTop", PlayerStandOnTop);
+        setValues(file, "ScaleModifier", ScaleModifier);
+        setValues(file, "ShapeYOffset", ShapeYOffset);
+        for (Wheel wheel : Wheels) {
+            wheel.save(file);
+        }
+        for (Seat seat : Seats) {
+            seat.save(file);
+        }
+        for (Shape shape : Shapes) {
+            shape.save(file);
+        }
     }
 
     public List<Wheel> getWheels() {
@@ -199,6 +227,15 @@ public class Vehicul extends Item implements DataModifier {
 
     public void setInfos(List<String> infos) {
         this.infos = infos;
+    }
+
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
     }
 
     @Override

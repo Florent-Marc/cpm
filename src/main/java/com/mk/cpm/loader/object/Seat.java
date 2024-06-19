@@ -4,11 +4,12 @@ import com.mk.cpm.loader.utils.DataModifier;
 import com.mk.cpm.loader.utils.DataUtils;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class Seat extends DataUtils implements DataModifier{
+public class Seat extends DataUtils implements DataModifier {
 
     //obligatoroire
     private String Name;
@@ -189,6 +190,23 @@ public class Seat extends DataUtils implements DataModifier{
 
     @Override
     public void save(File file) {
+        Map<String, String> map = new HashMap<>();
+        map.put("Position", Position);
+        map.put("Driver", Driver);
+        map.put("CameraPositionY", CameraPositionY);
+        map.put("CameraRotation", CameraRotation);
+        map.put("DependsOn", DependsOn);
+        map.put("LinkedDoorPart", LinkedDoorPart);
+        map.put("MaxPitch", MaxPitch);
+        map.put("MaxYaw", MaxYaw);
+        map.put("MinPitch", MinPitch);
+        map.put("MinYaw", MinYaw);
+        map.put("PlayerPosition", PlayerPosition);
+        map.put("PlayerSize", PlayerSize);
+        map.put("Rotation", Rotation);
+        map.put("Scale", Scale);
+        map.put("ShouldLimitFieldOfView", ShouldLimitFieldOfView);
+        setMultiValues(file, Name, map);
 
     }
 

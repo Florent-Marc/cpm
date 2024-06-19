@@ -4,9 +4,9 @@ import com.mk.cpm.loader.utils.DataModifier;
 import com.mk.cpm.loader.utils.DataUtils;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class Shape extends DataUtils implements DataModifier {
 
@@ -23,8 +23,8 @@ public class Shape extends DataUtils implements DataModifier {
     public Object load(File file, String name) {
         this.infos = new ArrayList<>();
         this.Name = name;
-        this.Position = getValuesFromSection(infos,file, name, "Position");
-        this.Scale = getValuesFromSection(infos,file, name, "Scale");
+        this.Position = getValuesFromSection(infos, file, name, "Position");
+        this.Scale = getValuesFromSection(infos, file, name, "Scale");
         return this;
     }
 
@@ -58,7 +58,8 @@ public class Shape extends DataUtils implements DataModifier {
 
     @Override
     public void save(File file) {
-
+        Map<String, String> map = Map.of("Position", Position, "Scale", Scale);
+        setMultiValues(file, Name, map);
     }
 
     @Override
