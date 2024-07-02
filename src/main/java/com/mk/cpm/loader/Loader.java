@@ -120,4 +120,40 @@ public class Loader {
         return objectsList;
     }
 
+    public static void removeOject(Object o, String packname) {
+        //look in all file in folder and remove the file
+        String path;
+        if (packname.contains(".dnxpack")){
+            path = Config.getCachePath() + "/pack/" + packname;
+        }else {
+            path = Config.getLastdirectory() + "/" + packname;
+        }
+        File f = new File(path);
+        //get all files in the directory et tous les fichier dans les sous dossier
+        File[] files = listFiles(f.getAbsolutePath()).stream().map(Path::toFile).toArray(File[]::new);
+        if (files == null){
+            return;
+        }
+        String name = "";
+        String dirObj = "";
+        if (o instanceof Block){
+            name = "block_" + ((Block) o).getName();
+            //get dir obj with model
+            dirObj = ((Block) o).getModel();
+        }
+        if (o instanceof Armor){
+            name = "armor_" + ((Armor) o).getName();
+            dirObj = ((Armor) o).getModel();
+        }
+        if (o instanceof Vehicul){
+            name = "vehicle_" + ((Vehicul) o).getName();
+            dirObj = ((Vehicul) o).getModel();
+        }
+        if (o instanceof Item){
+            name = "item_" + ((Item) o).getName();
+            dirObj = ((Item) o).getModel();
+        }
+
+
+    }
 }

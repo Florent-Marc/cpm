@@ -3,7 +3,6 @@ package com.mk.cpm.loader.object;
 import com.mk.cpm.loader.utils.DataModifier;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -87,7 +86,9 @@ public class Block extends Item implements DataModifier {
         setValues(file, "Rotate", Rotation);
         setValues(file, "Translate", Translation);
         setValues(file, "Variants:", Textures);
-        setValues(file, "UseComplexCollision", UseComplexCollision.toString());
+        if (UseComplexCollision != null) {
+            setValues(file, "UseComplexCollision", UseComplexCollision.toString());
+        }
         setValues(file, "CenterOfGravityOffset", CenterOfGravityOffset);
         setValues(file, "EmptyMass", EmptyMass);
         setValues(file, "DespawnTime", DespawnTime);

@@ -1,6 +1,8 @@
 package com.mk.cpm.controller;
 
 import com.mk.cpm.config.Config;
+import com.mk.cpm.loader.object.Block;
+import com.mk.cpm.loader.pack.ZipCompressor;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
@@ -37,7 +39,7 @@ public class CreateController implements Initializable{
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        choicebox.getItems().addAll("Block");
+        choicebox.getItems().addAll("Block", "Item", "Armor", "Vehicle");
         //change color of the button red
     }
 
@@ -106,32 +108,81 @@ public class CreateController implements Initializable{
             return;
         }
         //TODO check if file existe deja
-        Object packname = MainController.packname;
-        //check if dir blocks exist
-        //if not create it
-        if (!new File(Config.getLastdirectory()+"/"+packname+"/blocks").exists()){
-            new File(Config.getLastdirectory()+"/"+packname+"/blocks").mkdirs();
+        String packname = MainController.packname;
+        String path;
+        if (packname.contains(".dnxpack")){
+            path = Config.getCachePath() + "/pack/" + packname;
+        }else {
+            path = Config.getLastdirectory() + "/" + packname;
         }
-        //check if dir assets/dynamxmod/models/blocks exist
-        if (!new File(Config.getLastdirectory()+"/"+packname+"/assets/dynamxmod/models/blocks/"+name.getText()).exists()){
-            new File(Config.getLastdirectory()+"/"+packname+"/assets/dynamxmod/models/blocks/"+name.getText()).mkdirs();
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Block")){
+            File f = new File(path + "/block/block_" + name.getText()+".dynx");
+            //create the parent directory and the file
+            f.getParentFile().mkdirs();
+            f.createNewFile();
+            Block block = new Block();
+            block.setName(name.getText());
+            block.setDesc(desc.getText());
+            block.setModel("obj/" + name.getText() + "/" + fileSelected.getName());
+            block.setFile(f);
+            block.save(f);
         }
-        //copy file in the directory
-        //copy fileSelected in assets/dynamxmod/models/blocks/name
-        Files.copy(fileSelected.toPath(), new File(Config.getLastdirectory()+"/"+packname+"/assets/dynamxmod/models/blocks/"+name.getText()+"/"+fileSelected.getName()).toPath());
-        //copy fileSelected1 in assets/dynamxmod/models/blocks/name
-        Files.copy(fileSelected1.toPath(), new File(Config.getLastdirectory()+"/"+packname+"/assets/dynamxmod/models/blocks/"+name.getText()+"/"+fileSelected1.getName()).toPath());
-        //copy fileSelected2 in assets/dynamxmod/models/blocks/name
-        Files.copy(fileSelected2.toPath(), new File(Config.getLastdirectory()+"/"+packname+"/assets/dynamxmod/models/blocks/"+name.getText()+"/"+fileSelected2.getName()).toPath());
-
-        //create file block_name.dynx
-        File f = new File(Config.getLastdirectory()+"/"+packname+"/blocks/block_"+name.getText()+".dynx");
-        //write in the file
-        FileWriter fw = new FileWriter(f);
-        fw.write("Name: "+name.getText()+"\n");
-        fw.write("Description: "+desc.getText()+"\n");
-        fw.write("Model: blocks/"+name.getText()+"/"+fileSelected.getName()+"\n");
-        fw.close();
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Item")){
+            File f = new File(path + "/item/item_" + name.getText()+".dynx");
+            //create the parent directory and the file
+            f.getParentFile().mkdirs();
+            f.createNewFile();
+            FileWriter writer = new FileWriter(f);
+            writer.write("Name: " + name.getText() + "\n");
+            writer.write("Desc: " + desc.getText() + "\n");
+            writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
+            writer.close();
+        }
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Armor")){
+            File f = new File(path + "/armor/armor_" + name.getText()+".dynx");
+            //create the parent directory and the file
+            f.getParentFile().mkdirs();
+            f.createNewFile();
+            FileWriter writer = new FileWriter(f);
+            writer.write("Name: " + name.getText() + "\n");
+            writer.write("Desc: " + desc.getText() + "\n");
+            writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
+            writer.close();
+        }
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Vehicle")){
+            File f = new File(path + "/vehicle/vehicle_" + name.getText()+".dynx");
+            //create the parent directory and the file
+            f.getParentFile().mkdirs();
+            f.createNewFile();
+            FileWriter writer = new FileWriter(f);
+            writer.write("Name: " + name.getText() + "\n");
+            writer.write("Desc: " + desc.getText() + "\n");
+            writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
+            writer.close();
+        }
+        //Copy fileselected to the pack
+        String target = path + "/assets/dynamxmod/models/obj/" + name.getText() + "/";
+        //check if the directory exist
+        File f = new File(target);
+        f.mkdirs();
+        Files.copy(fileSelected.toPath(), new File(target+"/"+fileSelected.getName()).toPath());
+        Files.copy(fileSelected1.toPath(), new File(target+"/"+fileSelected1.getName()).toPath());
+        Files.copy(fileSelected2.toPath(), new File(target+"/"+fileSelected2.getName()).toPath());
+        if (packname.contains("\\cpm\\cache")) {
+            try {
+                String source = Config.getCachePath() + "/pack/" + packname;
+                String dest = Config.getLastdirectory() + "/" + packname;
+                ZipCompressor.compressFolder(source, dest);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
         MainController.create.close();
         MainController.mainController.refresh();
     }

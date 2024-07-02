@@ -315,52 +315,39 @@ public class MainController implements Initializable {
         if (list.getSelectionModel().getSelectedItem() == null) {
             return;
         }
+        Object o = null;
         for (Object block : Loader.getObject()) {
             if (block instanceof Block) {
                 Block b = (Block) block;
                 if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                    //remove dir of block
-                    File f = new File("pack/" + packname + "/assets/dynamxmod/models/" + b.getModel()).getParentFile();
-                    //remove dir
-                    if (f.exists()) {
-                        f.deleteOnExit();
-                    }
-                    //remove .dynx file
-                    File f2 = new File("pack/" + packname);
-                    //find file in dir
-                    for (File f3 : f2.listFiles()) {
-                        //pack check pack_info.dynx and assets
-                        if (f3.getName().equals("pack_info.dynx") || f3.getName().equals("assets")) {
-                            continue;
-                        }
-                        if (f3.isDirectory()) {
-                            for (File f4 : f3.listFiles()) {
-                                if (f4.isDirectory()) {
-                                    for (File f5 : f4.listFiles()) {
-                                        if (f5.getName().equals("block_" + b.getName() + ".dynx")) {
-                                            f5.deleteOnExit();
-                                            f5.delete();
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (f4.getName().equals("block_" + b.getName() + ".dynx")) {
-                                    f4.deleteOnExit();
-                                    f4.delete();
-                                    break;
-                                }
-                            }
-                        }
-                        if (f3.getName().equals("block_" + b.getName() + ".dynx")) {
-                            f3.deleteOnExit();
-                            f3.delete();
-                            break;
-                        }
-
-                    }
+                    o = b;
+                }
+            }
+            if (block instanceof Armor) {
+                Armor b = (Armor) block;
+                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
+                    o = b;
+                }
+            }
+            if (block instanceof Vehicul) {
+                Vehicul b = (Vehicul) block;
+                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
+                    o = b;
+                }
+            }
+            if (block instanceof Item) {
+                Item b = (Item) block;
+                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
+                    o = b;
                 }
             }
         }
+
+        if (o != null) {
+            Loader.removeOject(o, pack.getSelectionModel().getSelectedItem().toString());
+            refresh();
+        }
+
         refresh();
     }
 

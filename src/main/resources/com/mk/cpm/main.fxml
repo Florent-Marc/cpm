@@ -24,18 +24,18 @@
       <menus>
         <Menu mnemonicParsing="false" text="File">
           <items>
-            <MenuItem mnemonicParsing="false" text="New pack" onAction="#packCreateButton" fx:id="newpack"/>
+            <MenuItem fx:id="newpack" mnemonicParsing="false" onAction="#packCreateButton" text="New pack" />
             <SeparatorMenuItem mnemonicParsing="false" />
-            <MenuItem mnemonicParsing="false" text="Open folder work …" onAction="#open" />
+            <MenuItem mnemonicParsing="false" onAction="#open" text="Open folder work …" />
             <Menu mnemonicParsing="false" text="Open Recent (Soon)" />
-            <MenuItem mnemonicParsing="false" text="Refresh" onAction="#refreshpack" />
+            <MenuItem mnemonicParsing="false" onAction="#refreshpack" text="Refresh" />
             <SeparatorMenuItem mnemonicParsing="false" />
             <MenuItem mnemonicParsing="false" text="Preferences… (Soon)" />
             <SeparatorMenuItem mnemonicParsing="false" />
-            <MenuItem mnemonicParsing="false" text="Quit" onAction="#quit" />
+            <MenuItem mnemonicParsing="false" onAction="#quit" text="Quit" />
           </items>
         </Menu>
-        <Menu mnemonicParsing="false" text="Edit" fx:id="editmenu">
+        <Menu fx:id="editmenu" mnemonicParsing="false" text="Edit">
           <items>
             <MenuItem mnemonicParsing="false" text="Undo" />
             <MenuItem mnemonicParsing="false" text="Redo" />
@@ -51,7 +51,7 @@
         </Menu>
         <Menu mnemonicParsing="false" text="Help">
           <items>
-            <MenuItem mnemonicParsing="false" text="Discord" onAction="#contact"/>
+            <MenuItem mnemonicParsing="false" onAction="#contact" text="Discord" />
           </items>
         </Menu>
       </menus>
@@ -60,7 +60,7 @@
       <items>
         <AnchorPane>
           <children>
-            <Label alignment="CENTER" layoutX="14.0" layoutY="14.0" minWidth="60.0" prefWidth="-1.0" style="&#10;" text="Packs" textAlignment="CENTER" wrapText="false">
+            <Label alignment="CENTER" layoutX="14.0" layoutY="14.0" minWidth="60.0" prefWidth="-1.0" style="&#10;" text="Packs" textAlignment="CENTER" wrapText="false" AnchorPane.bottomAnchor="508.8" AnchorPane.leftAnchor="13.599999999999994" AnchorPane.rightAnchor="148.4" AnchorPane.topAnchor="14.0">
               <font>
                 <Font size="18.0" fx:id="x1" />
               </font>
@@ -68,18 +68,18 @@
                 <Color red="0.624" green="0.624" blue="0.624" fx:id="x2" />
               </textFill>
             </Label>
-                  <ListView fx:id="pack" layoutY="50.0" onMouseClicked="#packSelecter" prefHeight="499.0" prefWidth="222.0" />
+                  <ListView fx:id="pack" layoutY="50.0" onMouseClicked="#packSelecter" prefHeight="499.0" prefWidth="222.0" AnchorPane.bottomAnchor="0.8000000000000114" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="50.0" />
           </children>
         </AnchorPane>
         <ScrollPane prefHeight="-1.0" prefWidth="-1.0">
           <content>
-            <AnchorPane id="Content" minHeight="-1.0" minWidth="-1.0" prefHeight="545.0" prefWidth="430.0">
+            <AnchorPane id="Content" minHeight="-1.0" minWidth="-1.0" prefHeight="546.0" prefWidth="442.0">
               <children>
                 <Label alignment="CENTER" font="$x1" layoutX="14.0" layoutY="14.0" style="&#10;" text="Contents" textAlignment="CENTER" textFill="$x2" wrapText="false" />
-                        <ListView fx:id="list" layoutY="50.0" onMouseClicked="#ObjectSelecter" prefHeight="498.0" prefWidth="440.0" />
+                        <ListView fx:id="list" layoutY="50.0" onMouseClicked="#ObjectSelecter" prefHeight="498.0" prefWidth="440.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="50.0" />
                         <Button fx:id="add" layoutX="97.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#addObject" text="+" />
                         <Button fx:id="remove" layoutX="133.0" layoutY="15.0" mnemonicParsing="false" onMouseClicked="#remove" prefHeight="26.0" prefWidth="25.0" text="-" />
-                        <ChoiceBox layoutX="276.0" layoutY="16.0" prefWidth="150.0" fx:id="choice" onAction="#choice" />
+                        <ChoiceBox fx:id="choice" layoutX="276.0" layoutY="16.0" onAction="#choice" prefWidth="150.0" />
               </children>
             </AnchorPane>
           </content>
@@ -87,7 +87,7 @@
         <AnchorPane>
           <children>
             <Label alignment="CENTER" font="$x1" layoutX="14.0" layoutY="14.0" style="&#10;" text="Details" textAlignment="CENTER" textFill="$x2" wrapText="false" />
-                  <ListView fx:id="info" layoutX="-1.0" layoutY="50.0" prefHeight="499.0" prefWidth="223.0" />
+                  <ListView fx:id="info" layoutX="-1.0" layoutY="50.0" prefHeight="499.0" prefWidth="223.0" AnchorPane.bottomAnchor="0.8000000000000114" AnchorPane.leftAnchor="-1.0" AnchorPane.rightAnchor="0.8000000000000114" AnchorPane.topAnchor="50.0" />
           </children>
         </AnchorPane>
       </items>
