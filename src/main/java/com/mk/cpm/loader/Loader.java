@@ -107,6 +107,28 @@ public class Loader {
         return objects;
     }
 
+    //get path of obj with name of obj and packname
+    public static String getPath(String name, String packname){
+        String path;
+        if (packname.contains(".dnxpack")){
+            path = Config.getCachePath() + "/pack/" + packname;
+        }else {
+            path = Config.getLastdirectory() + "/" + packname;
+        }
+        File f = new File(path);
+        //get all files in the directory et tous les fichier dans les sous dossier
+        File[] files = listFiles(f.getAbsolutePath()).stream().map(Path::toFile).toArray(File[]::new);
+        if (files == null){
+            return "";
+        }
+        for (File file : files){
+            if (file.getName().contains(name)){
+                return file.getAbsolutePath();
+            }
+        }
+        return "";
+    }
+
     public static List<Path> listFiles(String directory) {
         try (Stream<Path> paths = Files.walk(Paths.get(directory))) {
             return paths.filter(Files::isRegularFile)

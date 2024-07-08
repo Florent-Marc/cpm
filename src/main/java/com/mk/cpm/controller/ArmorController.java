@@ -1,14 +1,27 @@
 package com.mk.cpm.controller;
 
+import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
 import com.mk.cpm.config.Config;
+import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.pack.ZipCompressor;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.*;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.MeshView;
+import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,6 +31,7 @@ import java.util.ResourceBundle;
 
 public class ArmorController implements Initializable {
 
+    public Pane render;
     private Armor armor;
     @FXML
     public ChoiceBox<Object> choiceBox;
@@ -110,6 +124,67 @@ public class ArmorController implements Initializable {
         if (armor.getEquipSound() != null) {
             EquipSound.setText(armor.getEquipSound());
         }
+        ObjModelImporter myModel = new ObjModelImporter();
+        try {
+            //get only the name of the model /cc/test/test.obj -> test
+            String[] split = armor.getModel().split("/");
+            File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
+            System.out.println("Loading model from: " + file.getAbsolutePath());
+            myModel.read(file);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
+        MeshView[] meshViews = myModel.getImport();
+        if (meshViews == null || meshViews.length == 0) {
+            System.err.println("No meshes found in the model.");
+            return;
+        }
+
+        Group root = new Group(meshViews);
+
+
+        for (MeshView meshView : meshViews) {
+            PhongMaterial material = new PhongMaterial();
+            material.setDiffuseColor(Color.color(Math.random(), Math.random(), Math.random()));
+            meshView.setMaterial(material);
+        }
+
+        Camera camera = new PerspectiveCamera(true);
+        camera.setTranslateZ(-10);
+
+        PointLight light = new PointLight(Color.WHITE);
+        light.setTranslateX(-180);
+        light.setTranslateY(-90);
+        light.setTranslateZ(-120);
+        root.getChildren().add(light);
+
+        // Create a light source a l'oppose du point de vue de la camera
+        PointLight light2 = new PointLight(Color.WHITE);
+        light2.setTranslateX(180);
+        light2.setTranslateY(90);
+        light2.setTranslateZ(120);
+        root.getChildren().add(light2);
+
+        SubScene subScene = new SubScene(root, 800, 600, true, SceneAntialiasing.BALANCED);
+        subScene.setFill(Color.DARKGRAY);
+        subScene.setCamera(camera);
+        subScene.widthProperty().bind(render.widthProperty());
+        subScene.heightProperty().bind(render.heightProperty());
+        render.getChildren().add(subScene);
+
+
+        Rotate rot = new Rotate(0, Rotate.Y_AXIS);
+        root.getTransforms().add(rot);
+
+        Timeline anim = new Timeline(
+                new KeyFrame(Duration.seconds(0), new KeyValue(rot.angleProperty(), 0)),
+                new KeyFrame(Duration.seconds(15), new KeyValue(rot.angleProperty(), 360))
+        );
+        anim.setCycleCount(Timeline.INDEFINITE);
+        anim.play();
+
     }
 
     @FXML
