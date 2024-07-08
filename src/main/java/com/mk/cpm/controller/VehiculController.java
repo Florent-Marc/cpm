@@ -1,5 +1,7 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.HelloApplication;
+import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.object.Seat;
 import com.mk.cpm.loader.object.Shape;
@@ -8,11 +10,14 @@ import com.mk.cpm.loader.object.Wheel;
 import com.mk.cpm.loader.pack.ZipCompressor;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.io.File;
@@ -28,6 +33,7 @@ public class VehiculController implements Initializable {
     public ChoiceBox seatlist;
     public ChoiceBox shapelist;
     private Vehicul vehicul;
+    public static VehiculController instance;
 
     @FXML
     //item
@@ -95,10 +101,12 @@ public class VehiculController implements Initializable {
         if (MainController.blockselected == null) {
             return;
         }
+        instance = this;
         vehicul = (Vehicul) MainController.blockselected;
         if (vehicul == null) {
             return;
         }
+        Main.o = vehicul;
         if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
         }
@@ -497,6 +505,57 @@ public class VehiculController implements Initializable {
         }
         if (seat.getDriver() != null) {
             IsDriver.setSelected(Boolean.parseBoolean(seat.getDriver()));
+        }
+    }
+
+    @FXML
+    public void addseat(ActionEvent actionEvent) throws IOException {
+        /*
+        Stage stage = new Stage();
+        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("more.fxml"));
+        Scene scene = new Scene(fxmlLoader.load());
+        stage.getIcons().add(HelloApplication.logo);
+        scene.setFill(Color.rgb(40, 44, 52, 1.0));
+        stage.setTitle("CPM-UI");
+        stage.setScene(scene);
+        stage.setResizable(false);
+        stage.show();
+
+         */
+        Seat s = new Seat();
+        s.setName("Seat_" + vehicul.getSeats().size()+1 + "{");
+        vehicul.getSeats().add(s);
+        seatlist.getItems().add(s.getName());
+    }
+
+    public void update(Vehicul vehicul){
+        this.vehicul = vehicul;
+        shapelist.getItems().clear();
+        seatlist.getItems().clear();
+        wheelist.getItems().clear();
+        if (vehicul.getShapes() != null) {
+            List<String> shapes = new ArrayList<>();
+            for (int i = 0; i < vehicul.getShapes().size(); i++) {
+                shapes.add(vehicul.getShapes().get(i).getName());
+            }
+            shapelist.getItems().addAll(shapes);
+            shapelist.getSelectionModel().selectFirst();
+        }
+        if (vehicul.getSeats() != null) {
+            List<String> seats = new ArrayList<>();
+            for (int i = 0; i < vehicul.getSeats().size(); i++) {
+                seats.add(vehicul.getSeats().get(i).getName());
+            }
+            seatlist.getItems().addAll(seats);
+            seatlist.getSelectionModel().selectFirst();
+        }
+        if (vehicul.getWheels() != null) {
+            List<String> wheels = new ArrayList<>();
+            for (int i = 0; i < vehicul.getWheels().size(); i++) {
+                wheels.add(vehicul.getWheels().get(i).getName());
+            }
+            wheelist.getItems().addAll(wheels);
+            wheelist.getSelectionModel().selectFirst();
         }
     }
 }

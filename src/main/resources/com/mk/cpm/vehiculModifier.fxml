@@ -123,7 +123,7 @@
                                     <TextField fx:id="nameseat" layoutX="61.0" layoutY="55.0" />
                                     <Label layoutX="16.0" layoutY="14.0" text="Select" />
                                     <ChoiceBox fx:id="seatlist" layoutX="65.0" layoutY="10.0" prefWidth="150.0" onAction="#seatChoice"/>
-                                    <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" text="+" />
+                                    <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" text="+" onAction="#addseat"/>
                                     <Label layoutX="15.0" layoutY="86.0" text="Position" />
                                     <TextField fx:id="Positionseat" layoutX="61.0" layoutY="81.0" />
                                     <Label layoutX="15.0" layoutY="173.0" text="CameraPositionY" />

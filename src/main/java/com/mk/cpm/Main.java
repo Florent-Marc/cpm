@@ -7,6 +7,8 @@ import java.io.File;
 public class Main {
 
     public static boolean isDynxPack = false;
+    public static String CurrentAdd = "";
+    public static Object o;
 
 
     public static void main(String[] args) {
