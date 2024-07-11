@@ -4,14 +4,16 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="540.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.VehiculController">
+<VBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="540.0" prefWidth="764.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.VehiculController">
    <children>
       <SplitPane dividerPositions="0.501311647429171" prefHeight="552.0" prefWidth="764.0">
         <items>
@@ -110,7 +112,7 @@
                                     <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
                                     <CheckBox fx:id="IsRight" layoutX="16.0" layoutY="126.0" mnemonicParsing="false" text="IsRight" />
                                     <CheckBox fx:id="HandBrakingWheel" layoutX="15.0" layoutY="292.0" mnemonicParsing="false" text="HandBrakingWheel" />
-                                    <Button layoutX="329.0" layoutY="474.0" mnemonicParsing="false" text="save" onAction="#savewheel"/>
+                                    <Button layoutX="329.0" layoutY="474.0" mnemonicParsing="false" onAction="#savewheel" text="save" />
                                  </children>
                               </AnchorPane>
                            </content>
@@ -122,8 +124,8 @@
                                     <Label layoutX="15.0" layoutY="60.0" text="Name" />
                                     <TextField fx:id="nameseat" layoutX="61.0" layoutY="55.0" />
                                     <Label layoutX="16.0" layoutY="14.0" text="Select" />
-                                    <ChoiceBox fx:id="seatlist" layoutX="65.0" layoutY="10.0" prefWidth="150.0" onAction="#seatChoice"/>
-                                    <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" text="+" onAction="#addseat"/>
+                                    <ChoiceBox fx:id="seatlist" layoutX="65.0" layoutY="10.0" onAction="#seatChoice" prefWidth="150.0" />
+                                    <Button layoutX="226.0" layoutY="10.0" mnemonicParsing="false" onAction="#addseat" text="+" />
                                     <Label layoutX="15.0" layoutY="86.0" text="Position" />
                                     <TextField fx:id="Positionseat" layoutX="61.0" layoutY="81.0" />
                                     <Label layoutX="15.0" layoutY="173.0" text="CameraPositionY" />
@@ -153,8 +155,8 @@
                                     <Label layoutX="163.0" layoutY="142.0" text="Advanced" />
                                     <Label layoutX="15.0" layoutY="485.0" text="ShouldLimitFieldOfView" />
                                     <TextField fx:id="ShouldLimitFieldOfView" layoutX="119.0" layoutY="480.0" />
-                                    <CheckBox layoutX="15.0" layoutY="112.0" mnemonicParsing="false" text="Driver" fx:id="IsDriver"/>
-                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" text="save" onAction="#saveSeat" />
+                                    <CheckBox fx:id="IsDriver" layoutX="15.0" layoutY="112.0" mnemonicParsing="false" text="Driver" />
+                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" onAction="#saveSeat" text="save" />
                                  </children>
                               </AnchorPane>
                            </content>
@@ -172,7 +174,7 @@
                                     <TextField fx:id="Positions" layoutX="105.0" layoutY="96.0" />
                                     <Label layoutX="15.0" layoutY="98.0" text="Position" />
                                     <Button layoutX="262.0" layoutY="12.0" mnemonicParsing="false" text="+" />
-                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" text="save" onAction="#saveshape"/>
+                                    <Button layoutX="329.0" layoutY="476.0" mnemonicParsing="false" onAction="#saveshape" text="save" />
                                  </children>
                               </AnchorPane>
                            </content>
@@ -193,7 +195,9 @@
             </AnchorPane>
           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="465.0" prefWidth="288.0">
                <children>
+                  <Pane fx:id="render" minWidth="0.0" prefHeight="538.0" prefWidth="377.0" />
                   <Button layoutX="325.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#save" text="save" />
+                  <Slider orientation="VERTICAL"  />
                </children>
             </AnchorPane>
         </items>

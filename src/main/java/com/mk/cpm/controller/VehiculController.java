@@ -1,24 +1,36 @@
 package com.mk.cpm.controller;
 
+import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
+import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Seat;
 import com.mk.cpm.loader.object.Shape;
 import com.mk.cpm.loader.object.Vehicul;
 import com.mk.cpm.loader.object.Wheel;
 import com.mk.cpm.loader.pack.ZipCompressor;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.Scene;
+import javafx.scene.*;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.MeshView;
+import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -32,12 +44,14 @@ public class VehiculController implements Initializable {
 
     public ChoiceBox seatlist;
     public ChoiceBox shapelist;
+    public Pane render;
     private Vehicul vehicul;
     public static VehiculController instance;
 
     @FXML
     //item
     public TextField CreativeTab;
+    public Slider zoom;
     public ChoiceBox choiceBox;
     public TextField itemrotation;
     public TextField itemtranslation;
@@ -96,6 +110,10 @@ public class VehiculController implements Initializable {
     public TextField Scaleseat;
     public TextField ShouldLimitFieldOfView;
 
+    private static int zoomValue = -10;
+
+
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         if (MainController.blockselected == null) {
@@ -106,6 +124,7 @@ public class VehiculController implements Initializable {
         if (vehicul == null) {
             return;
         }
+
         Main.o = vehicul;
         if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
@@ -301,7 +320,80 @@ public class VehiculController implements Initializable {
             }
         }
 
+        ObjModelImporter myModel = new ObjModelImporter();
+        try {
+            //get only the name of the model /cc/test/test.obj -> test
+            String[] split = vehicul.getModel().split("/");
+            File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
+            System.out.println("Loading model from: " + file.getAbsolutePath());
+            myModel.read(file);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
 
+        MeshView[] meshViews = myModel.getImport();
+        if (meshViews == null || meshViews.length == 0) {
+            System.err.println("No meshes found in the model.");
+            return;
+        }
+
+        Group root = new Group(meshViews);
+
+
+        for (MeshView meshView : meshViews) {
+            PhongMaterial material = new PhongMaterial();
+            material.setDiffuseColor(Color.color(Math.random(), Math.random(), Math.random()));
+            meshView.setMaterial(material);
+        }
+
+        Camera camera = new PerspectiveCamera(true);
+        camera.setTranslateZ(zoomValue);
+
+        PointLight light = new PointLight(Color.WHITE);
+        light.setTranslateX(-180);
+        light.setTranslateY(-90);
+        light.setTranslateZ(-120);
+        root.getChildren().add(light);
+
+        // Create a light source a l'oppose du point de vue de la camera
+        PointLight light2 = new PointLight(Color.WHITE);
+        light2.setTranslateX(180);
+        light2.setTranslateY(90);
+        light2.setTranslateZ(120);
+        root.getChildren().add(light2);
+
+        SubScene subScene = new SubScene(root, 800, 600, true, SceneAntialiasing.BALANCED);
+        subScene.setFill(Color.DARKGRAY);
+        subScene.setCamera(camera);
+        subScene.widthProperty().bind(render.widthProperty());
+        subScene.heightProperty().bind(render.heightProperty());
+        render.getChildren().add(subScene);
+
+
+        Rotate rot = new Rotate(0, Rotate.Y_AXIS);
+        root.getTransforms().add(rot);
+
+        Timeline anim = new Timeline(
+                new KeyFrame(Duration.seconds(0), new KeyValue(rot.angleProperty(), 0)),
+                new KeyFrame(Duration.seconds(15), new KeyValue(rot.angleProperty(), 360))
+        );
+        anim.setCycleCount(Timeline.INDEFINITE);
+        anim.play();
+
+        zoom = new Slider();
+        zoom.setMin(0);
+        zoom.setMax(100);
+        zoom.setValue(10);
+        zoom.setShowTickLabels(true);
+        zoom.setShowTickMarks(true);
+        zoom.setMajorTickUnit(10);
+        zoom.setMinorTickCount(5);
+        zoom.setBlockIncrement(10);
+
+
+
+        root.getChildren().add(zoom);
     }
 
     @FXML
@@ -558,4 +650,6 @@ public class VehiculController implements Initializable {
             wheelist.getSelectionModel().selectFirst();
         }
     }
+
+
 }
