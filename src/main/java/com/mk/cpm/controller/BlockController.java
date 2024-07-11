@@ -258,7 +258,7 @@ public class BlockController implements Initializable {
         }
         Stage stage = (Stage) name.getScene().getWindow();
         stage.close();
-        MainController.mainController.refresh();
+        MainController.Instance.refresh();
 
     }
 }

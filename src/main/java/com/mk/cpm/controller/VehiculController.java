@@ -1,7 +1,6 @@
 package com.mk.cpm.controller;
 
 import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
-import com.mk.cpm.HelloApplication;
 import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
@@ -15,14 +14,12 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.*;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
-import javafx.scene.input.DragEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -111,7 +108,6 @@ public class VehiculController implements Initializable {
     public TextField ShouldLimitFieldOfView;
 
     private static int zoomValue = -10;
-
 
 
     @Override
@@ -322,19 +318,18 @@ public class VehiculController implements Initializable {
 
         ObjModelImporter myModel = new ObjModelImporter();
         try {
-            //get only the name of the model /cc/test/test.obj -> test
             String[] split = vehicul.getModel().split("/");
             File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
-            System.out.println("Loading model from: " + file.getAbsolutePath());
-            myModel.read(file);
+            if (file.exists()&&file.getName().contains(".obj")) {
+                myModel.read(file);
+            }
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error while loading model");
             return;
         }
 
         MeshView[] meshViews = myModel.getImport();
         if (meshViews == null || meshViews.length == 0) {
-            System.err.println("No meshes found in the model.");
             return;
         }
 
@@ -390,7 +385,6 @@ public class VehiculController implements Initializable {
         zoom.setMajorTickUnit(10);
         zoom.setMinorTickCount(5);
         zoom.setBlockIncrement(10);
-
 
 
         root.getChildren().add(zoom);
@@ -544,7 +538,7 @@ public class VehiculController implements Initializable {
         }
         Stage stage = (Stage) name.getScene().getWindow();
         stage.close();
-        MainController.mainController.refresh();
+        MainController.Instance.refresh();
     }
 
     @FXML
@@ -615,12 +609,12 @@ public class VehiculController implements Initializable {
 
          */
         Seat s = new Seat();
-        s.setName("Seat_" + vehicul.getSeats().size()+1 + "{");
+        s.setName("Seat_" + vehicul.getSeats().size() + 1 + "{");
         vehicul.getSeats().add(s);
         seatlist.getItems().add(s.getName());
     }
 
-    public void update(Vehicul vehicul){
+    public void update(Vehicul vehicul) {
         this.vehicul = vehicul;
         shapelist.getItems().clear();
         seatlist.getItems().clear();

@@ -11,9 +11,6 @@ import javafx.stage.Stage;
 
 import java.io.*;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ResourceBundle;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -66,7 +63,7 @@ public class PackCreateController implements Initializable {
             }
             file.delete();
         }
-        MainController.mainController.refreshpack();
+        MainController.Instance.refreshpack();
         Stage stage = (Stage) isdnxpack.getScene().getWindow();
         stage.close();
     }

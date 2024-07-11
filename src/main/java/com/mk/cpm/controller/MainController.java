@@ -3,14 +3,14 @@ package com.mk.cpm.controller;
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
-import com.mk.cpm.loader.*;
+import com.mk.cpm.loader.Loader;
+import com.mk.cpm.loader.LoaderPack;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.object.Item;
 import com.mk.cpm.loader.object.Vehicul;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -28,56 +28,49 @@ import java.util.ResourceBundle;
 
 public class MainController implements Initializable {
 
-    public static MainController mainController;
-
+    public static MainController Instance;
     public static Object blockselected;
-    public static Stage create;
-    public static Stage modify;
-    public static Stage createpack;
+    public static Stage create, modify, createpack;
     public static String packname;
 
     @FXML
-    public ListView<String> list;
+    public ListView<String> list, info;
     public ListView<Object> pack;
-    public ListView<String> info;
     public Label left;
-    public Button add;
-    public Button remove;
-    public ChoiceBox choice;
+    public Button add, remove;
+    public ChoiceBox<String> choice;
     public Menu editmenu;
     public MenuItem newpack;
 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        ObservableList<String> l = FXCollections.observableArrayList();
+        Instance = this;
+        setupUI();
+        loadPacks();
+    }
+
+    private void setupUI() {
         editmenu.setDisable(true);
         add.setVisible(false);
-        mainController = this;
         remove.setVisible(false);
         remove.setDisable(true);
         choice.setVisible(false);
-        choice.getItems().addAll("All","Block", "Armor", "Vehicle", "Item");
+        choice.getItems().addAll("All", "Block", "Armor", "Vehicle", "Item");
         choice.getSelectionModel().selectFirst();
-        if (Config.getLastdirectory() != null) {
-            if (Config.getLastdirectory().isEmpty()) {
-                return;
-            }
-            ObservableList<Object> l2 = FXCollections.observableArrayList();
-            l2.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
-            pack.setItems(l2);
-            newpack.setDisable(false);
-        }else {
-            newpack.setDisable(true);
+        newpack.setDisable(Config.getLastdirectory() == null || Config.getLastdirectory().isEmpty());
+    }
+
+    private void loadPacks() {
+        if (Config.getLastdirectory() != null && !Config.getLastdirectory().isEmpty()) {
+            ObservableList<Object> packs = FXCollections.observableArrayList(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
+            pack.setItems(packs);
         }
     }
 
-
     @FXML
-    public void packSelecter(MouseEvent mouseEvent) {
-        if (pack.getSelectionModel().getSelectedItem() == null) {
-            return;
-        }
+    public void packSelecter() {
+        if (pack.getSelectionModel().getSelectedItem() == null) return;
         remove.setVisible(true);
         remove.setDisable(true);
         choice.setVisible(true);
@@ -94,280 +87,127 @@ public class MainController implements Initializable {
             return;
         }
 
-            for (Object block : Loader.getObject()) {
-                if ((block instanceof Block)) {
-                    Block b = (Block) block;
-                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = block;
-                        remove.setDisable(false);
-                        ObservableList<String> gf = FXCollections.observableArrayList();
-                        for (String s : b.getInfos()) {
-                            //check if null
-                            if (s == null) {
-                                continue;
-                            }
-                            if (s.contains("null")) {
-                                continue;
-                            }
-                            gf.add(s);
-                        }
-                        info.setItems(gf);
-
-                    }
-                }
-                if ((block instanceof Armor)) {
-                    Armor b = (Armor) block;
-                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = b;
-                        remove.setDisable(false);
-                        ObservableList<String> gf = FXCollections.observableArrayList();
-                        for (String s : b.getInfos()) {
-                            //check if null
-                            if (s == null) {
-                                continue;
-                            }
-                            if (s.contains("null")) {
-                                continue;
-                            }
-                            gf.add(s);
-                        }
-                        info.setItems(gf);
-
-                    }
-                }
-                if ((block instanceof Vehicul)) {
-                    Vehicul b = (Vehicul) block;
-                    if (b.getName().equals(list.getSelectionModel().getSelectedItem().substring(3))) {
-                        blockselected = b;
-                        remove.setDisable(false);
-                        ObservableList<String> gf = FXCollections.observableArrayList();
-                        for (String s : b.getInfos()) {
-                            //check if null
-                            if (s == null) {
-                                continue;
-                            }
-                            if (s.contains("null")) {
-                                continue;
-                            }
-                            gf.add(s);
-                        }
-                        info.setItems(gf);
-
-                    }
-                }
-            }
-
-
-        if (mouseEvent.getClickCount() == 2) {
-            if (blockselected instanceof Block) {
-                modify = new Stage();
-                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("blockModifier.fxml"));
-                Scene scene = null;
-                try {
-                    scene = new Scene(fxmlLoader.load());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                modify.setTitle("CPM-UI (InProgress)");
-                modify.setResizable(false);
-                modify.getIcons().add(HelloApplication.logo);
-                modify.setScene(scene);
-                modify.show();
-            }
-            if (blockselected instanceof Armor) {
-                modify = new Stage();
-                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("armorModifier.fxml"));
-                Scene scene = null;
-                try {
-                    scene = new Scene(fxmlLoader.load());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                modify.setTitle("CPM-UI (InProgress)");
-                modify.setResizable(false);
-                modify.getIcons().add(HelloApplication.logo);
-                modify.setScene(scene);
-                modify.show();
-            }
-            if (blockselected instanceof Vehicul) {
-                modify = new Stage();
-                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("vehiculModifier.fxml"));
-                Scene scene = null;
-                try {
-                    scene = new Scene(fxmlLoader.load());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                modify.setTitle("CPM-UI (InProgress)");
-                modify.setResizable(false);
-                modify.getIcons().add(HelloApplication.logo);
-                modify.setScene(scene);
-                modify.show();
-            }
-
+        blockselected = getObjectByName(list.getSelectionModel().getSelectedItem().substring(3));
+        if (blockselected != null) {
+            remove.setDisable(false);
+            updateInfo(blockselected);
         }
 
+        if (mouseEvent.getClickCount() == 2 && blockselected != null) {
+            modify = loadStage(blockselected.getClass().getSimpleName().toLowerCase());
+        }
+    }
+
+    private Object getObjectByName(String name) {
+        for (Object block : Loader.getObject()) {
+            if (block instanceof Block && ((Block) block).getName().equals(name)) {
+                return block;
+            } else if (block instanceof Armor && ((Armor) block).getName().equals(name)) {
+                return block;
+            } else if (block instanceof Vehicul && ((Vehicul) block).getName().equals(name)) {
+                return block;
+            }
+        }
+        return null;
+    }
+
+    private void updateInfo(Object block) {
+        ObservableList<String> gf = FXCollections.observableArrayList();
+        if (block instanceof Block) {
+            gf.addAll(((Block) block).getInfos());
+        } else if (block instanceof Armor) {
+            gf.addAll(((Armor) block).getInfos());
+        } else if (block instanceof Vehicul) {
+            gf.addAll(((Vehicul) block).getInfos());
+        }
+        gf.removeIf(s -> s == null || s.contains("null"));
+        info.setItems(gf);
+    }
+
+    private Stage loadStage(String type) {
+        Stage stage = new Stage();
+        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource(type + "Modifier.fxml"));
+        try {
+            Scene scene = new Scene(fxmlLoader.load());
+            stage.setTitle("CPM-UI (InProgress)");
+            stage.setResizable(false);
+            stage.getIcons().add(HelloApplication.logo);
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return stage;
     }
 
     @FXML
-    public void addObject(MouseEvent mouseEvent) throws IOException {
-        Stage stage = new Stage();
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("create.fxml"));
-        Scene scene = new Scene(fxmlLoader.load());
-        stage.setTitle("CPM-UI");
-        stage.getIcons().add(HelloApplication.logo);
-        stage.setScene(scene);
-        stage.show();
-        create = stage;
+    public void addObject() {
+        create = loadStage("create");
     }
 
-    //refresh block list
-    public void refresh(){
+    public void refresh() {
         if (pack.getSelectionModel().getSelectedItem() == null) {
             return;
         }
-        int b = 0;
-        int a = 0;
-        int v = 0;
-        int i = 0;
         ObservableList<String> l = FXCollections.observableArrayList();
+        String selectedChoice = choice.getSelectionModel().getSelectedItem();
+        String packName = pack.getSelectionModel().getSelectedItem().toString();
+        Main.isDynxPack = packName.contains(".dnxpack");
 
-        String choice = this.choice.getSelectionModel().getSelectedItem().toString();
-        String packname = pack.getSelectionModel().getSelectedItem().toString();
-        if (packname.contains(".dnxpack")) {
-            Main.isDynxPack = true;
-        }else {
-            Main.isDynxPack = false;
-        }
-        List<Object> objects = Loader.getBlocksByPack(packname);
-        if (choice.equals("Block")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Block) {
-                    Block block = (Block) o;
-                    l.add("(b)" + block.getName());
-                    b++;
+        List<Object> objects = Loader.getBlocksByPack(packName);
+        int b = 0, a = 0, v = 0, i = 0;
+
+        for (Object o : objects) {
+            if (o instanceof Block && (selectedChoice.equals("Block") || selectedChoice.equals("All"))) {
+                l.add("(b)" + ((Block) o).getName());
+                b++;
+            } else if (o instanceof Armor && (selectedChoice.equals("Armor") || selectedChoice.equals("All"))) {
+                l.add("(a)" + ((Armor) o).getName());
+                a++;
+            } else if (o instanceof Vehicul && (selectedChoice.equals("Vehicle") || selectedChoice.equals("All"))) {
+                l.add("(v)" + ((Vehicul) o).getName());
+                v++;
+            } else if (o instanceof Item && (selectedChoice.equals("Item") || selectedChoice.equals("All"))) {
+                if (!l.contains("(v)" + ((Item) o).getName()) && !l.contains("(a)" + ((Item) o).getName()) && !l.contains("(b)" + ((Item) o).getName())) {
+                    l.add("(i)" + ((Item) o).getName());
+                    i++;
                 }
             }
         }
-        if (choice.equals("Armor")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Armor) {
-                    Armor armor = (Armor) o;
-                    l.add("(a)" + armor.getName());
-                    a++;
-                }
-            }
-        }
-        if (choice.equals("Vehicle")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Vehicul) {
-                    Vehicul vehicul = (Vehicul) o;
-                    l.add("(v)" + vehicul.getName());
-                    v++;
-                }
-            }
-        }
-        if (choice.equals("Item")||choice.equals("All")) {
-            for (Object o : objects) {
-                if (o instanceof Item) {
-                    Item item = (Item) o;
-                    //check if list contains item
-                    if (!l.contains("(v)" + item.getName())&&!l.contains("(a)" + item.getName())&&!l.contains("(b)" + item.getName())){
-                        l.add("(i)" + item.getName());
-                        i++;
-                    }
-                }
-            }
-        }
-        list.getItems().clear();
         list.setItems(l);
         info.getItems().clear();
-        StringBuilder sb = new StringBuilder();
-        sb.append("Contents : ");
-        if (b>0){
-            sb.append(b + " Blocks ");
-        }
-        if (a>0){
-            sb.append(a + " Armors ");
-        }
-        if (v>0){
-            sb.append(v + " Vehicles ");
-        }
-        if (i>0){
-            sb.append(i + " Items ");
-        }
-        left.setText(sb.toString());
-    }
-    //refresh pack list
-    @FXML
-    public void refreshpack(){
-        ObservableList<Object> l = FXCollections.observableArrayList();
-        l.addAll(new LoaderPack().getPacks(new File(Config.getLastdirectory())));
-        this.pack.setItems(l);
-        this.list.getItems().clear();
-        this.info.getItems().clear();
-
+        left.setText(String.format("Contents : %d Blocks %d Armors %d Vehicles %d Items", b, a, v, i));
     }
 
+    @FXML
+    public void refreshpack() {
+        loadPacks();
+        list.getItems().clear();
+        info.getItems().clear();
+    }
 
     @FXML
-    public void remove(MouseEvent mouseEvent) {
+    public void remove() {
         if (list.getSelectionModel().getSelectedItem() == null) {
             return;
         }
-        Object o = null;
-        for (Object block : Loader.getObject()) {
-            if (block instanceof Block) {
-                Block b = (Block) block;
-                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                    o = b;
-                }
-            }
-            if (block instanceof Armor) {
-                Armor b = (Armor) block;
-                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                    o = b;
-                }
-            }
-            if (block instanceof Vehicul) {
-                Vehicul b = (Vehicul) block;
-                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                    o = b;
-                }
-            }
-            if (block instanceof Item) {
-                Item b = (Item) block;
-                if (b.getName().equals(list.getSelectionModel().getSelectedItem())) {
-                    o = b;
-                }
-            }
-        }
-
-        if (o != null) {
-            Loader.removeOject(o, pack.getSelectionModel().getSelectedItem().toString());
+        String selectedName = list.getSelectionModel().getSelectedItem().substring(3);
+        Object objectToRemove = getObjectByName(selectedName);
+        if (objectToRemove != null) {
+            Loader.removeObject(objectToRemove, pack.getSelectionModel().getSelectedItem().toString());
             refresh();
         }
-
-        refresh();
     }
 
-
     @FXML
-    public void open(ActionEvent actionEvent) {
-        System.out.println("open");
-        Stage stage = new Stage();
-        stage.getIcons().add(HelloApplication.logo);
+    public void open() {
         DirectoryChooser fileChooser = new DirectoryChooser();
         fileChooser.setTitle("Open dir pack");
-        File selectedFile = fileChooser.showDialog(stage);
+        File selectedFile = fileChooser.showDialog(new Stage());
 
-        if (selectedFile == null) {
-            return;
-        }
-        if(selectedFile.isDirectory()){
-            ObservableList<Object> l = FXCollections.observableArrayList();
-            l.addAll(new LoaderPack().getPacks(selectedFile));
-            pack.setItems(l);
+        if (selectedFile != null && selectedFile.isDirectory()) {
+            ObservableList<Object> packs = FXCollections.observableArrayList(new LoaderPack().getPacks(selectedFile));
+            pack.setItems(packs);
             list.getItems().clear();
             Config.setLastdirectory(selectedFile.getAbsolutePath());
             Config.saveConfig();
@@ -375,40 +215,26 @@ public class MainController implements Initializable {
     }
 
     @FXML
-    public void quit(ActionEvent actionEvent) {
+    public void quit() {
         System.exit(0);
     }
 
     @FXML
-    public void contact(ActionEvent actionEvent) {
-        //open discord
+    public void contact() {
         try {
             Runtime.getRuntime().exec("cmd /c start https://discord.gg/7USXZZTf4h");
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Error while opening discord link");
         }
     }
 
     @FXML
-    public void packCreateButton(ActionEvent actionEvent) {
-
-        createpack = new Stage();
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("packCreate.fxml"));
-        Scene scene = null;
-        try {
-            scene = new Scene(fxmlLoader.load());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        createpack.setTitle("CPM-UI (InProgress)");
-        createpack.getIcons().add(HelloApplication.logo);
-        createpack.setScene(scene);
-        createpack.setResizable(false);
-        createpack.show();
+    public void packCreateButton() {
+        createpack = loadStage("packCreate");
     }
 
     @FXML
-    public void choice(ActionEvent actionEvent) {
+    public void choice() {
         refresh();
     }
 }

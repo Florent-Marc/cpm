@@ -184,6 +184,6 @@ public class CreateController implements Initializable{
             }
         }
         MainController.create.close();
-        MainController.mainController.refresh();
+        MainController.Instance.refresh();
     }
 }
