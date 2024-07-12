@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane fx:id="box" maxHeight="104.0" maxWidth="-Infinity" minHeight="104.0" minWidth="734.0" prefHeight="112.0" prefWidth="567.0" style="-fx-background-color: #141b35;" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <ImageView fx:id="img" fitHeight="85.0" fitWidth="107.0" layoutX="8.0" layoutY="8.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@texture/car.png" />
+         </image>
+      </ImageView>
+      <Label fx:id="un" layoutX="102.0" layoutY="18.0" text="Name : Ferrari " textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font>
+      </Label>
+      <Label fx:id="deux" layoutX="102.0" layoutY="40.0" text="EmptyMass : 3500" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font>
+      </Label>
+      <Label fx:id="trois" layoutX="102.0" layoutY="64.0" text="Model : No protected" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font>
+      </Label>
+      <ImageView fx:id="edit" fitHeight="25.0" fitWidth="25.0" layoutX="665.0" layoutY="38.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@texture/BallPointPen.png" />
+         </image>
+      </ImageView>
+      <ImageView fx:id="delete" fitHeight="25.0" fitWidth="25.0" layoutX="698.0" layoutY="37.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@texture/Trash.png" />
+         </image>
+      </ImageView>
+      <ImageView fx:id="duplicate" fitHeight="25.0" fitWidth="25.0" layoutX="631.0" layoutY="38.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@texture/Duplicate.png" />
+         </image>
+      </ImageView>
+   </children>
+</AnchorPane>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="720.0" prefWidth="1280.0" style="-fx-border-width: 0;" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.Test">
+   <children>
+      <SplitPane dividerPositions="0.11977715877437325" orientation="VERTICAL" stylesheets="@main.css" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <items>
+            <SplitPane dividerPositions="0.3614457831325301" maxHeight="85.0" orientation="VERTICAL">
+              <items>
+                <AnchorPane maxHeight="24.0" minHeight="24.0" style="-fx-background-color: #141b35#24305a;">
+                     <children>
+                        <ImageView fitHeight="18.0" fitWidth="18.0" layoutX="5.0" layoutY="3.0" pickOnBounds="true" preserveRatio="true" AnchorPane.leftAnchor="5.0">
+                           <image>
+                              <Image url="@texture/Engineering.png" />
+                           </image>
+                        </ImageView>
+                        <ImageView fitHeight="18.0" fitWidth="18.0" layoutX="26.0" layoutY="3.0" pickOnBounds="true" preserveRatio="true" AnchorPane.leftAnchor="26.0">
+                           <image>
+                              <Image url="@texture/QuestionMark.png" />
+                           </image>
+                        </ImageView>
+                     </children>
+                  </AnchorPane>
+                <AnchorPane maxHeight="59.0" minHeight="59.0" style="-fx-background-color: #24305a;">
+                     <children>
+                        <Label layoutX="113.0" layoutY="16.0" text="Pack" textFill="WHITE">
+                           <font>
+                              <Font name="System Bold" size="18.0" />
+                           </font>
+                        </Label>
+                        <Label layoutX="1116.0" layoutY="16.0" text="Infos" textFill="WHITE" AnchorPane.rightAnchor="119.0">
+                           <font>
+                              <Font name="System Bold" size="18.0" />
+                           </font>
+                        </Label>
+                        <Label layoutX="601.0" layoutY="16.0" text="Contents" textFill="WHITE" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="601.0" AnchorPane.rightAnchor="2.0" AnchorPane.topAnchor="0.0">
+                           <font>
+                              <Font name="System Bold" size="18.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </AnchorPane>
+              </items>
+            </SplitPane>
+            <SplitPane dividerPositions="0.20031298904538342">
+               <items>
+                  <ScrollPane fx:id="scrollPane" fitToHeight="true" fitToWidth="true" maxWidth="280.0" minWidth="280.0">
+                     <content>
+                        <VBox fx:id="PackList" maxWidth="280.0" minWidth="280.0" style="-fx-background-color: #24305a;" />
+                     </content>
+                  </ScrollPane>
+                  <SplitPane dividerPositions="0.7473065621939275" prefHeight="631.0" prefWidth="1023.0">
+                    <ScrollPane fx:id="scrollpane2" fitToHeight="true" fitToWidth="true">
+                       <content>
+                          <VBox fx:id="vbox2" maxWidth="734.0" minWidth="734.0" style="-fx-background-color: #24305a;" />
+                       </content>
+                    </ScrollPane>
+                    <ScrollPane fx:id="scrollpane3" maxWidth="260.0" minWidth="260.0">
+                       <content>
+                          <VBox fx:id="vbox3" minWidth="260.0" prefHeight="631.0" style="-fx-background-color: #24305a;" />
+                       </content>
+                    </ScrollPane>
+                  </SplitPane>
+               </items>
+            </SplitPane>
+        </items>
+      </SplitPane>
+   </children>
+</AnchorPane>

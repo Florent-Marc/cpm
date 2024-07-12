@@ -25,6 +25,15 @@ public class HelloApplication extends Application {
         stage.setResizable(false);
         stage.show();
         s = scene;
+        Stage s1 = new Stage();
+        FXMLLoader t = new FXMLLoader(HelloApplication.class.getResource("test.fxml"));
+        Scene g = new Scene(t.load());
+        s1.getIcons().add(logo);
+        g.setFill(Color.rgb(40, 44, 52, 1.0));
+        s1.setTitle("CPM-UI");
+        s1.setScene(g);
+        s1.setResizable(true);
+        s1.show();
         DiscordRPC.initRPC();
         //login 270 342
     }
