@@ -14,9 +14,16 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Box;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 
@@ -41,13 +48,15 @@ public class MainController implements Initializable {
     public ChoiceBox<String> choice;
     public Menu editmenu;
     public MenuItem newpack;
+    public VBox listpacktest;
+    public Pane parent;
 
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         Instance = this;
-        setupUI();
         loadPacks();
+        setupUI();
     }
 
     private void setupUI() {
@@ -59,6 +68,48 @@ public class MainController implements Initializable {
         choice.getItems().addAll("All", "Block", "Armor", "Vehicle", "Item");
         choice.getSelectionModel().selectFirst();
         newpack.setDisable(Config.getLastdirectory() == null || Config.getLastdirectory().isEmpty());
+
+
+        VBox vbox =listpacktest;
+        Pane pane = parent;
+        vbox.maxWidthProperty().bind(pane.widthProperty());
+        vbox.maxHeightProperty().bind(pane.heightProperty());
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(vbox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        pane.getChildren().add(scrollPane);
+
+        Image dnx= new Image(HelloApplication.class.getResourceAsStream("logo.png"));
+        Image dir= new Image(HelloApplication.class.getResourceAsStream("img.png"));
+        Node[] nodes = new Node[pack.getItems().size()];
+        for (int i = 0; i < pack.getItems().size(); i++) {
+            try {
+                final int j = i;
+                nodes[i] = FXMLLoader.load(HelloApplication.class.getResource("itempack.fxml"));
+                ((Label) nodes[i].lookup("#packname")).setText(pack.getItems().get(i).toString());
+                listpacktest.getChildren().add(nodes[i]);
+                ((HBox) nodes[i].lookup("#box")).setOnMouseEntered(event -> {
+                    HBox box = (HBox) nodes[j].lookup("#box");
+                    box.setStyle("-fx-background-color : #3E84EC");
+                });
+                ((HBox) nodes[i].lookup("#box")).setOnMouseExited(event -> {
+                    HBox box = (HBox) nodes[j].lookup("#box");
+                    box.setStyle("-fx-background-color : #3B3B3B");
+                });
+                ((HBox) nodes[i].lookup("#box")).setOnMouseClicked(event -> {
+                    pack.getSelectionModel().select(j);
+                    packSelecter();
+                });
+                ((ImageView) nodes[i].lookup("#img")).setImage(pack.getItems().get(i).toString().contains(".dnxpack") ? dnx : dir);
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
     }
 
     private void loadPacks() {
