@@ -57,10 +57,10 @@ public class ArmorController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        if (MainController.blockselected == null) {
+        if (Main.objectSelect == null) {
             return;
         }
-        armor = (Armor) MainController.blockselected;
+        armor = (Armor) Main.objectSelect;
         if (armor == null) {
             return;
         }
@@ -127,7 +127,7 @@ public class ArmorController implements Initializable {
         try {
             //get only the name of the model /cc/test/test.obj -> test
             String[] split = armor.getModel().split("/");
-            File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
+            File file = new File(Loader.getPath(split[split.length - 1], Main.packSelected));
             System.out.println("Loading model from: " + file.getAbsolutePath());
             myModel.read(file);
         } catch (Exception e) {
@@ -225,8 +225,8 @@ public class ArmorController implements Initializable {
         this.armor.save(f);
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
-                String source = Config.getCachePath() + "/pack/" + MainController.packname;
-                String dest = Config.getLastdirectory() + "/" + MainController.packname;
+                String source = Config.getCachePath() + "/pack/" + Main.packSelected;
+                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -234,6 +234,8 @@ public class ArmorController implements Initializable {
         }
         Stage stage = (Stage) name.getScene().getWindow();
         stage.close();
-        MainController.Instance.refresh();
+        Main t = Main.Instance;
+        t.LoadPack(Main.packSelected);
     }
+
 }

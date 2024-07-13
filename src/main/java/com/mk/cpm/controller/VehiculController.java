@@ -1,7 +1,6 @@
 package com.mk.cpm.controller;
 
 import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
-import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Seat;
@@ -12,6 +11,8 @@ import com.mk.cpm.loader.pack.ZipCompressor;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -42,6 +43,7 @@ public class VehiculController implements Initializable {
     public ChoiceBox seatlist;
     public ChoiceBox shapelist;
     public Pane render;
+    public Slider slider;
     private Vehicul vehicul;
     public static VehiculController instance;
 
@@ -112,16 +114,16 @@ public class VehiculController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        if (MainController.blockselected == null) {
+        if (Main.objectSelect == null) {
             return;
         }
         instance = this;
-        vehicul = (Vehicul) MainController.blockselected;
+        vehicul = (Vehicul) Main.objectSelect;
         if (vehicul == null) {
             return;
         }
 
-        Main.o = vehicul;
+        com.mk.cpm.Main.o = vehicul;
         if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
         }
@@ -319,8 +321,8 @@ public class VehiculController implements Initializable {
         ObjModelImporter myModel = new ObjModelImporter();
         try {
             String[] split = vehicul.getModel().split("/");
-            File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
-            if (file.exists()&&file.getName().contains(".obj")) {
+            File file = new File(Loader.getPath(split[split.length - 1], Main.packSelected));
+            if (file.exists() && file.getName().contains(".obj")) {
                 myModel.read(file);
             }
         } catch (Exception e) {
@@ -343,6 +345,13 @@ public class VehiculController implements Initializable {
         }
 
         Camera camera = new PerspectiveCamera(true);
+        slider.valueProperty().addListener(new ChangeListener<Number>() {
+            @Override
+            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+                // Update the label with the new slider value
+                camera.setTranslateZ(-newValue.doubleValue());
+            }
+        });
         camera.setTranslateZ(zoomValue);
 
         PointLight light = new PointLight(Color.WHITE);
@@ -529,8 +538,8 @@ public class VehiculController implements Initializable {
         this.vehicul.save(f);
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
-                String source = Config.getCachePath() + "/pack/" + MainController.packname;
-                String dest = Config.getLastdirectory() + "/" + MainController.packname;
+                String source = Config.getCachePath() + "/pack/" + Main.packSelected;
+                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -538,7 +547,8 @@ public class VehiculController implements Initializable {
         }
         Stage stage = (Stage) name.getScene().getWindow();
         stage.close();
-        MainController.Instance.refresh();
+        Main t = Main.Instance;
+        t.LoadPack(Main.packSelected);
     }
 
     @FXML

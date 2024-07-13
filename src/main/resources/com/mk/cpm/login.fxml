@@ -11,7 +11,7 @@
 
 <Pane fx:id="back" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="342.0" prefWidth="270.0" style="-fx-background-color: #24305a;" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.LoginController">
    <children>
-      <PasswordField fx:id="pwd" layoutX="61.0" layoutY="237.0" promptText="password" style="-fx-background-color: #141b35;">
+      <PasswordField fx:id="pwd" layoutX="61.0" layoutY="237.0" promptText="password" style="-fx-background-color: #141b35; -fx-text-fill: white;">
          <font>
             <Font name="System Bold" size="12.0" />
          </font></PasswordField>
@@ -19,7 +19,7 @@
          <font>
             <Font name="System Bold" size="12.0" />
          </font></Button>
-      <TextField fx:id="user" layoutX="61.0" layoutY="167.0" promptText="user" style="-fx-background-color: #141b35;">
+      <TextField fx:id="user" layoutX="61.0" layoutY="167.0" promptText="user" style="-fx-background-color: #141b35; -fx-text-fill: white;">
          <font>
             <Font name="System Bold" size="12.0" />
          </font></TextField>
@@ -36,7 +36,7 @@
             <Font name="System Bold" size="12.0" />
          </font></Button>
       <ImageView fx:id="image" fitHeight="128.0" fitWidth="128.0" layoutX="70.0" layoutY="7.0" pickOnBounds="true" preserveRatio="true" />
-      <Label layoutX="14.0" layoutY="307.0" text="Version : 0.7" textFill="WHITE">
+      <Label layoutX="14.0" layoutY="307.0" text="Version : 0.8" textFill="WHITE">
          <font>
             <Font name="System Bold" size="12.0" />
          </font></Label>

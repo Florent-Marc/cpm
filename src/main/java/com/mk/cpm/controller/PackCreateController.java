@@ -63,7 +63,7 @@ public class PackCreateController implements Initializable {
             }
             file.delete();
         }
-        MainController.Instance.refreshpack();
+        Main.Instance.refresh();
         Stage stage = (Stage) isdnxpack.getScene().getWindow();
         stage.close();
     }

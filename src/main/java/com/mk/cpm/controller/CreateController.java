@@ -183,7 +183,8 @@ public class CreateController implements Initializable{
                 throw new RuntimeException(e);
             }
         }
-        MainController.create.close();
-        MainController.Instance.refresh();
+        Stage stage = (Stage) create.getScene().getWindow();
+        stage.close();
+        Main.Instance.LoadPack(packname);
     }
 }

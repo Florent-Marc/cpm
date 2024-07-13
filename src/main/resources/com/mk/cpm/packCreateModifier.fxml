@@ -9,25 +9,53 @@
 <?import javafx.scene.effect.DropShadow?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.paint.Color?>
+<?import javafx.scene.text.Font?>
 
-<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="186.0" prefWidth="367.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.PackCreateController">
+<Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="186.0" prefWidth="367.0" style="-fx-background-color: #24305a;" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.PackCreateController">
    <children>
-      <Label fx:id="file" layoutX="24.0" layoutY="40.0" text="PackName" />
-      <TextField fx:id="name" layoutX="92.0" layoutY="38.0" />
-      <Label layoutX="23.0" layoutY="67.0" text="DcFileVersion" />
-      <TextField fx:id="dcfile" layoutX="199.0" layoutY="117.0" />
-      <Label layoutX="23.0" layoutY="119.0" text="CompatibleWithLoaderVersions" />
+      <Label fx:id="file" layoutX="24.0" layoutY="40.0" text="PackName" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <TextField fx:id="name" layoutX="92.0" layoutY="38.0" style="-fx-background-color: #141b35; -fx-text-fill: white;">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></TextField>
+      <Label layoutX="23.0" layoutY="67.0" text="DcFileVersion" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <TextField fx:id="dcfile" layoutX="208.0" layoutY="117.0" prefHeight="25.0" prefWidth="104.0" style="-fx-background-color: #141b35; -fx-text-fill: white;">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></TextField>
+      <Label layoutX="23.0" layoutY="119.0" text="CompatibleWithLoaderVersions" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
       <Button fx:id="create" layoutX="302.0" layoutY="148.0" mnemonicParsing="false" onMouseClicked="#create" text="Create" />
-      <Label layoutX="23.0" layoutY="146.0" text="PackVersion" />
-      <CheckBox layoutX="24.0" layoutY="13.0" mnemonicParsing="false" text="Is .dnxpack" fx:id="isdnxpack" />
-      <ChoiceBox layoutX="106.0" layoutY="64.0" prefWidth="150.0" fx:id="list"/>
-      <Label fx:id="file111" alignment="CENTER" layoutX="157.0" layoutY="92.0" text="Optional" textAlignment="CENTER" />
-      <TextField fx:id="packversion" layoutX="99.0" layoutY="143.0" />
+      <Label layoutX="23.0" layoutY="146.0" text="PackVersion" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <CheckBox fx:id="isdnxpack" layoutX="24.0" layoutY="13.0" mnemonicParsing="false" text="Is .dnxpack" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></CheckBox>
+      <ChoiceBox fx:id="list" layoutX="106.0" layoutY="64.0" prefWidth="150.0" style="-fx-background-color: #141b35; -fx-text-fill: white;" />
+      <Label fx:id="file111" alignment="CENTER" layoutX="157.0" layoutY="92.0" text="Optional" textAlignment="CENTER" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <TextField fx:id="packversion" layoutX="99.0" layoutY="143.0" prefHeight="25.0" prefWidth="104.0" style="-fx-background-color: #141b35; -fx-text-fill: white;">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></TextField>
    </children>
    <effect>
       <DropShadow>
          <color>
-            <Color red="1.0" green="0.7053086161613464" blue="0.19629628956317902" />
+            <Color red="0.20000000298023224" green="0.21523809432983398" blue="1.0" />
          </color>
       </DropShadow>
    </effect>

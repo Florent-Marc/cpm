@@ -11,7 +11,10 @@ import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.*;
-import javafx.scene.control.*;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -58,15 +61,15 @@ public class BlockController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        if (MainController.blockselected == null) {
+        if (Main.objectSelect == null) {
             return;
         }
-        block = (Block) MainController.blockselected;
+        block = (Block) Main.objectSelect;
         if (block == null) {
             Stage stage = (Stage) name.getScene().getWindow();
             stage.close();
         }
-        if (block.getEmptyMass() !=null) {
+        if (block.getEmptyMass() != null) {
             tabprop.setDisable(false);
             isprop.setSelected(true);
         } else {
@@ -93,7 +96,7 @@ public class BlockController implements Initializable {
         if (block.getItemScale() != null) {
             itemscale.setText(block.getItemScale());
         }
-        choiceBox.getItems().addAll("NONE","WORLD","ALL");
+        choiceBox.getItems().addAll("NONE", "WORLD", "ALL");
         choiceBox.getSelectionModel().selectFirst();
         if (block.getLightLevel() != null) {
             LightLevel.setText(block.getLightLevel());
@@ -136,7 +139,7 @@ public class BlockController implements Initializable {
         try {
             //get only the name of the model /cc/test/test.obj -> test
             String[] split = block.getModel().split("/");
-            File file = new File(Loader.getPath(split[split.length - 1], MainController.packname));
+            File file = new File(Loader.getPath(split[split.length - 1], Main.packSelected));
             System.out.println("Loading model from: " + file.getAbsolutePath());
             myModel.read(file);
         } catch (Exception e) {
@@ -249,8 +252,10 @@ public class BlockController implements Initializable {
         this.block.save(f);
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
-                String source = Config.getCachePath() + "/pack/" + MainController.packname;
-                String dest = Config.getLastdirectory() + "/" + MainController.packname;
+                String source = Config.getCachePath() + "/pack/" + Main.packSelected;
+                ;
+                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
+                ;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -258,7 +263,8 @@ public class BlockController implements Initializable {
         }
         Stage stage = (Stage) name.getScene().getWindow();
         stage.close();
-        MainController.Instance.refresh();
+        Main t = Main.Instance;
+        t.LoadPack(Main.packSelected);
 
     }
 }

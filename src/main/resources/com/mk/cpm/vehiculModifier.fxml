@@ -197,7 +197,7 @@
                <children>
                   <Pane fx:id="render" minWidth="0.0" prefHeight="538.0" prefWidth="377.0" />
                   <Button layoutX="325.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#save" text="save" />
-                  <Slider orientation="VERTICAL"  />
+                  <Slider fx:id="slider" orientation="VERTICAL"  />
                </children>
             </AnchorPane>
         </items>
