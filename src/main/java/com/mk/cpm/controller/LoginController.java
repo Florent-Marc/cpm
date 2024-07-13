@@ -76,12 +76,12 @@ public class LoginController implements Initializable {
             if (authenticated) {
                 stage.close();
                 System.out.println("Connexion réussie");
-                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("main.fxml"));
+                FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("test.fxml"));
                 Scene scene = new Scene(fxmlLoader.load());
                 stage.getIcons().add(HelloApplication.logo);
                 stage.setTitle("CPM-UI");
                 stage.setScene(scene);
-                stage.setResizable(false);
+                stage.setResizable(true);
                 stage.show();
                 s = scene;
             } else {
