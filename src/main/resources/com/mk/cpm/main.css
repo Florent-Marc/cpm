@@ -8,3 +8,23 @@
     -fx-background-color:  #24305a; /* Couleur de fond de la zone d'affichage */
 }
 
+/* Style for the TabPane */
+#custom-tab-pane {
+    -fx-background-color: #e0e0e0;
+}
+
+/* Style for each Tab */
+.tab-pane .tab-header-area .tab {
+    -fx-background-color: #007aff; /* Background color of tabs */
+    -fx-text-fill: white; /* Text color of tabs */
+}
+
+/* Style for the selected Tab */
+.tab-pane .tab-header-area .tab:selected {
+    -fx-background-color:  #141b35; /* Background color of selected tab */
+}
+
+/* Style for the Tab content area */
+.tab-pane .tab-content-area {
+    -fx-background-color:  #141b35; /* Background color of tab content */
+}

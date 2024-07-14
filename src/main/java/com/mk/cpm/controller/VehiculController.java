@@ -368,7 +368,7 @@ public class VehiculController implements Initializable {
         root.getChildren().add(light2);
 
         SubScene subScene = new SubScene(root, 800, 600, true, SceneAntialiasing.BALANCED);
-        subScene.setFill(Color.DARKGRAY);
+        subScene.setStyle("-fx-background-color:  #24305a;");
         subScene.setCamera(camera);
         subScene.widthProperty().bind(render.widthProperty());
         subScene.heightProperty().bind(render.heightProperty());
