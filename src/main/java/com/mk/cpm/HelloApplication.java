@@ -25,7 +25,6 @@ public class HelloApplication extends Application {
         stage.setResizable(false);
         stage.show();
         s = scene;
-        DiscordRPC.initRPC();
         //login 270 342
     }
 
