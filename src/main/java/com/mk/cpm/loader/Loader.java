@@ -57,6 +57,9 @@ public class Loader {
 
     private static void loadObject(File file, List<Object> objects) {
         String fileName = file.getName();
+        if (fileName.contains(".json")) return;
+        if (fileName.contains(".png")) return;
+        if (fileName.contains(".mp3")) return;
         if (fileName.contains("block_")) {
             Block block = new Block();
             block.load(file);
