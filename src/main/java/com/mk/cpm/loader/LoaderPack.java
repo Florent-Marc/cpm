@@ -1,5 +1,7 @@
 package com.mk.cpm.loader;
 
+import com.mk.cpm.config.Config;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -16,6 +18,7 @@ import java.util.zip.ZipInputStream;
 public class LoaderPack {
 
     //get all dossier in String if contains file pack_info.dynx
+
     public List<String> getPacks(File directory){
         List<String> p = new ArrayList<>();
         if (!directory.exists()){
@@ -49,14 +52,38 @@ public class LoaderPack {
         }
         return p;
     }
+    public static void deletePack(String s) {
+        //get name of the pack and delete it
+        String path = Config.getLastdirectory()+"/"+s;
+        System.out.println(path);
+        File folder = new File(path);
+        if (deleteDirectory(folder)){
+            System.out.println("deleted");
+        }
+        if (s.contains(".dnxpack")) {
+            File fg = new File(path);
+            fg.delete();
+            File f = new File(Config.getCachePath()+"/pack/"+s);
+            f.delete();
+        }
+    }
 
-    public static void deleteDirectory(File directory) {
-        File[] allContents = directory.listFiles();
-        if (allContents != null) {
-            for (File file : allContents) {
-                deleteDirectory(file);
+    public static boolean deleteDirectory(File directory) {
+        if (!directory.exists() || !directory.isDirectory()) {
+            return false;
+        }
+
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(file);
+                } else {
+                    file.delete();
+                }
             }
         }
-        directory.delete();
+
+        return directory.delete();
     }
 }

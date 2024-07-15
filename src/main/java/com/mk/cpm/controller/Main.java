@@ -124,12 +124,15 @@ public class Main implements Initializable {
                 ((ImageView) nodes2[i].lookup("#edit")).setOnMouseClicked(event -> {
                     objectSelect = fo;
                     loadStage(fo.getClass().getSimpleName().toLowerCase());
+                    event.consume();
                 });
                 ((ImageView) nodes2[i].lookup("#delete")).setOnMouseClicked(event -> {
                     System.out.println("delete " + j);
+                    event.consume();
                 });
                 ((ImageView) nodes2[i].lookup("#duplicate")).setOnMouseClicked(event -> {
                     System.out.println("duplicate " + j);
+                    event.consume();
                 });
                 ((AnchorPane) nodes2[j].lookup("#box")).setOnMouseClicked(event -> {
                     LoadInfo(f);
@@ -184,6 +187,8 @@ public class Main implements Initializable {
     //refresh the list of packs
     public void refresh() {
         PackList.getChildren().clear();
+        vbox3.getChildren().clear();
+        vbox2.getChildren().clear();
         String imagePath = "/com/mk/cpm/texture/";
         VBox vBox = PackList;
         vBox.setSpacing(5);
@@ -222,11 +227,14 @@ public class Main implements Initializable {
                 ((HBox) nodes[j].lookup("#box")).setOnMouseExited(event -> {
                     ((HBox) nodes[j].lookup("#box")).setStyle("-fx-background-color:  #141b35");
                 });
+                ((ImageView) nodes[i].lookup("#delete")).setOnMouseClicked(event -> {
+                    LoaderPack.deletePack(packs.get(j));
+                    refresh();
+                    event.consume();
+                });
                 ((ImageView) nodes[i].lookup("#edit")).setOnMouseClicked(event -> {
                     System.out.println("edit " + j);
-                });
-                ((ImageView) nodes[i].lookup("#delete")).setOnMouseClicked(event -> {
-                    System.out.println("delete " + j);
+                    event.consume();
                 });
                 ((HBox) nodes[j].lookup("#box")).setOnMouseClicked(event -> {
                     packSelected = packs.get(j);
