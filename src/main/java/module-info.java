@@ -6,7 +6,6 @@ module com.mk.cpm {
     requires org.controlsfx.controls;
     requires eu.hansolo.tilesfx;
     requires json.simple;
-    requires DiscordIPC;
     requires jimObjModelImporterJFX;
 
     opens com.mk.cpm to javafx.fxml;

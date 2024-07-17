@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.text.Font?>
+
+<Pane fx:id="back" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="356.0" prefWidth="400.0" style="-fx-background-color: #24305a;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <Label layoutX="176.0" layoutY="140.0" text="Warning" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <ImageView fx:id="image" fitHeight="128.0" fitWidth="128.0" layoutX="136.0" layoutY="14.0" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@logo.png" />
+         </image></ImageView>
+      <Label layoutX="165.0" layoutY="326.0" text="Version : 0.8" textFill="WHITE">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font></Label>
+      <Label layoutX="13.0" layoutY="165.0" prefHeight="155.0" prefWidth="375.0" text="Before using this program, please note that it is still in development, which means that some features are not yet functional and some bugs may still exist. however, you can already load dynamx folders or packs. However, when you save the config, be aware that it is completely rewritten, meaning that if you have written any special configs for addons, this will be removed, so until this is resolved I recommend not edit these configurations or don't forget to add them manually. Until next time MK" textAlignment="CENTER" textFill="RED" wrapText="true">
+         <font>
+            <Font name="System Bold" size="12.0" />
+         </font>
+      </Label>
+   </children>
+   <opaqueInsets>
+      <Insets />
+   </opaqueInsets>
+</Pane>

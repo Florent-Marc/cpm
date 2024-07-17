@@ -143,7 +143,8 @@ public class BlockController implements Initializable {
             System.out.println("Loading model from: " + file.getAbsolutePath());
             myModel.read(file);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error loading model");
+            //e.printStackTrace();
             return;
         }
 
