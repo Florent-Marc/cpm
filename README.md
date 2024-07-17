@@ -12,7 +12,6 @@ Being still in development, the CPM program has some errors and unfinished featu
 
 ## Lib
 
-- DiscordIPC for reach presence
 - json.simple for save data
 - jimObjModelImporterJFX for render 3D
 
