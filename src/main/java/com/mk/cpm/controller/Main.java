@@ -50,6 +50,7 @@ public class Main implements Initializable {
     }
 
     public void LoadPack(String name) {
+        packSelected = name;
         com.mk.cpm.Main.isDynxPack = name.contains(".dnxpack");
         List<Object> objects = new ArrayList<>();
         objects = Loader.getBlocksByPack(name);
