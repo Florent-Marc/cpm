@@ -38,6 +38,10 @@ public class Main implements Initializable {
     @FXML
     public VBox PackList, vbox2, vbox3;
     public ScrollPane scrollPane, scrollpane2, scrollpane3;
+    public ImageView reload;
+    public ImageView add;
+    public ImageView filter;
+    public ImageView packadd;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -141,6 +145,13 @@ public class Main implements Initializable {
                 e.printStackTrace();
             }
         }
+        if (packSelected == null || packSelected.isEmpty()) {
+            add.setVisible(false);
+            filter.setVisible(false);
+        }else {
+            add.setVisible(true);
+            filter.setVisible(true);
+        }
     }
 
     private Stage loadStage(String type) {
@@ -186,6 +197,7 @@ public class Main implements Initializable {
 
     //refresh the list of packs
     public void refresh() {
+        packSelected = null;
         PackList.getChildren().clear();
         vbox3.getChildren().clear();
         vbox2.getChildren().clear();
@@ -243,6 +255,20 @@ public class Main implements Initializable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+        if (Config.getLastdirectory() == null || Config.getLastdirectory().isEmpty()) {
+            reload.setVisible(false);
+            packadd.setVisible(false);
+        }else {
+            reload.setVisible(true);
+            packadd.setVisible(true);
+        }
+        if (packSelected == null || packSelected.isEmpty()) {
+            add.setVisible(false);
+            filter.setVisible(false);
+        }else {
+            add.setVisible(true);
+            filter.setVisible(true);
         }
     }
 

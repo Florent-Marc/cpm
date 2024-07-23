@@ -51,22 +51,22 @@
                               <Image url="@texture/dir.png" />
                            </image>
                         </ImageView>
-                        <ImageView fitHeight="25.0" fitWidth="25.0" layoutX="82.0" layoutY="17.0" onMouseClicked="#refreshB" pickOnBounds="true" preserveRatio="true">
+                        <ImageView fx:id="reload" fitHeight="25.0" fitWidth="25.0" layoutX="82.0" layoutY="17.0" onMouseClicked="#refreshB" pickOnBounds="true" preserveRatio="true">
                            <image>
                               <Image url="@texture/Reboot.png" />
                            </image>
                         </ImageView>
-                        <ImageView fitHeight="25.0" fitWidth="25.0" layoutX="570.0" layoutY="16.0" onMouseClicked="#addcontent" pickOnBounds="true" preserveRatio="true" AnchorPane.bottomAnchor="18.0" AnchorPane.rightAnchor="683.0" AnchorPane.topAnchor="16.0">
+                        <ImageView fx:id="add" fitHeight="25.0" fitWidth="25.0" layoutX="570.0" layoutY="16.0" onMouseClicked="#addcontent" pickOnBounds="true" preserveRatio="true" AnchorPane.bottomAnchor="18.0" AnchorPane.rightAnchor="683.0" AnchorPane.topAnchor="16.0">
                            <image>
                               <Image url="@texture/Add.png" />
                            </image>
                         </ImageView>
-                        <ImageView fitHeight="25.0" fitWidth="25.0" layoutX="25.0" layoutY="17.0" onMouseClicked="#addpack" pickOnBounds="true" preserveRatio="true">
+                        <ImageView fx:id="packadd" fitHeight="25.0" fitWidth="25.0" layoutX="25.0" layoutY="17.0" onMouseClicked="#addpack" pickOnBounds="true" preserveRatio="true">
                            <image>
                               <Image url="@texture/AddNew.png" />
                            </image>
                         </ImageView>
-                        <ImageView fitHeight="25.0" fitWidth="25.0" layoutX="555.0" layoutY="16.0" pickOnBounds="true" preserveRatio="true" AnchorPane.bottomAnchor="18.0" AnchorPane.rightAnchor="707.0" AnchorPane.topAnchor="16.0">
+                        <ImageView fx:id="filter" fitHeight="25.0" fitWidth="25.0" layoutX="555.0" layoutY="16.0" pickOnBounds="true" preserveRatio="true" AnchorPane.bottomAnchor="18.0" AnchorPane.rightAnchor="707.0" AnchorPane.topAnchor="16.0">
                            <image>
                               <Image url="@texture/Filter.png" />
                            </image>
