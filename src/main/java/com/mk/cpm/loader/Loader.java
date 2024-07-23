@@ -2,12 +2,17 @@ package com.mk.cpm.loader;
 
 import com.mk.cpm.Main;
 import com.mk.cpm.config.Config;
-import com.mk.cpm.loader.object.*;
+import com.mk.cpm.loader.object.Armor;
+import com.mk.cpm.loader.object.Block;
+import com.mk.cpm.loader.object.Item;
+import com.mk.cpm.loader.object.Vehicul;
 import com.mk.cpm.loader.pack.ZipExtractor;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -106,13 +111,36 @@ public class Loader {
         String path = packName.contains(".dnxpack") ? Config.getCachePath() + "/pack/" + packName : Config.getLastdirectory() + "/" + packName;
         File[] files = listFiles(path).stream().map(Path::toFile).toArray(File[]::new);
         String name = getName(o);
+        String dirassets = path + "/assets/dynamxmod/models/" + getAssetsPath(o);
+        File file = new File(new File(dirassets).getParent());
+        if (file.isDirectory()) {
+            LoaderPack.deleteDirectory(file);
+        }
         if (name.isEmpty()) return;
-        for (File file : files) {
-            if (file.getName().contains(name)) {
-                file.deleteOnExit();
+        System.out.println(name);
+        for (File f : files) {
+            if (f.getName().contains(name + ".dynx")) {
+                System.out.println(f.getName());
+                f.delete();
+                //update memory
+                objectsList.remove(o);
                 break;
             }
         }
+        com.mk.cpm.controller.Main.Instance.LoadPack(packName);
+    }
+
+    private static String getAssetsPath(Object o) {
+        if (o instanceof Block) {
+            return ((Block) o).getModel();
+        } else if (o instanceof Armor) {
+            return ((Armor) o).getModel();
+        } else if (o instanceof Vehicul) {
+            return ((Vehicul) o).getModel();
+        } else if (o instanceof Item) {
+            return ((Item) o).getModel();
+        }
+        return "";
     }
 
     private static String getName(Object o) {

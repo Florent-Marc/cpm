@@ -132,7 +132,7 @@ public class Main implements Initializable {
                     event.consume();
                 });
                 ((ImageView) nodes2[i].lookup("#delete")).setOnMouseClicked(event -> {
-                    System.out.println("delete " + j);
+                    Loader.removeObject(fo, packSelected);
                     event.consume();
                 });
                 ((ImageView) nodes2[i].lookup("#duplicate")).setOnMouseClicked(event -> {

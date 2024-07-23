@@ -7,6 +7,9 @@ module com.mk.cpm {
     requires eu.hansolo.tilesfx;
     requires json.simple;
     requires jimObjModelImporterJFX;
+    requires org.apache.httpcomponents.httpclient;
+    requires org.apache.httpcomponents.httpcore;
+    requires org.json;
 
     opens com.mk.cpm to javafx.fxml;
     exports com.mk.cpm;

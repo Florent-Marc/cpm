@@ -14,6 +14,7 @@ public class Config {
     private static String user = "";
     private static String lastdirectory = "";
     private static boolean debug = false;
+    private static long newRequest = 0;
 
     //json simple create json with user and lastdirectory
     public Config(String user, String lastdirectory) {
@@ -27,6 +28,7 @@ public class Config {
         obj.put("user", getUser());
         obj.put("lastdirectory", getLastdirectory());
         obj.put("debug", isDebug());
+        obj.put("newRequest", getnewRequest());
         try {
             File file = new File(System.getenv("APPDATA") + "/cpm/config.json");
             file.getParentFile().mkdirs();
@@ -53,6 +55,9 @@ public class Config {
                 user = (String) jsonObject.get("user");
                 lastdirectory = (String) jsonObject.get("lastdirectory");
                 debug = (boolean) jsonObject.get("debug");
+                if (jsonObject.get("newRequest") != null) {
+                    newRequest = (long) jsonObject.get("newRequest");
+                }
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
@@ -88,5 +93,13 @@ public class Config {
 
     public static void setDebug(boolean debug) {
         Config.debug = debug;
+    }
+
+    public static long getnewRequest() {
+        return newRequest;
+    }
+
+    public static void setnewRequest(long newRequest) {
+        Config.newRequest = newRequest;
     }
 }
