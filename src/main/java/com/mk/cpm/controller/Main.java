@@ -17,6 +17,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -308,5 +309,10 @@ public class Main implements Initializable {
         } catch (IOException e) {
             System.out.println("Error while opening discord link");
         }
+    }
+
+    @FXML
+    public void setting(MouseEvent mouseEvent) {
+        loadStage("setting");
     }
 }

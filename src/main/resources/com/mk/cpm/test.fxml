@@ -17,7 +17,7 @@
               <items>
                 <AnchorPane maxHeight="24.0" minHeight="24.0" style="-fx-background-color: #141b35#24305a;">
                      <children>
-                        <ImageView fitHeight="18.0" fitWidth="18.0" layoutX="5.0" layoutY="3.0" pickOnBounds="true" preserveRatio="true" AnchorPane.leftAnchor="5.0">
+                        <ImageView onMouseClicked="#setting" fitHeight="18.0" fitWidth="18.0" layoutX="5.0" layoutY="3.0" pickOnBounds="true" preserveRatio="true" AnchorPane.leftAnchor="5.0">
                            <image>
                               <Image url="@texture/Engineering.png" />
                            </image>
