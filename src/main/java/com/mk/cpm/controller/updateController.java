@@ -2,12 +2,15 @@ package com.mk.cpm.controller;
 
 import com.mk.cpm.GitHubReleasesFetcher;
 import com.mk.cpm.HelloApplication;
+import com.mk.cpm.Main;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.net.URL;
@@ -19,6 +22,7 @@ public class updateController implements Initializable {
 
     @FXML
     public Label version;
+    public Button bu;
 
 
     @Override
@@ -29,21 +33,18 @@ public class updateController implements Initializable {
     @FXML
     public void down(MouseEvent mouseEvent) {
         //close app and download new version and start new version
+        bu.setDisable(true);
+        version.setText("Downloading...");
         String name = GitHubReleasesFetcher.name;
         String path = System.getProperty("user.dir");
-        System.out.println("Current path: " + path);
         try {
-            downloadFile("https://github.com/Florent-Marc/cpm/releases/download/"+name.replace(" ","-")+"/CPM-UI.jar", path);
+            downloadFile("https://github.com/Florent-Marc/cpm/releases/download/"+name.replace(" ","-")+"/CPM-UI.jar", path+"\\CPM-UI.jar");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        //execute new version
-        try {
-            Runtime.getRuntime().exec("java -jar "+path+"\\CPM-UI.jar");
-        } catch (IOException e) {
-            System.out.println("Error while opening discord link");
-        }
-        System.exit(0);
-        System.out.println("Downloaded");
+        version.setText("Restart to update");
+        version.setAlignment(javafx.geometry.Pos.CENTER);
     }
+
+
 }

@@ -39,3 +39,4 @@ build/
 # Project exclude paths
 /out/
 /.idea/artifacts/CPM_UI_jar.xml
+/CPM-UI.jar

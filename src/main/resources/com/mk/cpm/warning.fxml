@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.text.Font?>
 
-<Pane fx:id="back" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="356.0" prefWidth="400.0" style="-fx-background-color: #24305a;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<Pane fx:id="back" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="356.0" prefWidth="400.0" fx:controller="com.mk.cpm.controller.warningController" style="-fx-background-color: #24305a;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <Label layoutX="176.0" layoutY="140.0" text="Warning" textFill="WHITE">
          <font>
@@ -17,7 +17,7 @@
          <image>
             <Image url="@logo.png" />
          </image></ImageView>
-      <Label layoutX="165.0" layoutY="326.0" text="Version : 0.8" textFill="WHITE">
+      <Label fx:id="vr" layoutX="165.0" layoutY="326.0" text="Version : 0.8" textFill="WHITE">
          <font>
             <Font name="System Bold" size="12.0" />
          </font></Label>

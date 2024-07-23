@@ -14,7 +14,7 @@ import java.io.IOException;
 public class HelloApplication extends Application {
     public static Scene f;
     public static Image logo= new Image(HelloApplication.class.getResourceAsStream("logo.png"));
-    public static double version = 0.7;
+    public static double version = 0.8;
 
     @Override
     public void start(Stage stage) throws IOException {
@@ -59,7 +59,6 @@ public class HelloApplication extends Application {
 
     public static void main(String[] args) {
         launch();
-
     }
 
 }
