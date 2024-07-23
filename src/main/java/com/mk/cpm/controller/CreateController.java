@@ -18,12 +18,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.ResourceBundle;
 
-public class CreateController implements Initializable{
+public class CreateController implements Initializable {
 
     private static File fileSelected;
-    private static File fileSelected1;
+    private static List<File> fileSelected1;
     private static File fileSelected2;
 
     @FXML
@@ -65,15 +66,13 @@ public class CreateController implements Initializable{
         Stage stage = new Stage();
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Resource File");
-        File selectedFile = fileChooser.showOpenDialog(stage);
+        List<File> selectedFile = fileChooser.showOpenMultipleDialog(stage);
 
-        if (selectedFile != null) {
-            // Le fichier a été sélectionné, vous pouvez maintenant l'utiliser
-            file1.setText(selectedFile.getAbsolutePath());
-            fileSelected1 = selectedFile;
-        } else {
-            // Aucun fichier n'a été sélectionné
+        if (selectedFile == null) {
             System.out.println("Aucun fichier sélectionné");
+        } else {
+            file1.setText(selectedFile.size() + " File selected");
+            fileSelected1 = selectedFile;
         }
     }
 
@@ -84,13 +83,13 @@ public class CreateController implements Initializable{
         fileChooser.setTitle("Open Resource File");
         File selectedFile = fileChooser.showOpenDialog(stage);
 
-        if (selectedFile != null) {
+        if (selectedFile == null) {
+            // Aucun fichier n'a été sélectionné
+            System.out.println("Aucun fichier sélectionné");
+        } else {
             // Le fichier a été sélectionné, vous pouvez maintenant l'utiliser
             file11.setText(selectedFile.getAbsolutePath());
             fileSelected2 = selectedFile;
-        } else {
-            // Aucun fichier n'a été sélectionné
-            System.out.println("Aucun fichier sélectionné");
         }
     }
 
@@ -103,20 +102,20 @@ public class CreateController implements Initializable{
     @FXML
     public void create(MouseEvent mouseEvent) throws IOException {
         //si tous les choix sont pas remplis mettre le boutton en rouge
-        if (fileSelected == null || fileSelected1 == null || fileSelected2 == null || choicebox.getSelectionModel().getSelectedItem() == null){
+        if (fileSelected == null || fileSelected1 == null || fileSelected2 == null || choicebox.getSelectionModel().getSelectedItem() == null) {
             create.setStyle("-fx-background-color: red");
             return;
         }
         //TODO check if file existe deja
-        String packname = MainController.packname;
+        String packname = Main.packSelected;
         String path;
-        if (packname.contains(".dnxpack")){
+        if (packname.contains(".dnxpack")) {
             path = Config.getCachePath() + "/pack/" + packname;
-        }else {
+        } else {
             path = Config.getLastdirectory() + "/" + packname;
         }
-        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Block")){
-            File f = new File(path + "/block/block_" + name.getText()+".dynx");
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Block")) {
+            File f = new File(path + "/block/block_" + name.getText() + ".dynx");
             //create the parent directory and the file
             f.getParentFile().mkdirs();
             f.createNewFile();
@@ -127,8 +126,8 @@ public class CreateController implements Initializable{
             block.setFile(f);
             block.save(f);
         }
-        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Item")){
-            File f = new File(path + "/item/item_" + name.getText()+".dynx");
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Item")) {
+            File f = new File(path + "/item/item_" + name.getText() + ".dynx");
             //create the parent directory and the file
             f.getParentFile().mkdirs();
             f.createNewFile();
@@ -136,12 +135,12 @@ public class CreateController implements Initializable{
             writer.write("Name: " + name.getText() + "\n");
             writer.write("Desc: " + desc.getText() + "\n");
             writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
-            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.get(0).getName() + "\n");
             writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
             writer.close();
         }
-        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Armor")){
-            File f = new File(path + "/armor/armor_" + name.getText()+".dynx");
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Armor")) {
+            File f = new File(path + "/armor/armor_" + name.getText() + ".dynx");
             //create the parent directory and the file
             f.getParentFile().mkdirs();
             f.createNewFile();
@@ -149,12 +148,12 @@ public class CreateController implements Initializable{
             writer.write("Name: " + name.getText() + "\n");
             writer.write("Desc: " + desc.getText() + "\n");
             writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
-            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.get(0).getName() + "\n");
             writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
             writer.close();
         }
-        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Vehicle")){
-            File f = new File(path + "/vehicle/vehicle_" + name.getText()+".dynx");
+        if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Vehicle")) {
+            File f = new File(path + "/vehicle/vehicle_" + name.getText() + ".dynx");
             //create the parent directory and the file
             f.getParentFile().mkdirs();
             f.createNewFile();
@@ -162,7 +161,7 @@ public class CreateController implements Initializable{
             writer.write("Name: " + name.getText() + "\n");
             writer.write("Desc: " + desc.getText() + "\n");
             writer.write("Model: obj/" + name.getText() + "/" + fileSelected.getName() + "\n");
-            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.getName() + "\n");
+            writer.write("Texture: obj/" + name.getText() + "/" + fileSelected1.get(0).getName() + "\n");
             writer.write("Texture: obj/" + name.getText() + "/" + fileSelected2.getName() + "\n");
             writer.close();
         }
@@ -171,9 +170,11 @@ public class CreateController implements Initializable{
         //check if the directory exist
         File f = new File(target);
         f.mkdirs();
-        Files.copy(fileSelected.toPath(), new File(target+"/"+fileSelected.getName()).toPath());
-        Files.copy(fileSelected1.toPath(), new File(target+"/"+fileSelected1.getName()).toPath());
-        Files.copy(fileSelected2.toPath(), new File(target+"/"+fileSelected2.getName()).toPath());
+        Files.copy(fileSelected.toPath(), new File(target + "/" + fileSelected.getName()).toPath());
+        for (File file : fileSelected1) {
+            Files.copy(file.toPath(), new File(target +" /" + file.getName()).toPath());
+        }
+        Files.copy(fileSelected2.toPath(), new File(target + "/" + fileSelected2.getName()).toPath());
         if (packname.contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + packname;
