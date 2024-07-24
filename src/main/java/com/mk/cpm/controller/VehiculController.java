@@ -128,7 +128,7 @@ public class VehiculController implements Initializable {
             return;
         }
 
-        com.mk.cpm.Main.o = vehicul;
+        AppMain.o = vehicul;
         if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
         }
@@ -544,7 +544,7 @@ public class VehiculController implements Initializable {
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + Main.packSelected;
-                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
+                String dest = AppMain.config.getLastdirectory() + "/" + Main.packSelected;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
