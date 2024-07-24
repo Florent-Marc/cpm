@@ -371,9 +371,8 @@
           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="465.0" prefWidth="288.0">
                <children>
                   <Pane fx:id="render" minWidth="0.0" prefHeight="538.0" prefWidth="377.0" style="-fx-background-color: #24305a;">
-                     <children>
-                        <Button layoutX="265.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#addon" text="addon" />
-                     </children></Pane>
+                  </Pane>
+                  <Button layoutX="265.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#addon" text="addon" />
                   <Button layoutX="325.0" layoutY="502.0" mnemonicParsing="false" onMouseClicked="#save" text="save" />
                   <Slider fx:id="slider" orientation="VERTICAL" style="-fx-background-color: #141b35;" />
                </children>
