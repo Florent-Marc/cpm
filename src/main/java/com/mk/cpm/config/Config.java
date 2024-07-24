@@ -18,6 +18,7 @@ public class Config {
     private boolean debug = false;
     private AddonSettingConfig addonSettingConfig = null;
     private long newRequest = 0;
+    private boolean warning = true;
 
     //json simple create json with user and lastdirectory
     public Config(String user, String lastdirectory) {
@@ -34,6 +35,7 @@ public class Config {
         obj.put("debug", isDebug());
         obj.put("newRequest", getnewRequest());
         obj.put("addonSettingsConfig", getAddonSettingConfig().toJson());
+        obj.put("warning", warning);
         try {
             File file = new File(System.getenv("APPDATA") + "/cpm/config.json");
             file.getParentFile().mkdirs();
@@ -78,6 +80,9 @@ public class Config {
                 if (jsonObject.get("newRequest") != null) {
                     newRequest = (long) jsonObject.get("newRequest");
                 }
+                if (jsonObject.get("warning") != null) {
+                    warning = (boolean) jsonObject.get("warning");
+                }
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
@@ -113,5 +118,13 @@ public class Config {
 
     public void setnewRequest(long newRequest) {
         this.newRequest = newRequest;
+    }
+
+    public boolean isWarning() {
+        return warning;
+    }
+
+    public void setWarning(boolean warning) {
+        this.warning = warning;
     }
 }

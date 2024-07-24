@@ -27,14 +27,16 @@ public class HelloApplication extends Application {
         s.setResizable(true);
         s.show();
         f = sc;
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("warning.fxml"));
-        Scene scene = new Scene(fxmlLoader.load());
-        stage.getIcons().add(logo);
-        scene.setFill(Color.rgb(40, 44, 52, 1.0));
-        stage.setTitle("CPM-UI");
-        stage.setScene(scene);
-        stage.setResizable(false);
-        stage.show();
+        if (AppMain.config.isWarning()) {
+            FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("warning.fxml"));
+            Scene scene = new Scene(fxmlLoader.load());
+            stage.getIcons().add(logo);
+            scene.setFill(Color.rgb(40, 44, 52, 1.0));
+            stage.setTitle("CPM-UI");
+            stage.setScene(scene);
+            stage.setResizable(false);
+            stage.show();
+        }
         //login 270 342
         if(AppMain.config.getnewRequest()<System.currentTimeMillis()) {
             // plus 2 minutes
