@@ -1,6 +1,7 @@
 package com.mk.cpm.controller;
 
 import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
+import com.mk.cpm.HelloApplication;
 import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
@@ -16,6 +17,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.*;
 import javafx.scene.control.CheckBox;
@@ -38,6 +40,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+
+import static com.mk.cpm.HelloApplication.logo;
 
 public class VehiculController implements Initializable {
 
@@ -124,7 +128,7 @@ public class VehiculController implements Initializable {
             return;
         }
 
-        AppMain.o = vehicul;
+        com.mk.cpm.Main.o = vehicul;
         if (vehicul.getName() != null) {
             name.setText(vehicul.getName());
         }
@@ -540,7 +544,7 @@ public class VehiculController implements Initializable {
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + Main.packSelected;
-                String dest = AppMain.config.getLastdirectory() + "/" + Main.packSelected;
+                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -657,4 +661,20 @@ public class VehiculController implements Initializable {
     }
 
 
+    @FXML
+    public void addon(MouseEvent mouseEvent) {
+        Stage fd = new Stage();
+        FXMLLoader jk = new FXMLLoader(HelloApplication.class.getResource("listaddon.fxml"));
+        Scene d = null;
+        try {
+            d = new Scene(jk.load());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        fd.getIcons().add(logo);
+        fd.setTitle("CPM-UI");
+        fd.setScene(d);
+        fd.setResizable(false);
+        fd.show();
+    }
 }
