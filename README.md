@@ -14,6 +14,7 @@ Being still in development, the CPM program has some errors and unfinished featu
 
 - json.simple for save data
 - jimObjModelImporterJFX for render 3D
+- javassist for addon import
 
 ## Authors
 
