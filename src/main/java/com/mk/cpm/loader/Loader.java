@@ -1,6 +1,6 @@
 package com.mk.cpm.loader;
 
-import com.mk.cpm.Main;
+import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
@@ -40,15 +40,15 @@ public class Loader {
 
     private static File prepareFile(String packName) {
         File file;
-        if (Main.isDynxPack) {
+        if (AppMain.isDynxPack) {
             try {
-                ZipExtractor.extractZip(Config.getLastdirectory() + "/" + packName, Config.getCachePath() + "/pack/" + packName);
+                ZipExtractor.extractZip(AppMain.config.getLastdirectory() + "/" + packName, Config.getCachePath() + "/pack/" + packName);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             file = new File(Config.getCachePath() + "/pack/" + packName);
         } else {
-            file = new File(Config.getLastdirectory() + "/" + packName);
+            file = new File(AppMain.config.getLastdirectory() + "/" + packName);
         }
         return file;
     }
@@ -85,7 +85,7 @@ public class Loader {
     }
 
     public static String getPath(String name, String packName) {
-        String path = packName.contains(".dnxpack") ? Config.getCachePath() + "/pack/" + packName : Config.getLastdirectory() + "/" + packName;
+        String path = packName.contains(".dnxpack") ? Config.getCachePath() + "/pack/" + packName : AppMain.config.getLastdirectory() + "/" + packName;
         File[] files = listFiles(path).stream().map(Path::toFile).toArray(File[]::new);
         for (File file : files) {
             if (file.getName().contains(name)) {
@@ -108,7 +108,7 @@ public class Loader {
     }
 
     public static void removeObject(Object o, String packName) {
-        String path = packName.contains(".dnxpack") ? Config.getCachePath() + "/pack/" + packName : Config.getLastdirectory() + "/" + packName;
+        String path = packName.contains(".dnxpack") ? Config.getCachePath() + "/pack/" + packName : AppMain.config.getLastdirectory() + "/" + packName;
         File[] files = listFiles(path).stream().map(Path::toFile).toArray(File[]::new);
         String name = getName(o);
         String dirassets = path + "/assets/dynamxmod/models/" + getAssetsPath(o);

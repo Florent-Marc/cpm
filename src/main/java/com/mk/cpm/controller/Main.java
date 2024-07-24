@@ -1,5 +1,6 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.AppMain;
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
@@ -52,7 +53,7 @@ public class Main implements Initializable {
 
     public void LoadPack(String name) {
         packSelected = name;
-        com.mk.cpm.Main.isDynxPack = name.contains(".dnxpack");
+        AppMain.isDynxPack = name.contains(".dnxpack");
         List<Object> objects = new ArrayList<>();
         objects = Loader.getBlocksByPack(name);
         VBox vBox2 = vbox2;
@@ -221,10 +222,10 @@ public class Main implements Initializable {
         Image dnx = new Image(getClass().getResourceAsStream(imagePath + "dnx.png"));
         Image dir = new Image(getClass().getResourceAsStream(imagePath + "dir.png"));
         List<String> packs;
-        if (Config.getLastdirectory() == null || Config.getLastdirectory().isEmpty()) {
+        if (AppMain.config.getLastdirectory() == null || AppMain.config.getLastdirectory().isEmpty()) {
             packs = new ArrayList<>();
         } else {
-            packs = new LoaderPack().getPacks(new File(Config.getLastdirectory()));
+            packs = new LoaderPack().getPacks(new File(AppMain.config.getLastdirectory()));
         }
         Node[] nodes = new Node[packs.size()];
         for (int i = 0; i < packs.size(); i++) {
@@ -258,7 +259,7 @@ public class Main implements Initializable {
                 e.printStackTrace();
             }
         }
-        if (Config.getLastdirectory() == null || Config.getLastdirectory().isEmpty()) {
+        if (AppMain.config.getLastdirectory() == null || AppMain.config.getLastdirectory().isEmpty()) {
             reload.setVisible(false);
             packadd.setVisible(false);
         }else {
@@ -281,8 +282,8 @@ public class Main implements Initializable {
         File selectedFile = fileChooser.showDialog(new Stage());
 
         if (selectedFile != null && selectedFile.isDirectory()) {
-            Config.setLastdirectory(selectedFile.getAbsolutePath());
-            Config.saveConfig();
+            AppMain.config.setLastdirectory(selectedFile.getAbsolutePath());
+            AppMain.config.saveConfig();
             refresh();
         }
     }

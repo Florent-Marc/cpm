@@ -8,40 +8,60 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Config {
 
-    private static String user = "";
-    private static String lastdirectory = "";
-    private static boolean debug = false;
-    private static long newRequest = 0;
+    private String lastdirectory = "";
+    private boolean debug = false;
+    private AddonSettingConfig addonSettingConfig = null;
+    private long newRequest = 0;
 
     //json simple create json with user and lastdirectory
     public Config(String user, String lastdirectory) {
-        this.user = user;
         this.lastdirectory = lastdirectory;
     }
 
-    public static void saveConfig() {
-        //save the config to %appdata%/cpm/config.json
+    public Config() {
+
+    }
+
+    public void saveConfig() {
         JSONObject obj = new JSONObject();
-        obj.put("user", getUser());
         obj.put("lastdirectory", getLastdirectory());
         obj.put("debug", isDebug());
         obj.put("newRequest", getnewRequest());
+        obj.put("addonSettingsConfig", getAddonSettingConfig().toJson());
         try {
             File file = new File(System.getenv("APPDATA") + "/cpm/config.json");
             file.getParentFile().mkdirs();
             file.createNewFile();
-            FileWriter fileWriter = new FileWriter(file);
-            fileWriter.write(obj.toJSONString());
-            fileWriter.flush();
+            Files.write(file.toPath(), obj.toJSONString().getBytes());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void load() {
+    public AddonSettingConfig getAddonSettingConfig() {
+        return addonSettingConfig;
+    }
+
+
+    public void setAddonSettingConfig(AddonSettingConfig addonSettingConfig) {
+        this.addonSettingConfig = addonSettingConfig;
+    }
+
+    public long getNewRequest() {
+        return newRequest;
+    }
+
+    public void setNewRequest(long newRequest) {
+        this.newRequest = newRequest;
+    }
+
+    public void load() {
         //clear le dossier pack
 
         //load the config from %appdata%/cpm/config.json
@@ -52,9 +72,9 @@ public class Config {
             //create the file
             try {
                 JSONObject jsonObject = (JSONObject) new JSONParser().parse(new FileReader(System.getenv("APPDATA") + "/cpm/config.json"));
-                user = (String) jsonObject.get("user");
                 lastdirectory = (String) jsonObject.get("lastdirectory");
                 debug = (boolean) jsonObject.get("debug");
+                addonSettingConfig = new AddonSettingConfig().fromJson((JSONObject) jsonObject.get("addonSettingsConfig"));
                 if (jsonObject.get("newRequest") != null) {
                     newRequest = (long) jsonObject.get("newRequest");
                 }
@@ -67,39 +87,31 @@ public class Config {
         }
     }
 
-    public static String getUser() {
-        return user;
-    }
 
-    public static String getLastdirectory() {
+    public String getLastdirectory() {
         return lastdirectory;
     }
 
-    public static void setUser(String user) {
-        Config.user = user;
+    public void setLastdirectory(String lastdirectory) {
+        this.lastdirectory = lastdirectory;
     }
-
-    public static void setLastdirectory(String lastdirectory) {
-        Config.lastdirectory = lastdirectory;
-    }
-    //get path cache
     public static String getCachePath() {
         return System.getenv("APPDATA") + "/cpm/cache";
     }
 
-    public static boolean isDebug() {
+    public boolean isDebug() {
         return debug;
     }
 
-    public static void setDebug(boolean debug) {
-        Config.debug = debug;
+    public void setDebug(boolean debug) {
+        this.debug = debug;
     }
 
-    public static long getnewRequest() {
+    public long getnewRequest() {
         return newRequest;
     }
 
-    public static void setnewRequest(long newRequest) {
-        Config.newRequest = newRequest;
+    public void setnewRequest(long newRequest) {
+        this.newRequest = newRequest;
     }
 }

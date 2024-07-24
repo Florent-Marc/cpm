@@ -1,6 +1,6 @@
 package com.mk.cpm.controller;
 
-import com.mk.cpm.Main;
+import com.mk.cpm.AppMain;
 import com.mk.cpm.loader.object.Seat;
 import com.mk.cpm.loader.object.Vehicul;
 import javafx.fxml.FXML;
@@ -14,8 +14,8 @@ public class MoreController {
 
     @FXML
     public void create(MouseEvent mouseEvent) {
-        Vehicul v = (Vehicul) Main.o;
-        String cat = Main.CurrentAdd;
+        Vehicul v = (Vehicul) AppMain.o;
+        String cat = AppMain.CurrentAdd;
         if (cat.equals("seat")) {
             Seat s = new Seat();
             s.setName("Seat_"+name.getText()+"{");

@@ -1,5 +1,6 @@
 package com.mk.cpm.loader;
 
+import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 
 import java.io.File;
@@ -54,7 +55,7 @@ public class LoaderPack {
     }
     public static void deletePack(String s) {
         //get name of the pack and delete it
-        String path = Config.getLastdirectory()+"/"+s;
+        String path = AppMain.config.getLastdirectory()+"/"+s;
         System.out.println(path);
         File folder = new File(path);
         if (deleteDirectory(folder)){

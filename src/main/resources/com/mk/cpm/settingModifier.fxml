@@ -8,8 +8,7 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.AnchorPane?>
 
-
-<AnchorPane fx:controller="com.mk.cpm.controller.setting" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.mk.cpm.controller.setting">
    <children>
       <TabPane layoutX="178.0" layoutY="42.0" prefHeight="200.0" prefWidth="200.0" tabClosingPolicy="UNAVAILABLE" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <tabs>
@@ -26,9 +25,10 @@
             <content>
               <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
                      <children>
-                        <Button onMouseClicked="#folderaddon" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" text="Open addon folder" />
+                        <Button layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onMouseClicked="#folderaddon" text="Open addon folder" />
                         <CheckBox layoutX="14.0" layoutY="56.0" mnemonicParsing="false" text="isActive" />
-                        <ListView layoutX="14.0" layoutY="86.0" AnchorPane.bottomAnchor="13.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="86.0" />
+                        <ListView layoutX="14.0" layoutY="86.0" AnchorPane.bottomAnchor="13.0" AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="86.0" fx:id="addonlistview"/>
+                        <Button layoutX="137.0" layoutY="14.0" mnemonicParsing="false" onMouseClicked="#addonconvert" text="Convert addon" />
                      </children>
                   </AnchorPane>
             </content>

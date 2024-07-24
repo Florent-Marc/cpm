@@ -36,10 +36,10 @@ public class HelloApplication extends Application {
         stage.setResizable(false);
         stage.show();
         //login 270 342
-        if(Config.getnewRequest()<System.currentTimeMillis()) {
+        if(AppMain.config.getnewRequest()<System.currentTimeMillis()) {
             // plus 2 minutes
-            Config.setnewRequest(System.currentTimeMillis() + 120000);
-            Config.saveConfig();
+            AppMain.config.setnewRequest(System.currentTimeMillis() + 120000);
+            AppMain.config.saveConfig();
             if (GitHubReleasesFetcher.isNewVersionAvailable(version)) {
                 Stage fd = new Stage();
                 FXMLLoader jk = new FXMLLoader(HelloApplication.class.getResource("update.fxml"));

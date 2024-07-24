@@ -1,6 +1,7 @@
 package com.mk.cpm.controller;
 
 import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
+import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Armor;
@@ -226,7 +227,7 @@ public class ArmorController implements Initializable {
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + Main.packSelected;
-                String dest = Config.getLastdirectory() + "/" + Main.packSelected;
+                String dest = AppMain.config.getLastdirectory() + "/" + Main.packSelected;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);

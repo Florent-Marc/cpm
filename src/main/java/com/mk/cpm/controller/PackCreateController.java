@@ -1,5 +1,6 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -30,10 +31,10 @@ public class PackCreateController implements Initializable {
 
         File file = null;
         if (isdnxpack.isSelected()){
-            file = new File(Config.getLastdirectory()+"\\pack_info.dynx");
+            file = new File(AppMain.config.getLastdirectory()+"\\pack_info.dynx");
             file.getParentFile().mkdirs();
         }else {
-            file = new File(Config.getLastdirectory()+"\\"+name.getText()+"\\pack_info.dynx");
+            file = new File(AppMain.config.getLastdirectory()+"\\"+name.getText()+"\\pack_info.dynx");
             file.getParentFile().mkdirs();
         }
         if (file != null) {
@@ -57,7 +58,7 @@ public class PackCreateController implements Initializable {
             // Nom du fichier ZIP à créer
             String zipFileName = name.getText()+".dnxpack";
             try {
-                createZipFile(file.getAbsolutePath(), Config.getLastdirectory()+"\\"+zipFileName);
+                createZipFile(file.getAbsolutePath(), AppMain.config.getLastdirectory()+"\\"+zipFileName);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

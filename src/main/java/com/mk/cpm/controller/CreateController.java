@@ -1,5 +1,6 @@
 package com.mk.cpm.controller;
 
+import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.pack.ZipCompressor;
@@ -112,7 +113,7 @@ public class CreateController implements Initializable {
         if (packname.contains(".dnxpack")) {
             path = Config.getCachePath() + "/pack/" + packname;
         } else {
-            path = Config.getLastdirectory() + "/" + packname;
+            path = AppMain.config.getLastdirectory() + "/" + packname;
         }
         if (choicebox.getSelectionModel().getSelectedItem().equalsIgnoreCase("Block")) {
             File f = new File(path + "/block/block_" + name.getText() + ".dynx");
@@ -178,7 +179,7 @@ public class CreateController implements Initializable {
         if (packname.contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + packname;
-                String dest = Config.getLastdirectory() + "/" + packname;
+                String dest = AppMain.config.getLastdirectory() + "/" + packname;
                 ZipCompressor.compressFolder(source, dest);
             } catch (IOException e) {
                 throw new RuntimeException(e);
