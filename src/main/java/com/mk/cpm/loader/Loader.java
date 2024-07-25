@@ -5,7 +5,7 @@ import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.object.Item;
-import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.object.Vehicle;
 import com.mk.cpm.loader.pack.ZipExtractor;
 
 import java.io.File;
@@ -74,7 +74,7 @@ public class Loader {
             armor.load(file);
             objects.add(armor);
         } else if (fileName.contains("vehicle_")) {
-            Vehicul vehicul = new Vehicul();
+            Vehicle vehicul = new Vehicle();
             vehicul.load(file);
             objects.add(vehicul);
         } else if (fileName.contains("item_")) {
@@ -135,8 +135,8 @@ public class Loader {
             return ((Block) o).getModel();
         } else if (o instanceof Armor) {
             return ((Armor) o).getModel();
-        } else if (o instanceof Vehicul) {
-            return ((Vehicul) o).getModel();
+        } else if (o instanceof Vehicle) {
+            return ((Vehicle) o).getModel();
         } else if (o instanceof Item) {
             return ((Item) o).getModel();
         }
@@ -148,8 +148,8 @@ public class Loader {
             return "block_" + ((Block) o).getName();
         } else if (o instanceof Armor) {
             return "armor_" + ((Armor) o).getName();
-        } else if (o instanceof Vehicul) {
-            return "vehicle_" + ((Vehicul) o).getName();
+        } else if (o instanceof Vehicle) {
+            return "vehicle_" + ((Vehicle) o).getName();
         } else if (o instanceof Item) {
             return "item_" + ((Item) o).getName();
         }

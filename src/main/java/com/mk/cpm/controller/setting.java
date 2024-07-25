@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
+import static com.mk.cpm.AppMain.DYNAMX_PATH;
+
 public class setting implements Initializable {
     @FXML
     public ListView<HBoxCell> addonlistview;
@@ -45,7 +47,6 @@ public class setting implements Initializable {
                 // parser
                 try {
                     JSONObject jsonObject = (JSONObject) new JSONParser().parse(new String(Files.readAllBytes(f.toPath())));
-                    // add and precise enabled
                     this.addonlistview.getItems().add(new HBoxCell((String) jsonObject.get("name"), AppMain.config.getAddonSettingConfig().getEnabledAddons().contains(jsonObject.get("name"))));
                 } catch (ParseException | IOException e) {
                     e.printStackTrace();
@@ -111,8 +112,7 @@ public class setting implements Initializable {
         if (AppMain.config.getAddonSettingConfig().getLastFolder() != null && !Objects.equals(AppMain.config.getAddonSettingConfig().getLastFolder(), ""))
             fileChooser.setInitialDirectory(new File(AppMain.config.getAddonSettingConfig().getLastFolder()));
         File file = fileChooser.showOpenDialog(null);
-        String added = file.getName();
-        AddonProperties addonProperties = JarLoader.loadJar("C:\\Users\\gabid\\Desktop\\cpm\\lib\\DynamX-4.1.0-dev19-all-deobf.jar", file.getAbsolutePath());
+        AddonProperties addonProperties = JarLoader.loadJar(DYNAMX_PATH, file.getAbsolutePath());
 
         File addons = new File(System.getenv("APPDATA") + "/cpm/addons/");
         if (!addons.exists()) {

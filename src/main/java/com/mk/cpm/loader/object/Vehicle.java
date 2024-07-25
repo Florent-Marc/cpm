@@ -3,10 +3,14 @@ package com.mk.cpm.loader.object;
 import com.mk.cpm.loader.utils.DataModifier;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
-public class Vehicul extends Item implements DataModifier {
+public class Vehicle extends Item implements DataModifier {
 
     private List<Wheel> Wheels;
     private List<Seat> Seats;
@@ -25,6 +29,7 @@ public class Vehicul extends Item implements DataModifier {
     private String ScaleModifier;
     private String ShapeYOffset;
     private List<String> infos;
+    public HashMap<String, HashMap<String, String>> otherProperties = new HashMap<>();
     private File file;
 
 
@@ -68,6 +73,11 @@ public class Vehicul extends Item implements DataModifier {
         infos.add("Seats: " + Seats.size());
         infos.add("Wheels: " + Wheels.size());
         infos.add("Shapes: " + Shapes.size());
+        for (String allSection : getAllSections(file)) {
+            System.out.println(getAllValuesOfSection(file, allSection.substring(0, allSection.length() - 1)));
+            otherProperties.put(allSection.substring(0, allSection.length() - 1), getAllValuesOfSection(file, allSection.substring(0, allSection.length() - 1)));
+        }
+
         return this;
     }
 
@@ -86,6 +96,7 @@ public class Vehicul extends Item implements DataModifier {
         setValues(file, "PlayerStandOnTop", PlayerStandOnTop);
         setValues(file, "ScaleModifier", ScaleModifier);
         setValues(file, "ShapeYOffset", ShapeYOffset);
+
         for (Wheel wheel : Wheels) {
             wheel.save(file);
         }
@@ -94,6 +105,34 @@ public class Vehicul extends Item implements DataModifier {
         }
         for (Shape shape : Shapes) {
             shape.save(file);
+        }
+
+        otherProperties.forEach((s, stringStringHashMap) -> {
+            setMultiValues(file, s + "{", stringStringHashMap);
+        });
+
+        String content = "";
+        // read the file
+        try {
+            content = new String(Files.readAllBytes(file.toPath()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        content = content.replaceAll("\\{\\{", "{");
+        FileWriter fileWriter = null;
+        try {
+            fileWriter = new FileWriter(file);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            fileWriter.write(content);
+            fileWriter.flush();
+            fileWriter.close();
+        } catch (Exception e) {
+            System.out.println("Error in setValues");
+            System.out.println("File " + file);
+            System.out.println("Parameter " + content);
         }
     }
 
@@ -241,5 +280,29 @@ public class Vehicul extends Item implements DataModifier {
     @Override
     public List<String> getInfos() {
         return this.infos;
+    }
+
+    @Override
+    public String toString() {
+        return "Vehicle{" +
+                "Wheels=" + Wheels +
+                ", Seats=" + Seats +
+                ", Shapes=" + Shapes +
+                ", CenterOfGravityOffset='" + CenterOfGravityOffset + '\'' +
+                ", DragCoefficient='" + DragCoefficient + '\'' +
+                ", EmptyMass='" + EmptyMass + '\'' +
+                ", AngularDamping='" + AngularDamping + '\'' +
+                ", LinearDamping='" + LinearDamping + '\'' +
+                ", DefaultEngine='" + DefaultEngine + '\'' +
+                ", DefaultSounds='" + DefaultSounds + '\'' +
+                ", DefaultZoomLevel='" + DefaultZoomLevel + '\'' +
+                ", MaxVehicleSpeed='" + MaxVehicleSpeed + '\'' +
+                ", PlayerStandOnTop='" + PlayerStandOnTop + '\'' +
+                ", ScaleModifier='" + ScaleModifier + '\'' +
+                ", ShapeYOffset='" + ShapeYOffset + '\'' +
+                ", infos=" + infos +
+                ", otherProperties=" + otherProperties +
+                ", file=" + file +
+                '}';
     }
 }

@@ -9,7 +9,7 @@ import java.util.Map;
 public class AddonProperties {
 
     public static HashMap<String, String> CPM_DEFINITIONS = new HashMap<String, String>() {{
-        put("WHEELED_VEHICLES", "vehicul");
+        put("WHEELED_VEHICLES", "vehicules");
         put("TRAILERS", "trailer");
         put("BOATS", "boat");
         put("HELICOPTER", "helicopter");
@@ -22,6 +22,20 @@ public class AddonProperties {
         put("HELICOPTER_ENGINES", "helicopterEngine");
     }};
 
+
+    public static enum TYPES {
+        WHEDDLED_VEHICLES,
+        TRAILERS,
+        BOATS,
+        HELICOPTER,
+        ITEMS,
+        ARMORS,
+        BLOCKS,
+        PROPS,
+        WHEELS,
+        CAR_ENGINES,
+        HELICOPTER_ENGINES
+    }
     public String name;
     public String version;
     public AddonConverterState state;
@@ -92,7 +106,7 @@ public class AddonProperties {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("name", name);
         jsonObject.put("version", version);
-        jsonObject.put("vehicul", vehiclesProperties);
+        jsonObject.put("vehicules", vehiclesProperties);
         jsonObject.put("trailer", trailerProperties);
         jsonObject.put("boat", boatProperties);
         jsonObject.put("helicopter", helicopterProperties);
@@ -104,5 +118,23 @@ public class AddonProperties {
         jsonObject.put("carEngine", carEnginesProperties);
         jsonObject.put("helicopterEngine", helicopterEngineProperties);
         return jsonObject.toJSONString();
+    }
+
+    public static AddonProperties fromJson(JSONObject jsonObject) {
+        AddonProperties addonProperties = new AddonProperties();
+        addonProperties.name = (String) jsonObject.get("name");
+        addonProperties.version = (String) jsonObject.get("version");
+        addonProperties.vehiclesProperties = (HashMap<String, List<String>>) jsonObject.get("vehicules");
+        addonProperties.trailerProperties = (HashMap<String, List<String>>) jsonObject.get("trailer");
+        addonProperties.boatProperties = (HashMap<String, List<String>>) jsonObject.get("boat");
+        addonProperties.helicopterProperties = (HashMap<String, List<String>>) jsonObject.get("helicopter");
+        addonProperties.itemProperties = (HashMap<String, List<String>>) jsonObject.get("item");
+        addonProperties.armorProperties = (HashMap<String, List<String>>) jsonObject.get("armor");
+        addonProperties.blockProperties = (HashMap<String, List<String>>) jsonObject.get("block");
+        addonProperties.propProperties = (HashMap<String, List<String>>) jsonObject.get("prop");
+        addonProperties.wheelProperties = (HashMap<String, List<String>>) jsonObject.get("wheel");
+        addonProperties.carEnginesProperties = (HashMap<String, List<String>>) jsonObject.get("carEngine");
+        addonProperties.helicopterEngineProperties = (HashMap<String, List<String>>) jsonObject.get("helicopterEngine");
+        return addonProperties;
     }
 }

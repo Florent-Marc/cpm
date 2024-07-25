@@ -2,13 +2,12 @@ package com.mk.cpm.controller;
 
 import com.mk.cpm.AppMain;
 import com.mk.cpm.HelloApplication;
-import com.mk.cpm.config.Config;
 import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.LoaderPack;
 import com.mk.cpm.loader.object.Armor;
 import com.mk.cpm.loader.object.Block;
 import com.mk.cpm.loader.object.Item;
-import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.object.Vehicle;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -102,12 +101,12 @@ public class Main implements Initializable {
                     text3 = ((Armor) o).getModel();
                     img = armor;
                     l = ((Armor) o).getInfos();
-                } else if (o instanceof Vehicul) {
-                    text1 = ((Vehicul) o).getName();
-                    text2 = "Vehicul";
-                    text3 = ((Vehicul) o).getModel();
+                } else if (o instanceof Vehicle) {
+                    text1 = ((Vehicle) o).getName();
+                    text2 = "Vehicle";
+                    text3 = ((Vehicle) o).getModel();
                     img = car;
-                    l = ((Vehicul) o).getInfos();
+                    l = ((Vehicle) o).getInfos();
                 } else if (o instanceof Item) {
                     text1 = ((Item) o).getName();
                     text2 = "Item";
@@ -159,6 +158,7 @@ public class Main implements Initializable {
 
     private Stage loadStage(String type) {
         Stage stage = new Stage();
+        System.out.println(type + "Modifier.fxml");
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource(type + "Modifier.fxml"));
         try {
             Scene scene = new Scene(fxmlLoader.load());

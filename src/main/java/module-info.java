@@ -16,5 +16,7 @@ module com.mk.cpm {
     exports com.mk.cpm;
     exports com.mk.cpm.controller;
     exports com.mk.cpm.config;
+    exports com.mk.cpm.converter;
+    exports com.mk.cpm.loader.object;
     opens com.mk.cpm.controller to javafx.fxml;
 }

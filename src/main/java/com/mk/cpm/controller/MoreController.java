@@ -2,7 +2,7 @@ package com.mk.cpm.controller;
 
 import com.mk.cpm.AppMain;
 import com.mk.cpm.loader.object.Seat;
-import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.object.Vehicle;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
@@ -14,7 +14,7 @@ public class MoreController {
 
     @FXML
     public void create(MouseEvent mouseEvent) {
-        Vehicul v = (Vehicul) AppMain.o;
+        Vehicle v = (Vehicle) AppMain.o;
         String cat = AppMain.CurrentAdd;
         if (cat.equals("seat")) {
             Seat s = new Seat();

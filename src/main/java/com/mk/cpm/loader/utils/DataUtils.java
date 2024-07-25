@@ -2,6 +2,7 @@ package com.mk.cpm.loader.utils;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,10 +30,10 @@ public class DataUtils {
         try {
             for (String line : lines) {
                 if (line.contains(parameter)) {
-                    if (infos == null){
+                    if (infos == null) {
                         new ArrayList<>();
                     }
-                    if (line.split(":").length < 2){
+                    if (line.split(":").length < 2) {
                         return null;
                     }
                     String temp = parameter + ": " + line.split(":")[1].trim();
@@ -85,16 +86,16 @@ public class DataUtils {
         List<String> lines = new ArrayList<>();
         try {
             String line;
-            Boolean sect =false;
+            Boolean sect = false;
             while ((line = br.readLine()) != null) {
                 //check if section is found
-                if (line.contains(section)){
+                if (line.contains(section)) {
                     sect = true;
                 }
-                if (line.contains("}") && sect){
+                if (line.contains("}") && sect) {
                     sect = false;
                 }
-                if (sect){
+                if (sect) {
                     lines.add(line);
                 }
             }
@@ -104,10 +105,10 @@ public class DataUtils {
         try {
             for (String line : lines) {
                 if (line.contains(parametre)) {
-                    if (infos == null){
+                    if (infos == null) {
                         new ArrayList<>();
                     }
-                    String temp = parametre.replace(":","") + ": " + line.split(":")[1].trim();
+                    String temp = parametre.replace(":", "") + ": " + line.split(":")[1].trim();
                     infos.add(temp);
                     return line.split(":")[1].trim();
                 }
@@ -118,6 +119,63 @@ public class DataUtils {
         return null;
 
     }
+
+    public List<String> getAllSections(File file) {
+        if (file == null) return null;
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        List<String> lines = new ArrayList<>();
+        try {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains("{")) {
+                    lines.add(line);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return lines;
+    }
+
+    public HashMap<String, String> getAllValuesOfSection(File file, String sectionName) {
+        if (file == null) return null;
+        if (sectionName == null) return null;
+        if (sectionName.isEmpty()) return null;
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        HashMap<String, String> values = new HashMap<>();
+        try {
+            String line;
+            Boolean sect = false;
+            while ((line = br.readLine()) != null) {
+                //check if section is found
+                if (line.contains(sectionName)) {
+                    sect = true;
+                }
+                if (line.contains("}") && sect) {
+                    sect = false;
+                }
+                if (sect) {
+                    if (line.contains(":")) {
+                        values.put(line.split(":")[0].trim(), line.split(":")[1].trim());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return values;
+    }
+
 
     public void setValues(File file, String parameter, String value) {
         if (file == null) return;
@@ -204,7 +262,7 @@ public class DataUtils {
                 if (entry.getValue().isEmpty()) {
                     continue;
                 }
-                fileWriter.write("  "+entry.getKey() + ": " + entry.getValue() + "\n");
+                fileWriter.write("  " + entry.getKey() + ": " + entry.getValue() + "\n");
             }
             fileWriter.write("}\n");
             fileWriter.flush();
@@ -218,7 +276,7 @@ public class DataUtils {
     }
 
 
-        //get all name of section with name
+    //get all name of section with name
     public List<String> getSections(File file, String name) {
         if (file == null) return null;
         if (name == null) return null;

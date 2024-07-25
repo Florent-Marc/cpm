@@ -12,6 +12,8 @@ public class AppMain {
 
     public static Config config = new Config();
 
+    public static String DYNAMX_PATH = "C:\\Users\\gabid\\Desktop\\cpm\\lib\\DynamX-4.1.0-dev19-all-deobf.jar";
+
 
     public static void main(String[] args) {
         File folder = new File(Config.getCachePath()+"/pack/");

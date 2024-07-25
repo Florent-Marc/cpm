@@ -4,10 +4,11 @@ import com.interactivemesh.jfx.importer.obj.ObjModelImporter;
 import com.mk.cpm.HelloApplication;
 import com.mk.cpm.AppMain;
 import com.mk.cpm.config.Config;
+import com.mk.cpm.converter.AddonProperties;
 import com.mk.cpm.loader.Loader;
 import com.mk.cpm.loader.object.Seat;
 import com.mk.cpm.loader.object.Shape;
-import com.mk.cpm.loader.object.Vehicul;
+import com.mk.cpm.loader.object.Vehicle;
 import com.mk.cpm.loader.object.Wheel;
 import com.mk.cpm.loader.pack.ZipCompressor;
 import javafx.animation.KeyFrame;
@@ -49,7 +50,7 @@ public class VehiculController implements Initializable {
     public ChoiceBox shapelist;
     public Pane render;
     public Slider slider;
-    private Vehicul vehicul;
+    private Vehicle vehicle;
     public static VehiculController instance;
 
     @FXML
@@ -123,86 +124,86 @@ public class VehiculController implements Initializable {
             return;
         }
         instance = this;
-        vehicul = (Vehicul) Main.objectSelect;
-        if (vehicul == null) {
+        vehicle = (Vehicle) Main.objectSelect;
+        if (vehicle == null) {
             return;
         }
 
-        AppMain.o = vehicul;
-        if (vehicul.getName() != null) {
-            name.setText(vehicul.getName());
+        AppMain.o = vehicle;
+        if (vehicle.getName() != null) {
+            name.setText(vehicle.getName());
         }
-        if (vehicul.getDesc() != null) {
-            desc.setText(vehicul.getDesc());
+        if (vehicle.getDesc() != null) {
+            desc.setText(vehicle.getDesc());
         }
-        if (vehicul.getModel() != null) {
-            model.setText(vehicul.getModel());
+        if (vehicle.getModel() != null) {
+            model.setText(vehicle.getModel());
         }
 
-        if (vehicul.getCreativeTab() != null) {
-            CreativeTab.setText(vehicul.getCreativeTab());
+        if (vehicle.getCreativeTab() != null) {
+            CreativeTab.setText(vehicle.getCreativeTab());
         }
-        if (vehicul.getIconText() != null) {
-            IconText.setText(vehicul.getIconText());
+        if (vehicle.getIconText() != null) {
+            IconText.setText(vehicle.getIconText());
         }
-        if (vehicul.getItemRotation() != null) {
-            itemrotation.setText(vehicul.getItemRotation());
+        if (vehicle.getItemRotation() != null) {
+            itemrotation.setText(vehicle.getItemRotation());
         }
-        if (vehicul.getItem().getItemTranslate() != null) {
-            itemtranslation.setText(vehicul.getItem().getItemTranslate());
+        if (vehicle.getItem().getItemTranslate() != null) {
+            itemtranslation.setText(vehicle.getItem().getItemTranslate());
         }
-        if (vehicul.getItemScale() != null) {
-            itemscale.setText(vehicul.getItemScale());
+        if (vehicle.getItemScale() != null) {
+            itemscale.setText(vehicle.getItemScale());
         }
         choiceBox.getItems().addAll("NONE", "WORLD", "ALL");
         choiceBox.getSelectionModel().selectFirst();
-        if (vehicul.getDragCoefficient() != null) {
-            DragCoefficient.setText(vehicul.getDragCoefficient());
+        if (vehicle.getDragCoefficient() != null) {
+            DragCoefficient.setText(vehicle.getDragCoefficient());
         }
-        if (vehicul.getEmptyMass() != null) {
-            EmptyMass.setText(vehicul.getEmptyMass());
+        if (vehicle.getEmptyMass() != null) {
+            EmptyMass.setText(vehicle.getEmptyMass());
         }
-        if (vehicul.getAngularDamping() != null) {
-            AngularDamping.setText(vehicul.getAngularDamping());
+        if (vehicle.getAngularDamping() != null) {
+            AngularDamping.setText(vehicle.getAngularDamping());
         }
-        if (vehicul.getLinearDamping() != null) {
-            LinearDamping.setText(vehicul.getLinearDamping());
+        if (vehicle.getLinearDamping() != null) {
+            LinearDamping.setText(vehicle.getLinearDamping());
         }
-        if (vehicul.getDefaultEngine() != null) {
-            DefaultEngine.setText(vehicul.getDefaultEngine());
+        if (vehicle.getDefaultEngine() != null) {
+            DefaultEngine.setText(vehicle.getDefaultEngine());
         }
-        if (vehicul.getDefaultSounds() != null) {
-            DefaultSounds.setText(vehicul.getDefaultSounds());
+        if (vehicle.getDefaultSounds() != null) {
+            DefaultSounds.setText(vehicle.getDefaultSounds());
         }
-        if (vehicul.getDefaultZoomLevel() != null) {
-            DefaultZoomLevel.setText(vehicul.getDefaultZoomLevel());
+        if (vehicle.getDefaultZoomLevel() != null) {
+            DefaultZoomLevel.setText(vehicle.getDefaultZoomLevel());
         }
-        if (vehicul.getMaxVehicleSpeed() != null) {
-            MaxVehicleSpeed.setText(vehicul.getMaxVehicleSpeed());
+        if (vehicle.getMaxVehicleSpeed() != null) {
+            MaxVehicleSpeed.setText(vehicle.getMaxVehicleSpeed());
         }
-        if (vehicul.getPlayerStandOnTop() != null) {
-            PlayerStandOnTop.setText(vehicul.getPlayerStandOnTop());
+        if (vehicle.getPlayerStandOnTop() != null) {
+            PlayerStandOnTop.setText(vehicle.getPlayerStandOnTop());
         }
-        if (vehicul.getScaleModifier() != null) {
-            ScaleModifier.setText(vehicul.getScaleModifier());
+        if (vehicle.getScaleModifier() != null) {
+            ScaleModifier.setText(vehicle.getScaleModifier());
         }
-        if (vehicul.getShapeYOffset() != null) {
-            ShapeYOffset.setText(vehicul.getShapeYOffset());
+        if (vehicle.getShapeYOffset() != null) {
+            ShapeYOffset.setText(vehicle.getShapeYOffset());
         }
-        if (vehicul.getCenterOfGravityOffset() != null) {
-            CenterOfGravityOffset.setText(vehicul.getCenterOfGravityOffset());
+        if (vehicle.getCenterOfGravityOffset() != null) {
+            CenterOfGravityOffset.setText(vehicle.getCenterOfGravityOffset());
         }
 
-        if (vehicul.getWheels() != null) {
+        if (vehicle.getWheels() != null) {
             List<String> wheels = new ArrayList<>();
-            for (int i = 0; i < vehicul.getWheels().size(); i++) {
-                wheels.add(vehicul.getWheels().get(i).getName());
+            for (int i = 0; i < vehicle.getWheels().size(); i++) {
+                wheels.add(vehicle.getWheels().get(i).getName());
             }
             wheelist.getItems().addAll(wheels);
             wheelist.getSelectionModel().selectFirst();
         }
         if (wheelist.getSelectionModel() != null) {
-            Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+            Wheel wheel = vehicle.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
             if (wheel.getAttachedWheel() != null) {
                 AttachedWheel.setText(wheel.getAttachedWheel());
             }
@@ -242,16 +243,16 @@ public class VehiculController implements Initializable {
 
         }
 
-        if (vehicul.getShapes() != null) {
+        if (vehicle.getShapes() != null) {
             List<String> shapes = new ArrayList<>();
-            for (int i = 0; i < vehicul.getShapes().size(); i++) {
-                shapes.add(vehicul.getShapes().get(i).getName());
+            for (int i = 0; i < vehicle.getShapes().size(); i++) {
+                shapes.add(vehicle.getShapes().get(i).getName());
             }
             shapelist.getItems().addAll(shapes);
             shapelist.getSelectionModel().selectFirst();
         }
         if (shapelist.getSelectionModel() != null) {
-            Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+            Shape shape = vehicle.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
             if (shape.getName() != null) {
                 Names.setText(shape.getName());
             }
@@ -263,16 +264,16 @@ public class VehiculController implements Initializable {
             }
         }
 
-        if (vehicul.getSeats() != null) {
+        if (vehicle.getSeats() != null) {
             List<String> seats = new ArrayList<>();
-            for (int i = 0; i < vehicul.getSeats().size(); i++) {
-                seats.add(vehicul.getSeats().get(i).getName());
+            for (int i = 0; i < vehicle.getSeats().size(); i++) {
+                seats.add(vehicle.getSeats().get(i).getName());
             }
             seatlist.getItems().addAll(seats);
             seatlist.getSelectionModel().selectFirst();
         }
         if (seatlist.getSelectionModel() != null) {
-            Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+            Seat seat = vehicle.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
             if (seat.getName() != null) {
                 nameseat.setText(seat.getName());
             }
@@ -325,7 +326,7 @@ public class VehiculController implements Initializable {
 
         ObjModelImporter myModel = new ObjModelImporter();
         try {
-            String[] split = vehicul.getModel().split("/");
+            String[] split = vehicle.getModel().split("/");
             File file = new File(Loader.getPath(split[split.length - 1], Main.packSelected));
             if (file.exists() && file.getName().contains(".obj")) {
                 myModel.read(file);
@@ -406,7 +407,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void choiceWheel(ActionEvent actionEvent) {
-        Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+        Wheel wheel = vehicle.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
         if (wheel.getAttachedWheel() != null) {
             AttachedWheel.setText(wheel.getAttachedWheel());
         }
@@ -447,7 +448,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void choicelist(ActionEvent actionEvent) {
-        Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+        Shape shape = vehicle.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
         if (shape.getName() != null) {
             Names.setText(shape.getName());
         }
@@ -461,7 +462,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void saveshape(ActionEvent actionEvent) {
-        Shape shape = vehicul.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
+        Shape shape = vehicle.getShapes().get(shapelist.getSelectionModel().getSelectedIndex());
         shape.setName(Names.getText());
         shape.setPosition(Positions.getText());
         shape.setScale(Scales.getText());
@@ -469,7 +470,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void savewheel(ActionEvent actionEvent) {
-        Wheel wheel = vehicul.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
+        Wheel wheel = vehicle.getWheels().get(wheelist.getSelectionModel().getSelectedIndex());
         wheel.setAttachedWheel(AttachedWheel.getText());
         wheel.setDrivingWheel(DrivingWheel.getText());
         wheel.setIsSteerable(IsSteerable.getText());
@@ -486,7 +487,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void saveSeat(ActionEvent actionEvent) {
-        Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+        Seat seat = vehicle.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
         seat.setName(nameseat.getText());
         seat.setPosition(Positionseat.getText());
         seat.setCameraPositionY(CameraPositionY.getText());
@@ -507,28 +508,28 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void save(MouseEvent mouseEvent) {
-        vehicul.setName(name.getText());
-        vehicul.setDesc(desc.getText());
-        vehicul.setModel(model.getText());
-        vehicul.setCreativeTab(CreativeTab.getText());
-        vehicul.setIconText(IconText.getText());
-        vehicul.setItemRotation(itemrotation.getText());
-        vehicul.getItem().setItemTranslate(itemtranslation.getText());
-        vehicul.setItemScale(itemscale.getText());
-        vehicul.setDragCoefficient(DragCoefficient.getText());
-        vehicul.setEmptyMass(EmptyMass.getText());
-        vehicul.setAngularDamping(AngularDamping.getText());
-        vehicul.setLinearDamping(LinearDamping.getText());
-        vehicul.setDefaultEngine(DefaultEngine.getText());
-        vehicul.setDefaultSounds(DefaultSounds.getText());
-        vehicul.setDefaultZoomLevel(DefaultZoomLevel.getText());
-        vehicul.setMaxVehicleSpeed(MaxVehicleSpeed.getText());
-        vehicul.setPlayerStandOnTop(PlayerStandOnTop.getText());
-        vehicul.setScaleModifier(ScaleModifier.getText());
-        vehicul.setShapeYOffset(ShapeYOffset.getText());
-        vehicul.setCenterOfGravityOffset(CenterOfGravityOffset.getText());
+        vehicle.setName(name.getText());
+        vehicle.setDesc(desc.getText());
+        vehicle.setModel(model.getText());
+        vehicle.setCreativeTab(CreativeTab.getText());
+        vehicle.setIconText(IconText.getText());
+        vehicle.setItemRotation(itemrotation.getText());
+        vehicle.getItem().setItemTranslate(itemtranslation.getText());
+        vehicle.setItemScale(itemscale.getText());
+        vehicle.setDragCoefficient(DragCoefficient.getText());
+        vehicle.setEmptyMass(EmptyMass.getText());
+        vehicle.setAngularDamping(AngularDamping.getText());
+        vehicle.setLinearDamping(LinearDamping.getText());
+        vehicle.setDefaultEngine(DefaultEngine.getText());
+        vehicle.setDefaultSounds(DefaultSounds.getText());
+        vehicle.setDefaultZoomLevel(DefaultZoomLevel.getText());
+        vehicle.setMaxVehicleSpeed(MaxVehicleSpeed.getText());
+        vehicle.setPlayerStandOnTop(PlayerStandOnTop.getText());
+        vehicle.setScaleModifier(ScaleModifier.getText());
+        vehicle.setShapeYOffset(ShapeYOffset.getText());
+        vehicle.setCenterOfGravityOffset(CenterOfGravityOffset.getText());
 
-        File f = vehicul.getFile();
+        File f = vehicle.getFile();
         if (f == null) {
             return;
         }
@@ -540,7 +541,7 @@ public class VehiculController implements Initializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        this.vehicul.save(f);
+        this.vehicle.save(f);
         if (f.getPath().contains("\\cpm\\cache")) {
             try {
                 String source = Config.getCachePath() + "/pack/" + Main.packSelected;
@@ -558,7 +559,7 @@ public class VehiculController implements Initializable {
 
     @FXML
     public void seatChoice(ActionEvent actionEvent) {
-        Seat seat = vehicul.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
+        Seat seat = vehicle.getSeats().get(seatlist.getSelectionModel().getSelectedIndex());
         if (seat.getName() != null) {
             nameseat.setText(seat.getName());
         }
@@ -624,13 +625,13 @@ public class VehiculController implements Initializable {
 
          */
         Seat s = new Seat();
-        s.setName("Seat_" + vehicul.getSeats().size() + 1 + "{");
-        vehicul.getSeats().add(s);
+        s.setName("Seat_" + vehicle.getSeats().size() + 1 + "{");
+        vehicle.getSeats().add(s);
         seatlist.getItems().add(s.getName());
     }
 
-    public void update(Vehicul vehicul) {
-        this.vehicul = vehicul;
+    public void update(Vehicle vehicul) {
+        this.vehicle = vehicul;
         shapelist.getItems().clear();
         seatlist.getItems().clear();
         wheelist.getItems().clear();
@@ -665,6 +666,7 @@ public class VehiculController implements Initializable {
     public void addon(MouseEvent mouseEvent) {
         Stage fd = new Stage();
         FXMLLoader jk = new FXMLLoader(HelloApplication.class.getResource("listaddon.fxml"));
+        jk.setController(new listaddonController(AddonProperties.TYPES.WHEDDLED_VEHICLES, vehicle));
         Scene d = null;
         try {
             d = new Scene(jk.load());
