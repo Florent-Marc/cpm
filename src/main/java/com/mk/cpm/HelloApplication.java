@@ -8,6 +8,7 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 import java.io.IOException;
 
@@ -21,11 +22,15 @@ public class HelloApplication extends Application {
         Stage s = new Stage();
         FXMLLoader gf = new FXMLLoader(HelloApplication.class.getResource("test.fxml"));
         Scene sc = new Scene(gf.load());
+
         s.getIcons().add(HelloApplication.logo);
+        s.initStyle(StageStyle.UNDECORATED);
         s.setTitle("CPM-UI");
         s.setScene(sc);
         s.setResizable(true);
         s.show();
+        sc.lookup("#anchor").setStyle("-fx-background-color: #141b35;");
+        sc.lookup("#anchor").lookup("#divider").setStyle("-fx-background-color: #282c34;");
         f = sc;
         if (AppMain.config.isWarning()) {
             FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("warning.fxml"));

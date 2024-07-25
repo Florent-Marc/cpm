@@ -13,8 +13,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
@@ -43,11 +42,44 @@ public class Main implements Initializable {
     public ImageView add;
     public ImageView filter;
     public ImageView packadd;
+    public SplitPane divider;
+    public Button reduce;
+    public Button close;
+    public AnchorPane buttonbar;
+
+    private double xOffset = 0;
+    private double yOffset = 0;
+
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         Instance = this;
         refresh();
+
+        buttonbar.setOnMousePressed(event -> {
+            xOffset = event.getSceneX();
+            yOffset = event.getSceneY();
+        });
+
+
+
+        buttonbar.setOnMouseDragged(event -> {
+            Stage primaryStage = (Stage) buttonbar.getScene().getWindow();
+            primaryStage.setX(event.getScreenX() - xOffset);
+            primaryStage.setY(event.getScreenY() - yOffset);
+        });
+
+        reduce.setOnMouseClicked(event -> {
+            Stage stage = (Stage) reduce.getScene().getWindow();
+            stage.setIconified(true);
+        });
+        reduce.setStyle("-fx-background-color: #ffcc00; -fx-border-radius: 0;");
+
+        close.setOnMouseClicked(event -> {
+            Stage stage = (Stage) close.getScene().getWindow();
+            stage.close();
+        });
+        close.setStyle("-fx-background-color: #ff3b30; -fx-border-radius: 0;");
     }
 
     public void LoadPack(String name) {
@@ -68,6 +100,7 @@ public class Main implements Initializable {
         scrollpane2.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollpane2.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         vBox2.prefWidthProperty().bind(scrollpane2.widthProperty());
+
 
         String imagePath = "/com/mk/cpm/texture/";
         Image car = new Image(getClass().getResourceAsStream(imagePath + "car.png"));

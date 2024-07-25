@@ -1,6 +1,5 @@
 .split-pane > .split-pane-divider {
     -fx-padding: 0; /* Suppression du padding par défaut */
-    -fx-border-width: 1px; /* Épaisseur du bord */
     -fx-border-color: #494d50; /* Couleur du bord */
 }
 
