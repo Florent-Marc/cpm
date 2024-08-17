@@ -11,6 +11,7 @@ module com.mk.cpm {
     requires org.apache.httpcomponents.httpcore;
     requires org.json;
     requires org.javassist;
+    requires imgui.app;
 
     opens com.mk.cpm to javafx.fxml;
     exports com.mk.cpm;

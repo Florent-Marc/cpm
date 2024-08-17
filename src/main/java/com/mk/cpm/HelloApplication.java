@@ -1,27 +1,45 @@
 package com.mk.cpm;
 
 import com.mk.cpm.config.Config;
+import imgui.ImGui;
+import imgui.app.Configuration;
+import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Group;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.image.Image;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 import java.io.IOException;
 
-public class HelloApplication extends Application {
+public class HelloApplication extends Application{
     public static Scene f;
     public static Image logo= new Image(HelloApplication.class.getResourceAsStream("logo.png"));
     public static double version = 0.8;
 
     @Override
     public void start(Stage stage) throws IOException {
+        // Initialize ImGui context
+        ImGui.createContext();
+        // Set up OpenGL context
+        setupOpenGLContext();
+        Canvas canvas = new Canvas(800, 600);
+        Group root = new Group(canvas);
         Stage s = new Stage();
         FXMLLoader gf = new FXMLLoader(HelloApplication.class.getResource("test.fxml"));
-        Scene sc = new Scene(gf.load());
+        Parent root1 = gf.load();
+        if (root1 instanceof Pane) {
+            ((Pane) root1).getChildren().add(root);
+        }
+        Scene sc = new Scene(root1);
+
 
         s.getIcons().add(HelloApplication.logo);
         s.initStyle(StageStyle.UNDECORATED);
@@ -61,11 +79,34 @@ public class HelloApplication extends Application {
             System.out.println("check later");
         }
 
+        new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                renderImGui();
+                // JavaFX rendering logic
+            }
+        }.start();
+
+
     }
 
 
     public static void main(String[] args) {
         launch();
+    }
+
+    private void setupOpenGLContext() {
+        // Initialize OpenGL context, link with JavaFX
+    }
+
+    private void renderImGui() {
+        // ImGui render logic
+
+
+        ImGui.getIO().setDisplaySize(800, 600);
+        ImGui.newFrame();
+        ImGui.text("Hello, ImGui in JavaFX!");
+        ImGui.render();
     }
 
 }
