@@ -22,5 +22,6 @@ Being still in development, the CPM program has some errors and unfinished featu
 
 ## Rust workspace
 
-A Rust rewrite scaffold is available in this branch: see [the Rust guide](docs/rust.md).
-It contains `cpm-core` (library) and `cpm-app` (application), and does not yet implement pack editing.
+A Rust workspace is available in this branch: see [the Rust guide](docs/rust.md).
+`cpm-core` reads and edits UTF-8 DynamX configuration documents while preserving their text.
+`cpm-app` is the application scaffold; archive loading and the graphical editor are not implemented yet.
