@@ -1,0 +1,11 @@
+[workspace]
+members = ["crates/cpm-core", "crates/cpm-app"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+cpm-core = { path = "crates/cpm-core" }

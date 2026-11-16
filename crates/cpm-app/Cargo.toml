@@ -1,0 +1,8 @@
+[package]
+name = "cpm-app"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+cpm-core.workspace = true

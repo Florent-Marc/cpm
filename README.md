@@ -19,3 +19,8 @@ Being still in development, the CPM program has some errors and unfinished featu
 ## Authors
 
 [@MK](https://github.com/Florent-Marc) 
+
+## Rust workspace
+
+A Rust rewrite scaffold is available in this branch: see [the Rust guide](docs/rust.md).
+It contains `cpm-core` (library) and `cpm-app` (application), and does not yet implement pack editing.
