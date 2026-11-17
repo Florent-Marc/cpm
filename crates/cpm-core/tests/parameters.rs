@@ -153,3 +153,38 @@ fn missing_required_param_blocks_export_until_it_is_added() {
         "PackName: Test\n"
     );
 }
+
+#[test]
+fn removing_one_parameter_keeps_bom_comments_sections_and_other_duplicate_keys() {
+    let source = "\u{feff}Name: root\r\n// comment\r\nSeat{\r\n Name: nested\r\n Position: 0 1 2\r\n}\r\nTail: end";
+    let mut document = Document::parse(source).unwrap();
+    document.remove_property(0).unwrap();
+    assert_eq!(
+        document.source(),
+        "\u{feff}// comment\r\nSeat{\r\n Name: nested\r\n Position: 0 1 2\r\n}\r\nTail: end"
+    );
+    document.remove_property(0).unwrap();
+    assert_eq!(document.properties()[0].key, "Position");
+    assert_eq!(document.properties()[0].section, Some(0));
+    let before = document.source().to_owned();
+    assert_eq!(
+        document.remove_property(99),
+        Err(EditError::UnknownProperty(99))
+    );
+    assert_eq!(document.source(), before);
+    document.remove_property(1).unwrap();
+    assert!(document.source().ends_with("}\r\n"));
+}
+
+#[test]
+fn removing_required_parameter_immediately_produces_a_validation_issue() {
+    let mut document = Document::parse("PackName: Test\nDcFileVersion: 12.5.0\n").unwrap();
+    document.remove_property(1).unwrap();
+    assert!(
+        configuration_issues(Path::new("pack_info.dynx"), &document)[0].contains("DcFileVersion")
+    );
+    document
+        .add_property(None, "DcFileVersion", "12.5.0")
+        .unwrap();
+    assert!(configuration_issues(Path::new("pack_info.dynx"), &document).is_empty());
+}

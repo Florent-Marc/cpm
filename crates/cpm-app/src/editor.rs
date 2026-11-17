@@ -9,6 +9,9 @@ pub struct Editor {
     pub is_pack_info: bool,
     pub path: std::path::PathBuf,
     pub custom_key: String,
+    pub custom_value: String,
+    pub custom_parameter: Option<Option<usize>>,
+    pub pending_delete: Option<usize>,
     pub pending_add: Option<(Option<usize>, String, String)>,
     saved_source: String,
 }
@@ -33,6 +36,9 @@ impl Editor {
             saved_source,
             path: path.to_owned(),
             custom_key: String::new(),
+            custom_value: String::new(),
+            custom_parameter: None,
+            pending_delete: None,
             pending_add: None,
             is_pack_info: path
                 .file_name()
@@ -47,6 +53,18 @@ impl Editor {
     ) -> Result<(), String> {
         self.document
             .add_property(section, key, value)
+            .map_err(|e| e.to_string())?;
+        self.values = self
+            .document
+            .properties()
+            .iter()
+            .map(|p| p.value.clone())
+            .collect();
+        Ok(())
+    }
+    pub fn remove_parameter(&mut self, index: usize) -> Result<(), String> {
+        self.document
+            .remove_property(index)
             .map_err(|e| e.to_string())?;
         self.values = self
             .document

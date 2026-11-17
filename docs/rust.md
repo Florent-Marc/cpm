@@ -75,6 +75,8 @@ option de remplacement sont décrits ci-dessous.
 - `set_value(index, value)` modifie une propriété existante par son indice.
   Les indices restent stables après modification. Les valeurs multilignes
   sont refusées ; les espaces externes de la nouvelle valeur sont retirés.
+- `remove_property(index)` retire seulement la ligne ciblée, sans supprimer
+  les commentaires voisins ni la section. Les indices sont recalculés.
 - `add_property(section, key, value)` insère une propriété à la racine ou avant
   la fermeture d'une section, sans déplacer les lignes existantes. Les doublons
   dans la même section et les noms invalides sont refusés. Les indices de
@@ -105,11 +107,15 @@ des packs réels et toutes les extensions d'addons reste à vérifier. Le lecteu
 ne valide pas encore la contrainte des frontières de sections dans les
 commentaires multilignes. Il ne traite pas les commentaires en fin de propriété.
 
+Un bouton **−** permet de supprimer chaque paramètre. Retirer un obligatoire
+réactive le signalement et bloque l'export tant qu'il n'est pas rétabli.
+L'ajout personnalisé s'ouvre désormais dans une fenêtre dédiée (nom et valeur),
+qui reste ouverte pendant la saisie, hors du menu contextuel.
+
 Le catalogue initial couvre les métadonnées, les champs de base des items,
 blocs, armures et véhicules, les moteurs, roues, ainsi que des sections usuelles
 (points, rapports, sièges, formes, sons et addons requis). Il n'est pas un
-schéma exhaustif pour toutes les extensions DynamX. La suppression de propriétés,
-la validation des plages numériques et des références reste à implémenter. `write_to` écrit dans un flux : l'appelant
+schéma exhaustif pour toutes les extensions DynamX. La validation des plages numériques et des références reste à implémenter. `write_to` écrit dans un flux : l'appelant
 doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 
 ## Prochaines étapes
@@ -219,3 +225,50 @@ Références du catalogue :
 - [Items](https://wiki.dynamx.fr/fr/dynamx/DynamXItems/)
 - [Blocs](https://wiki.dynamx.fr/fr/dynamx/DynamXPropsAndBlocks/)
 - [Armures](https://wiki.dynamx.fr/fr/dynamx/DynamXArmors/)
+
+## Version, bugs et mises à jour
+
+La version provient de Cargo (`0.2.0` pour cette étape) et s'affiche en bas à
+droite. **Report bug**, à droite de la barre de menus, ouvre le formulaire de
+nouvelle issue du dépôt avec la version, le système et une trame préremplis.
+Aucune issue n'est envoyée automatiquement : l'utilisateur complète le rapport
+et le valide sur GitHub.
+
+Au démarrage puis toutes les heures, CPM vérifie les releases publiques du
+dépôt en arrière-plan, avec un délai réseau limité. **File → Vérifier les mises
+à jour** relance la recherche. Un échec réseau n'empêche pas l'édition ; son
+détail est consultable au survol de la version. Les drafts, préversions et
+anciennes releases Java sont ignorés. Une release Rust utilise un tag
+`rust-vMAJEUR.MINEUR.CORRECTIF`, cohérent avec la version Cargo.
+
+Lorsqu'une version stable plus récente est disponible, un bouton apparaît dans
+la barre supérieure. Sur Windows x86-64, si la release contient l'asset
+`cpm-windows-x86_64.exe` avec sa somme SHA-256 GitHub, ce bouton télécharge,
+vérifie et installe l'exécutable au redémarrage. Il est désactivé en présence
+de modifications non enregistrées ou d'une saisie d'addon ouverte. Pendant le
+téléchargement, l'édition et la fermeture sont bloquées.
+
+Un script PowerShell attend la fermeture de CPM, conserve l'ancien exécutable,
+remplace le fichier puis lance la nouvelle version. En cas d'échec, il tente de
+restaurer l'ancien et conserve un journal et les fichiers de récupération dans
+le dossier `.cpm-update-*` indiqué. Cette procédure Windows n'est pas validée
+par les tests Linux ; vérifier l'installation réelle sur Windows avant une
+distribution large. Le programme doit pouvoir écrire dans son dossier ; les
+politiques Windows peuvent bloquer PowerShell ou l'exécutable téléchargé.
+
+Sans binaire compatible ou sans somme de contrôle, et sur les autres systèmes,
+le bouton ouvre la page GitHub de la release pour une installation manuelle.
+Aucune mise à jour n'est déduite des simples commits de branche.
+
+Le workflow `.github/workflows/rust-windows-release.yml` permet de vérifier et
+compiler Windows manuellement (`workflow_dispatch`). Pousser un tag `rust-v*`
+correspondant à la version Cargo déclenche aussi la publication d'une release
+avec l'asset nommé comme attendu par le programme. Aucun tag ni release n'est
+créé lors des modifications de code dans cette conversation.
+
+## Ancien code Java
+
+Les crates Rust ne dépendent ni du code Java, ni de Maven, ni des anciens JAR.
+Aucun JRE/JDK n'est nécessaire pour compiler ou exécuter l'application Rust.
+Les fichiers Java sont encore présents comme référence de migration et pourront
+être retirés séparément sans modifier la structure du workspace Rust.

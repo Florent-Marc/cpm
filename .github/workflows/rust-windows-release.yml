@@ -1,0 +1,51 @@
+name: CPM Rust Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'rust-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust stable
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Check release version
+        shell: pwsh
+        run: |
+          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object name -eq 'cpm-app').version
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "rust-v$version") {
+            throw "Le tag doit correspondre a la version Cargo : rust-v$version"
+          }
+          "CPM_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+      - name: Build Windows executable
+        run: cargo build -p cpm-app --release
+      - name: Prepare asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release
+          Copy-Item target/release/cpm.exe release/cpm-windows-x86_64.exe
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cpm-windows-x86_64
+          path: release/cpm-windows-x86_64.exe
+      - name: Publish tagged Rust release
+        if: startsWith(github.ref, 'refs/tags/rust-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" release/cpm-windows-x86_64.exe --title "CPM Rust v$env:CPM_VERSION" --generate-notes --verify-tag

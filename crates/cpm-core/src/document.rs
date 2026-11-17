@@ -59,6 +59,7 @@ pub struct Property {
     pub section: Option<usize>,
     pub line: usize,
     value_range: Range<usize>,
+    line_range: Range<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,6 +147,12 @@ impl Document {
                     section: stack.last().copied(),
                     line,
                     value_range: offset + start..offset + end,
+                    line_range: offset
+                        + if index == 0 && raw.starts_with('\u{feff}') {
+                            '\u{feff}'.len_utf8()
+                        } else {
+                            0
+                        }..offset + raw.len(),
                 });
             } else if let Some(name) = text.strip_suffix('{') {
                 if name.is_empty()
@@ -204,6 +211,19 @@ impl Document {
     /// Écrit le texte courant. L'appelant gère la sauvegarde atomique sur disque.
     pub fn write_to(&self, mut writer: impl Write) -> io::Result<()> {
         writer.write_all(self.source.as_bytes())
+    }
+
+    /// Supprime uniquement la ligne du paramètre, en conservant commentaires,
+    /// sections et BOM. Les indices des propriétés sont recalculés.
+    pub fn remove_property(&mut self, index: usize) -> Result<(), EditError> {
+        let property = self
+            .properties
+            .get(index)
+            .ok_or(EditError::UnknownProperty(index))?;
+        let mut source = self.source.clone();
+        source.replace_range(property.line_range.clone(), "");
+        *self = Self::parse(&source).expect("suppression d'une ligne de propriété");
+        Ok(())
     }
 
     /// Ajoute un paramètre sans reconstruire le document ni modifier les autres

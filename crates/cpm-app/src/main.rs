@@ -1,6 +1,7 @@
 mod editor;
 mod export_dialog;
 mod navigation;
+mod update;
 
 use cpm_core::Pack;
 use editor::Editor;
@@ -21,7 +22,11 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "CPM — Éditeur de configuration",
         options,
-        Box::new(|_| Ok(Box::new(CpmApp::default()))),
+        Box::new(|_| {
+            let mut app = CpmApp::default();
+            app.updater.check();
+            Ok(Box::new(app))
+        }),
     )
 }
 
@@ -42,6 +47,8 @@ struct CpmApp {
     export_dialog: Option<export_dialog::ExportDialog>,
     validation: BTreeMap<usize, Vec<String>>,
     validation_worker: Option<std::sync::mpsc::Receiver<(usize, Vec<String>)>>,
+    updater: update::Updater,
+    restarting: bool,
 }
 
 impl CpmApp {
@@ -287,6 +294,24 @@ impl eframe::App for CpmApp {
 impl CpmApp {
     fn draw(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        if let Some(result) = self.updater.poll() {
+            match result.and_then(update::install) {
+                Ok(()) => {
+                    self.allow_close = true;
+                    self.restarting = true;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                Err(error) => {
+                    self.updater.message = error.clone();
+                    self.error = Some(error);
+                }
+            }
+        }
+        if self.updater.checking() || self.updater.busy() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        } else {
+            ctx.request_repaint_after(std::time::Duration::from_secs(60));
+        }
         self.poll_validation();
         if self.validation_worker.is_some() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
@@ -295,10 +320,12 @@ impl CpmApp {
             .export_dialog
             .as_ref()
             .is_some_and(export_dialog::ExportDialog::busy);
-        if exporting && ctx.input(|i| i.viewport().close_requested()) {
+        let updating = self.updater.busy();
+        if (exporting || updating) && ctx.input(|i| i.viewport().close_requested()) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
         }
         if !exporting
+            && !updating
             && ctx.input(|i| i.viewport().close_requested())
             && self.dirty()
             && !self.allow_close
@@ -306,7 +333,7 @@ impl CpmApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.confirm_close = true;
         }
-        if self.export_dialog.is_some() {
+        if self.export_dialog.is_some() || updating || self.restarting {
             ui.disable();
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
@@ -372,18 +399,49 @@ impl CpmApp {
                         self.status = "Modifications annulées".into();
                         ui.close();
                     }
+                    if ui
+                        .add_enabled(
+                            !self.updater.checking(),
+                            egui::Button::new("Vérifier les mises à jour"),
+                        )
+                        .clicked()
+                    {
+                        self.updater.check();
+                        ui.close();
+                    }
                 });
                 ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/");
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
                 }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.hyperlink_to("Report bug", bug_report_url());
+                    if let Some(release) = self.updater.available.clone() {
+                        if release.can_install() {
+                            let can_update = !self.dirty() && !self.editor.as_ref().is_some_and(|editor| editor.custom_parameter.is_some());
+                            if ui.add_enabled(can_update, egui::Button::new(format!("Mettre à jour v{}", release.version)))
+                                .on_hover_text("Enregistrer les modifications avant la mise à jour ; CPM redémarrera après installation.").clicked() {
+                                self.updater.start_download();
+                                ctx.request_repaint();
+                            }
+                        } else {
+                            ui.hyperlink_to(format!("Mise à jour v{} (GitHub)", release.version), release.page_url);
+                        }
+                    }
+                });
             });
         });
         egui::Panel::bottom("status").show(ui, |ui| {
             if let Some(error) = &self.error {
                 ui.colored_label(egui::Color32::LIGHT_RED, error);
             }
-            ui.label(&self.status);
+            ui.horizontal(|ui| {
+                ui.label(&self.status);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.small(format!("CPM v{}", env!("CARGO_PKG_VERSION"))).on_hover_text(&self.updater.message);
+                });
+            });
+            if updating { ui.horizontal(|ui| { ui.spinner(); ui.label("Téléchargement et vérification de la mise à jour…"); }); }
             ui.small("Navigation dans le pack : les modifications restent en mémoire. File → Exporter pour sauvegarder le pack complet. Prévisualisation 3D à venir.");
         });
         egui::Panel::left("sections")
@@ -557,6 +615,9 @@ impl CpmApp {
                 });
             });
         });
+        if let Some(editor) = &mut self.editor {
+            custom_parameter_window(&ctx, editor, &mut self.error);
+        }
         if let Some(mut dialog) = self.export_dialog.take() {
             let mut keep = true;
             if let Some(result) = dialog.poll() {
@@ -602,6 +663,64 @@ impl CpmApp {
                 });
         }
     }
+}
+
+fn bug_report_url() -> String {
+    format!("https://github.com/Florent-Marc/cpm/issues/new?title=Bug%20CPM&body=CPM%20v{}%0ASysteme%3A%20{}%20{}%0A%0ADescription%20du%20probleme%3A%0A%0AEtapes%20pour%20reproduire%3A%0A%0AResultat%20attendu%3A%0A", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH)
+}
+
+fn custom_parameter_window(
+    ctx: &egui::Context,
+    editor: &mut Editor,
+    error: &mut Option<String>,
+) -> [Option<egui::Rect>; 3] {
+    let mut controls = [None; 3];
+    let Some(section) = editor.custom_parameter else {
+        return controls;
+    };
+    let mut open = true;
+    let mut add = false;
+    let mut cancel = false;
+    egui::Window::new("Ajouter un paramètre d'addon")
+        .open(&mut open)
+        .collapsible(false)
+        .show(ctx, |ui| {
+            ui.label("Nom du paramètre");
+            controls[0] = Some(ui.text_edit_singleline(&mut editor.custom_key).rect);
+            ui.label("Valeur");
+            controls[1] = Some(ui.text_edit_singleline(&mut editor.custom_value).rect);
+            ui.horizontal(|ui| {
+                let response =
+                    ui.add_enabled(!editor.custom_key.is_empty(), egui::Button::new("Ajouter"));
+                controls[2] = Some(response.rect);
+                if response.clicked() {
+                    add = true;
+                }
+                if ui.button("Annuler").clicked() {
+                    cancel = true;
+                }
+            });
+        });
+    if add {
+        match editor.add_parameter(
+            section,
+            &editor.custom_key.clone(),
+            &editor.custom_value.clone(),
+        ) {
+            Ok(()) => {
+                editor.custom_parameter = None;
+                editor.custom_key.clear();
+                editor.custom_value.clear();
+                *error = None;
+            }
+            Err(message) => *error = Some(message),
+        }
+        ctx.request_repaint();
+    }
+    if !open || cancel {
+        editor.custom_parameter = None;
+    }
+    controls
 }
 
 fn config_name(path: &std::path::Path) -> std::borrow::Cow<'_, str> {
@@ -666,6 +785,15 @@ fn show_document(
     ui.collapsing("Texte du fichier après modification", |ui| {
         ui.monospace(editor.document.source());
     });
+    if let Some(index) = editor.pending_delete.take() {
+        match editor.remove_parameter(index) {
+            Ok(()) => {
+                *error = None;
+                ui.ctx().request_repaint();
+            }
+            Err(message) => *error = Some(message),
+        }
+    }
     if let Some((section, key, value)) = editor.pending_add.take() {
         match editor.add_parameter(section, &key, &value) {
             Ok(()) => {
@@ -712,13 +840,8 @@ fn show_properties(
                 ui.label("Aucun paramètre connu manquant.");
             }
             ui.separator();
-            ui.label("Paramètre personnalisé (addon)");
-            ui.text_edit_singleline(&mut editor.custom_key);
-            if ui
-                .add_enabled(!editor.custom_key.is_empty(), egui::Button::new("Ajouter"))
-                .clicked()
-            {
-                editor.pending_add = Some((section, editor.custom_key.clone(), String::new()));
+            if ui.button("Paramètre personnalisé (addon)…").clicked() {
+                editor.custom_parameter = Some(section);
                 ui.close();
             }
         })
@@ -732,6 +855,13 @@ fn show_properties(
     {
         ui.push_id(("property", index), |ui| {
             ui.horizontal(|ui| {
+                if ui
+                    .small_button("−")
+                    .on_hover_text("Supprimer ce paramètre")
+                    .clicked()
+                {
+                    editor.pending_delete = Some(index);
+                }
                 ui.label(&property.key)
                     .on_hover_text(format!("Ligne {}", property.line));
                 if ui
@@ -754,6 +884,118 @@ fn show_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn addon_window_stays_open_when_clicking_and_typing_then_adds_the_parameter() {
+        let ctx = egui::Context::default();
+        let mut editor = Editor::from_document(
+            cpm_core::Document::parse("Name: Demo\n").unwrap(),
+            std::path::Path::new("addon_test.dynx"),
+        );
+        editor.custom_parameter = Some(None);
+        let mut error = None;
+        let mut frame = |events: Vec<egui::Event>| {
+            let mut controls = [None; 3];
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |_| {
+                    controls = custom_parameter_window(&ctx, &mut editor, &mut error);
+                },
+            );
+            output.textures_delta.clear();
+            controls
+        };
+        frame(Vec::new());
+        let controls = frame(Vec::new());
+        let key = controls[0].unwrap().center();
+        frame(vec![
+            egui::Event::PointerMoved(key),
+            egui::Event::PointerButton {
+                pos: key,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ]);
+        let controls = frame(vec![
+            egui::Event::PointerButton {
+                pos: key,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::Text("AddonFlag".into()),
+        ]);
+        let value = controls[1].unwrap().center();
+        frame(vec![
+            egui::Event::PointerMoved(value),
+            egui::Event::PointerButton {
+                pos: value,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ]);
+        let controls = frame(vec![
+            egui::Event::PointerButton {
+                pos: value,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::Text("True".into()),
+        ]);
+        let add = controls[2].unwrap().center();
+        frame(vec![
+            egui::Event::PointerMoved(add),
+            egui::Event::PointerButton {
+                pos: add,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+        ]);
+        frame(vec![egui::Event::PointerButton {
+            pos: add,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::NONE,
+        }]);
+        assert!(error.is_none());
+        assert!(editor.custom_parameter.is_none());
+        assert_eq!(editor.document.properties()[1].key, "AddonFlag");
+        assert_eq!(editor.document.properties()[1].value, "True");
+    }
+
+    #[test]
+    fn report_button_links_to_a_new_issue_with_version_context() {
+        let url = bug_report_url();
+        assert!(url.starts_with("https://github.com/Florent-Marc/cpm/issues/new?"));
+        assert!(url.contains(env!("CARGO_PKG_VERSION")));
+    }
+
+    #[test]
+    fn deleting_parameter_refreshes_values_and_required_field_status() {
+        let ctx = egui::Context::default();
+        let mut editor = Editor::from_document(
+            cpm_core::Document::parse("PackName: Demo\nDcFileVersion: 12.5.0\n").unwrap(),
+            std::path::Path::new("pack_info.dynx"),
+        );
+        editor.pending_delete = Some(1);
+        let mut error = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            show_document(ui, &mut editor, &mut error, None);
+        });
+        output.textures_delta.clear();
+        assert!(editor.is_dirty());
+        assert_eq!(editor.values.len(), 1);
+        assert!(editor.issues()[0].contains("DcFileVersion"));
+        editor.revert();
+        assert!(editor.issues().is_empty());
+    }
 
     #[test]
     fn adding_missing_parameter_refreshes_navigation_and_export_state() {
