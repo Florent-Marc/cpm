@@ -6,7 +6,7 @@ et `cpm-app`, le point d'entrée de la future application. Le code Java dans
 
 ## Démarrer
 
-Avec Rust stable et Cargo installés, depuis la racine :
+Avec Rust 1.95 ou supérieur et Cargo installés, depuis la racine :
 
 ```sh
 cargo check --workspace
@@ -17,8 +17,28 @@ cargo run -p cpm-core --example edit_config
 cargo run -p cpm-app
 ```
 
-Le workspace n'a aucune dépendance externe. `Cargo.lock` est conservé dans Git.
-L'application affiche encore uniquement un message dans le terminal.
+Le core n'a aucune dépendance externe. L'application utilise egui via eframe
+avec le moteur OpenGL (`glow`). `Cargo.lock` est conservé dans Git.
+Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
+
+## Interface egui
+
+`cargo run -p cpm-app` lance l'éditeur d'un fichier `.dynx` à la fois :
+
+1. Saisir le chemin du fichier, puis cliquer sur **Ouvrir**.
+2. Choisir la racine ou une section à gauche, puis modifier ses valeurs.
+3. Consulter le texte résultant et les erreurs de métadonnées de pack.
+4. Indiquer un chemin libre et cliquer sur **Enregistrer une copie**.
+
+L'enregistrement refuse tout chemin existant. Pour une sauvegarde suivante,
+choisir un autre nom. Une erreur d'écriture peut laisser une copie incomplète,
+mais le fichier d'origine n'est pas modifié. **Annuler les modifications**
+restaure le dernier état enregistré. L'ouverture d'un autre fichier est bloquée
+si des modifications restent à enregistrer ; la fermeture demande de confirmer
+leur abandon. Les chemins sont saisis manuellement dans cette première version.
+
+Les dossiers de packs, les archives, le sélecteur de fichiers natif et la
+prévisualisation 3D ne sont pas encore intégrés.
 
 ## Première API du core
 

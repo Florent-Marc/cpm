@@ -1,8 +1,10 @@
 [package]
 name = "cpm-app"
+rust-version = "1.95"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
 
 [dependencies]
 cpm-core.workspace = true
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "clipboard"] }

@@ -24,4 +24,4 @@ Being still in development, the CPM program has some errors and unfinished featu
 
 A Rust workspace is available in this branch: see [the Rust guide](docs/rust.md).
 `cpm-core` reads and edits UTF-8 DynamX configuration documents while preserving their text.
-`cpm-app` is the application scaffold; archive loading and the graphical editor are not implemented yet.
+`cpm-app` provides an egui desktop editor for individual configuration files, with section navigation and save-to-copy. Pack archives and 3D preview are not implemented yet.
