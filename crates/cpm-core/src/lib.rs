@@ -13,3 +13,6 @@ pub use pack_info::{PackInfo, ValidationError};
 
 /// Version du cœur CPM.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+mod export;
+pub use export::{ExportFormat, ExportOptions, PackMetadata};

@@ -17,7 +17,7 @@ cargo run -p cpm-core --example edit_config
 cargo run -p cpm-app
 ```
 
-Le core utilise `zip` pour les archives (Stored et Deflate). L'application utilise egui via eframe
+Le core utilise `zip` (Stored et Deflate), `unrar` pour lire les RAR et `tempfile` pour préparer les exports. L'application utilise egui via eframe
 avec le moteur OpenGL (`glow`), et `rfd` pour les sélecteurs natifs.
 Sous Linux, un portail de bureau XDG est nécessaire pour les sélecteurs. `Cargo.lock` est conservé dans Git.
 Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
@@ -27,7 +27,7 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 `cargo run -p cpm-app` lance l'éditeur de packs :
 
 1. Ouvrir **File → Importer**, puis choisir **Fichier (.dynx)**, **Dossier
-   de pack**, **Pack (.dnxpack)** ou **ZIP (.zip)**. Le menu est désactivé si
+   de pack**, **Pack (.dnxpack)** ou **ZIP (.zip)** ou **RAR (.rar)**. Le menu est désactivé si
    des modifications non enregistrées risquent d'être abandonnées. Annuler
    le sélecteur conserve le document courant.
 2. Les configurations sont classées à gauche par type (véhicules, moteurs,
@@ -40,7 +40,7 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 4. Cliquer sur une section à gauche ouvre son groupe et sa section au centre,
    puis fait défiler jusqu'à elle. **Racine** rejoint les propriétés générales.
 5. Modifier les valeurs, puis indiquer un chemin libre et utiliser
-   **Enregistrer une copie** pour la configuration sélectionnée.
+   **Enregistrer une copie** pour la configuration sélectionnée, ou **File → Exporter** pour le pack entier.
 
 La navigation ne perd pas les modifications des autres configurations.
 **Annuler les modifications du fichier** restaure uniquement le fichier actif
@@ -51,13 +51,14 @@ des modifications de l'ensemble des fichiers.
 La sauvegarde crée une copie de la configuration active, pas un nouveau pack.
 Elle refuse tout chemin existant ; pour une sauvegarde suivante, choisir un autre
 nom. Une erreur d'écriture peut laisser une copie incomplète. Le dossier ou
-l'archive source n'est pas réécrit. Le chemin de sauvegarde reste saisi
-manuellement. L'export du pack entier et la 3D restent à ajouter.
+l'archive source n'est pas réécrit par cette commande. Le chemin de sauvegarde
+individuelle reste saisi manuellement. L'export du pack complet est décrit ci-dessous ;
+la 3D reste à ajouter.
 
 ## Première API du core
 
 - `Pack::open` indexe récursivement les configurations `.dynx` d'un dossier
-  ou d'une archive, avec `pack_info.dynx` obligatoire à la racine.
+  ou d'une archive ZIP/DNXPACK/RAR, avec `pack_info.dynx` obligatoire à la racine.
 - `Pack::read_config` charge uniquement le document demandé ; un fichier
   malformé ne bloque pas la navigation vers les autres.
 - Les archives sont lues sans extraction ; les chemins non sûrs, les doublons
@@ -105,7 +106,7 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
 2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
-4. Ajouter un export du pack complet et la prévisualisation 3D.
+4. Ajouter la prévisualisation 3D et des contrôles métier supplémentaires.
 
 ## Nom et icônes de l'application
 
@@ -131,3 +132,54 @@ métadonnées ProductName, FileDescription et OriginalFilename, par `build.rs`
 et `winresource`. Cette compilation nécessite les outils de ressources du
 Windows SDK (normalement présents avec les outils C++ pour Rust MSVC).
 Le cache d'icônes de l'Explorateur Windows peut retarder l'affichage du logo.
+
+## Import RAR
+
+**File → Importer → RAR (.rar)** lit directement les archives RAR sans lancer
+WinRAR ou un autre programme. `unrar_sys` compile sa bibliothèque C++ incluse :
+un compilateur C++ est donc nécessaire à la compilation (outils Visual Studio
+C++ sur Windows). Les RAR chiffrés et multivolumes ne sont pas pris en charge.
+`pack_info.dynx` doit être à la racine. Une configuration est limitée à 8 Mio ;
+une ressource RAR à exporter est limitée à 512 Mio. CPM ne crée pas de RAR.
+
+## Export du pack complet
+
+Avec un pack ouvert, **File → Exporter** affiche une fenêtre dédiée :
+
+- Le dossier de destination se choisit avec **Parcourir…** ; son chemin reste
+  visible et modifiable. Choisir un dossier en dehors du pack source.
+- Choisir **Dossier**, **.zip** ou **.dnxpack**. Le nom du fichier/dossier de
+  sortie est distinct du nom interne `PackName`. L'extension est ajoutée pour
+  les archives.
+- Cocher **Remplacer la sortie si elle existe déjà** uniquement pour remplacer
+  exactement le chemin affiché. Avec le dossier parent, le même nom de sortie
+  et le même format, cela permet de remplacer le pack source. Changer le
+  format ou le nom crée une autre sortie et conserve l'original.
+- Modifier le nom interne, la version et la description. `PackName` et
+  `PackVersion` sont mis à jour dans `pack_info.dynx`. La description est
+  conservée dans un champ `Description` sur une ligne ; ce champ complémentaire
+  n'est pas documenté comme métadonnée standard par DynamX et peut être ignoré
+  par le mod.
+
+L'export inclut les configurations actives et mises en cache, les modèles,
+textures, sons et autres ressources, ainsi que les dossiers vides. Les fichiers
+non modifiés sont conservés ; les documents ne sont pas reconstruits à partir
+d'un schéma limité. Les liens symboliques ne sont pas exportés.
+
+Lors d'un changement de `PackName`, les références internes connues
+`AttachedWheel`, `DefaultEngine` et `DefaultSounds` commençant par l'ancien nom
+sont actualisées. Les références dans d'autres packs et celles propres aux
+addons restent à vérifier. Les configurations doivent être lisibles pour
+mettre ces références à jour.
+
+Le traitement s'exécute en arrière-plan ; l'édition et la fermeture sont
+bloquées pendant l'export. La sortie est préparée dans un dossier temporaire
+sur le même volume avant installation. Une sortie existante est déplacée en
+sauvegarde, puis restaurée si l'installation échoue. Si la restauration échoue,
+le message indique le chemin de récupération, qui est conservé. Cette procédure
+ne constitue pas une garantie contre une coupure électrique ou une modification
+concurrente du disque par une autre application.
+
+Après un export réussi, CPM ouvre le pack exporté, dont les modifications sont
+alors enregistrées. L'export du pack entier n'est pas proposé pour un fichier
+`.dynx` isolé : ouvrir le dossier ou l'archive du pack pour l'utiliser.

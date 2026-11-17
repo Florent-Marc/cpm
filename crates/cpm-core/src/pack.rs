@@ -8,17 +8,21 @@ const MAX_CONFIG_BYTES: u64 = 8 * 1024 * 1024;
 
 /// Index des configurations d'un dossier ou d'une archive, sans extraction.
 /// Les ressources (modèles, textures…) ne sont pas chargées en mémoire.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pack {
     source: PathBuf,
     configs: Vec<PathBuf>,
     archive_indices: Option<BTreeMap<PathBuf, usize>>,
+    rar: bool,
 }
 
 impl Pack {
     pub fn open(path: &Path) -> Result<Self, String> {
         let source = fs::canonicalize(path).map_err(|e| e.to_string())?;
         let mut configs = Vec::new();
+        let rar = source
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rar"));
         let archive_indices = if source.is_dir() {
             let mut pending = vec![source.clone()];
             while let Some(directory) = pending.pop() {
@@ -37,6 +41,26 @@ impl Pack {
                                 .to_owned(),
                         );
                     }
+                }
+            }
+            None
+        } else if rar {
+            for entry in unrar::Archive::new(&source)
+                .open_for_listing()
+                .map_err(|e| e.to_string())?
+            {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let name = safe_archive_path(&entry.filename.to_string_lossy())?;
+                if entry.is_encrypted() || entry.is_split() {
+                    return Err(
+                        "Les RAR chiffrés ou multivolumes ne sont pas pris en charge".into(),
+                    );
+                }
+                if entry.is_file() && is_config(&name) {
+                    if configs.contains(&name) {
+                        return Err("Configuration RAR dupliquée".into());
+                    }
+                    configs.push(name);
                 }
             }
             None
@@ -81,6 +105,7 @@ impl Pack {
             source,
             configs,
             archive_indices,
+            rar,
         })
     }
 
@@ -94,7 +119,25 @@ impl Pack {
 
     pub fn read_config(&self, index: usize) -> Result<Document, String> {
         let path = self.configs.get(index).ok_or("Configuration inconnue")?;
-        let source = if let Some(indices) = &self.archive_indices {
+        let source = if self.rar {
+            let mut archive = unrar::Archive::new(&self.source)
+                .open_for_processing()
+                .map_err(|e| e.to_string())?;
+            let mut result = None;
+            while let Some(entry) = archive.read_header().map_err(|e| e.to_string())? {
+                let name = safe_archive_path(&entry.entry().filename.to_string_lossy())?;
+                if &name == path {
+                    if entry.entry().unpacked_size > MAX_CONFIG_BYTES {
+                        return Err("Configuration trop volumineuse (maximum 8 Mio)".into());
+                    }
+                    let (bytes, _) = entry.read().map_err(|e| e.to_string())?;
+                    result = Some(read_limited(bytes.as_slice())?);
+                    break;
+                }
+                archive = entry.skip().map_err(|e| e.to_string())?;
+            }
+            result.ok_or("Configuration absente de l'archive RAR")?
+        } else if let Some(indices) = &self.archive_indices {
             let mut archive =
                 zip::ZipArchive::new(File::open(&self.source).map_err(|e| e.to_string())?)
                     .map_err(|e| e.to_string())?;
@@ -129,4 +172,115 @@ fn read_limited(reader: impl Read) -> Result<String, String> {
         return Err("Configuration trop volumineuse (maximum 8 Mio)".into());
     }
     String::from_utf8(bytes).map_err(|e| e.to_string())
+}
+
+/// Valide aussi les séparateurs Windows lors d'une lecture sur Unix.
+pub(crate) fn safe_archive_path(name: &str) -> Result<PathBuf, String> {
+    let normalized = name.replace('\\', "/");
+    let normalized = normalized.trim_end_matches('/');
+    if normalized.is_empty()
+        || normalized.starts_with('/')
+        || normalized.contains(':')
+        || normalized
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == ".." || part.contains('\0'))
+    {
+        return Err(format!("Chemin non sûr dans l'archive : {name}"));
+    }
+    Ok(PathBuf::from(normalized))
+}
+
+impl Pack {
+    /// Copie toutes les ressources dans un dossier temporaire vide, sans
+    /// laisser une bibliothèque d'archives écrire des chemins non contrôlés.
+    pub(crate) fn materialize(&self, destination: &Path) -> Result<(), String> {
+        if self.source.is_dir() {
+            let mut pending = vec![self.source.clone()];
+            while let Some(directory) = pending.pop() {
+                for entry in fs::read_dir(directory).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    let kind = entry.file_type().map_err(|e| e.to_string())?;
+                    if kind.is_symlink() {
+                        return Err(
+                            "Export interrompu : le pack contient un lien symbolique".into()
+                        );
+                    }
+                    let relative = entry
+                        .path()
+                        .strip_prefix(&self.source)
+                        .map_err(|e| e.to_string())?
+                        .to_owned();
+                    let target = destination.join(relative);
+                    if kind.is_dir() {
+                        fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+                        pending.push(entry.path());
+                    } else if kind.is_file() {
+                        fs::copy(entry.path(), target).map_err(|e| e.to_string())?;
+                    } else {
+                        return Err("Type de ressource non pris en charge".into());
+                    }
+                }
+            }
+        } else if self.rar {
+            let mut archive = unrar::Archive::new(&self.source)
+                .open_for_processing()
+                .map_err(|e| e.to_string())?;
+            while let Some(entry) = archive.read_header().map_err(|e| e.to_string())? {
+                let name = safe_archive_path(&entry.entry().filename.to_string_lossy())?;
+                let target = destination.join(name);
+                if entry.entry().file_attr & 0o170000 == 0o120000 {
+                    return Err("Export interrompu : lien symbolique dans le RAR".into());
+                }
+                if entry.entry().is_directory() {
+                    fs::create_dir_all(target).map_err(|e| e.to_string())?;
+                    archive = entry.skip().map_err(|e| e.to_string())?;
+                } else {
+                    if entry.entry().unpacked_size > 512 * 1024 * 1024 {
+                        return Err("Ressource RAR supérieure à 512 Mio".into());
+                    }
+                    let (bytes, rest) = entry.read().map_err(|e| e.to_string())?;
+                    archive = rest;
+                    fs::create_dir_all(target.parent().ok_or("Chemin invalide")?)
+                        .map_err(|e| e.to_string())?;
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(target)
+                        .and_then(|mut file| {
+                            use std::io::Write;
+                            file.write_all(&bytes)
+                        })
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        } else {
+            let mut archive =
+                zip::ZipArchive::new(File::open(&self.source).map_err(|e| e.to_string())?)
+                    .map_err(|e| e.to_string())?;
+            for index in 0..archive.len() {
+                let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
+                let name = safe_archive_path(&entry.name().map_err(|e| e.to_string())?)?;
+                if entry
+                    .unix_mode()
+                    .is_some_and(|mode| mode & 0o170000 == 0o120000)
+                {
+                    return Err("Export interrompu : lien symbolique dans l'archive".into());
+                }
+                let target = destination.join(name);
+                if entry.is_dir() {
+                    fs::create_dir_all(target).map_err(|e| e.to_string())?;
+                } else {
+                    fs::create_dir_all(target.parent().ok_or("Chemin invalide")?)
+                        .map_err(|e| e.to_string())?;
+                    let mut file = fs::OpenOptions::new()
+                        .create_new(true)
+                        .write(true)
+                        .open(target)
+                        .map_err(|e| e.to_string())?;
+                    std::io::copy(&mut entry, &mut file).map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        Ok(())
+    }
 }

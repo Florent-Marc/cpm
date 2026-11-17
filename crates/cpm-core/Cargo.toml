@@ -6,3 +6,5 @@ publish.workspace = true
 
 [dependencies]
 zip = { version = "9.6", default-features = false, features = ["deflate"] }
+unrar = "0.5.8"
+tempfile = "3"

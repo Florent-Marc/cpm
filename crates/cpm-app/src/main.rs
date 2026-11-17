@@ -1,4 +1,5 @@
 mod editor;
+mod export_dialog;
 mod navigation;
 
 use cpm_core::Pack;
@@ -39,6 +40,7 @@ struct CpmApp {
     error: Option<String>,
     confirm_close: bool,
     allow_close: bool,
+    export_dialog: Option<export_dialog::ExportDialog>,
 }
 
 impl CpmApp {
@@ -103,6 +105,61 @@ impl CpmApp {
         }
     }
 
+    fn documents(&self) -> BTreeMap<std::path::PathBuf, cpm_core::Document> {
+        let mut documents = BTreeMap::new();
+        if let Some(pack) = &self.pack {
+            for (index, editor) in &self.cached {
+                documents.insert(pack.configs()[*index].clone(), editor.document.clone());
+            }
+            if let (Some(index), Some(editor)) = (self.selected_config, &self.editor) {
+                documents.insert(pack.configs()[index].clone(), editor.document.clone());
+            }
+        }
+        documents
+    }
+
+    fn prepare_export(&mut self) {
+        if let Some(pack) = &self.pack {
+            let documents = self.documents();
+            let metadata = documents
+                .get(std::path::Path::new("pack_info.dynx"))
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| pack.read_config(0));
+            match metadata {
+                Ok(document) => {
+                    self.export_dialog = Some(export_dialog::ExportDialog::new(
+                        pack,
+                        cpm_core::PackMetadata::from_document(&document),
+                    ))
+                }
+                Err(error) => self.error = Some(error),
+            }
+        }
+    }
+
+    fn adopt_export(&mut self, path: &std::path::Path) {
+        match Pack::open(path) {
+            Ok(pack) => {
+                self.pack = Some(pack);
+                self.editor = None;
+                self.cached.clear();
+                self.selected_config = None;
+                self.selected_section = None;
+                self.pending_scroll = None;
+                self.open_path = path.display().to_string();
+                self.standalone_path = None;
+                self.switch_config(0);
+                self.status = format!("Pack exporté : {}", path.display());
+            }
+            Err(error) => {
+                self.error = Some(format!(
+                    "Export terminé, mais réouverture impossible : {error}"
+                ))
+            }
+        }
+    }
+
     fn switch_config(&mut self, index: usize) {
         if self.selected_config == Some(index) {
             return;
@@ -159,9 +216,23 @@ impl eframe::App for CpmApp {
 impl CpmApp {
     fn draw(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
-        if ctx.input(|i| i.viewport().close_requested()) && self.dirty() && !self.allow_close {
+        let exporting = self
+            .export_dialog
+            .as_ref()
+            .is_some_and(export_dialog::ExportDialog::busy);
+        if exporting && ctx.input(|i| i.viewport().close_requested()) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+        }
+        if !exporting
+            && ctx.input(|i| i.viewport().close_requested())
+            && self.dirty()
+            && !self.allow_close
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.confirm_close = true;
+        }
+        if self.export_dialog.is_some() {
+            ui.disable();
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -172,6 +243,7 @@ impl CpmApp {
                                 ("Fichier (.dynx)…", "Configuration DynamX", vec!["dynx"]),
                                 ("Pack (.dnxpack)…", "Pack DynamX", vec!["dnxpack"]),
                                 ("ZIP (.zip)…", "Archive ZIP", vec!["zip"]),
+                                ("RAR (.rar)…", "Archive RAR", vec!["rar"]),
                             ];
                             if ui.button("Dossier de pack…").clicked() {
                                 ui.close();
@@ -197,6 +269,13 @@ impl CpmApp {
                             }
                         });
                     });
+                    if ui
+                        .add_enabled(self.pack.is_some(), egui::Button::new("Exporter…"))
+                        .clicked()
+                    {
+                        ui.close();
+                        self.prepare_export();
+                    }
                 });
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
@@ -246,7 +325,7 @@ impl CpmApp {
                 ui.colored_label(egui::Color32::LIGHT_RED, error);
             }
             ui.label(&self.status);
-            ui.small("Navigation dans le pack : les modifications restent en mémoire. Enregistrement par copie de configuration ; export du pack complet et 3D à venir.");
+            ui.small("Navigation dans le pack : les modifications restent en mémoire. File → Exporter pour sauvegarder le pack complet. Prévisualisation 3D à venir.");
         });
         egui::Panel::left("sections")
             .default_size(220.0)
@@ -363,7 +442,7 @@ impl CpmApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
-                ui.label("Utilise File → Importer, puis choisis un fichier, un dossier de pack, un pack .dnxpack ou une archive ZIP.");
+                ui.label("Utilise File → Importer, puis choisis un fichier, un dossier de pack, un pack .dnxpack ou une archive ZIP / RAR.");
                 ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
                 return;
             };
@@ -388,6 +467,33 @@ impl CpmApp {
                 });
             });
         });
+        if let Some(mut dialog) = self.export_dialog.take() {
+            let mut keep = true;
+            if let Some(result) = dialog.poll() {
+                match result {
+                    Ok(path) => {
+                        self.adopt_export(&path);
+                        keep = false;
+                    }
+                    Err(error) => dialog.error = Some(error),
+                }
+            }
+            if keep {
+                match dialog.show(&ctx) {
+                    export_dialog::Action::Start => {
+                        if let Some(pack) = &self.pack {
+                            dialog.start(pack.clone(), self.documents());
+                            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+                        }
+                    }
+                    export_dialog::Action::Close => keep = false,
+                    export_dialog::Action::None => {}
+                }
+            }
+            if keep {
+                self.export_dialog = Some(dialog);
+            }
+        }
         if self.confirm_close {
             egui::Window::new("Modifications non enregistrées")
                 .collapsible(false)
@@ -509,6 +615,64 @@ fn show_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_dialog_uses_current_metadata_and_all_cached_configurations() {
+        let temp = std::env::temp_dir().join(format!("cpm-export-ui-{}", std::process::id()));
+        let source = temp.join("source");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(
+            source.join("pack_info.dynx"),
+            "PackName: Demo\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        std::fs::write(source.join("vehicle_car.dynx"), "Name: Original\n").unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(&source);
+        app.editor
+            .as_mut()
+            .unwrap()
+            .document
+            .set_value(0, "EditedPack")
+            .unwrap();
+        app.switch_config(1);
+        app.editor
+            .as_mut()
+            .unwrap()
+            .document
+            .set_value(0, "EditedCar")
+            .unwrap();
+        app.prepare_export();
+        let dialog = app.export_dialog.as_mut().unwrap();
+        assert_eq!(dialog.options.metadata.name, "EditedPack");
+        dialog.options.output_name = "copy".into();
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.draw(ui));
+        output.textures_delta.clear();
+        let options = app.export_dialog.as_ref().unwrap().options.clone();
+        let result = app
+            .pack
+            .as_ref()
+            .unwrap()
+            .export(&options, &app.documents())
+            .unwrap();
+        app.export_dialog = None;
+        app.adopt_export(&result);
+        assert!(!app.dirty());
+        assert_eq!(
+            app.editor.as_ref().unwrap().document.properties()[0].value,
+            "EditedPack"
+        );
+        app.switch_config(1);
+        assert_eq!(
+            app.editor.as_ref().unwrap().document.properties()[0].value,
+            "EditedCar"
+        );
+        assert!(std::fs::read_to_string(source.join("vehicle_car.dynx"))
+            .unwrap()
+            .contains("Original"));
+        std::fs::remove_dir_all(temp).unwrap();
+    }
 
     #[test]
     fn section_navigation_opens_target_and_keeps_independent_fold_states() {
