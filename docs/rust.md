@@ -26,24 +26,21 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 
 `cargo run -p cpm-app` lance l'éditeur de packs :
 
-1. Cliquer sur **Configuration (.dynx)…** pour une configuration isolée,
-   **Pack ZIP / DNXPACK…** pour une archive `.zip` ou `.dnxpack`, ou **Dossier
-   de pack…** pour un dossier contenant `pack_info.dynx`. Les archives se
-   sélectionnent dans une fenêtre de fichiers ; le sélecteur de dossier sert
-   uniquement aux packs non compressés. Le filtre **Tous les fichiers** reste
-   disponible dans les fenêtres de fichiers. Ces boutons affichent le sélecteur
-   du système. Annuler la sélection conserve le document courant.
-   La saisie manuelle d'un chemin reste possible avec le bouton **Ouvrir**.
-2. Choisir une configuration dans la liste de gauche : seul le nom du fichier
-   est affiché, avec son chemin relatif au survol pour distinguer les homonymes.
-3. Les propriétés de racine et toutes les sections sont regroupées au centre.
-   Déplier les sections souhaitées avant le bloc **Texte du fichier après
-   modification**. Cliquer sur une section à gauche la déplie et fait défiler
-   la vue jusqu'à elle ; **Racine** ramène aux propriétés générales.
-4. Modifier ses valeurs. Les documents visités restent en mémoire et les
-   fichiers modifiés sont marqués d'un point dans la liste.
-5. Indiquer un chemin libre et cliquer sur **Enregistrer une copie** pour
-   sauvegarder la configuration sélectionnée.
+1. Ouvrir **File → Importer**, puis choisir **Fichier (.dynx)**, **Dossier
+   de pack**, **Pack (.dnxpack)** ou **ZIP (.zip)**. Le menu est désactivé si
+   des modifications non enregistrées risquent d'être abandonnées. Annuler
+   le sélecteur conserve le document courant.
+2. Les configurations sont classées à gauche par type (véhicules, moteurs,
+   sons, roues, etc.). Les types d'addons inconnus restent dans **Autres**.
+   Seul le nom du fichier apparaît ; le chemin complet est disponible au survol.
+3. Les propriétés générales restent au centre. Les familles de sections,
+   telles que **Point**, **Gear**, **Shape**, **Wheel** et **Seat**, se déplient
+   en un groupe puis en sections individuelles. Les noms et les identités du
+   fichier restent inchangés, y compris pour les doublons.
+4. Cliquer sur une section à gauche ouvre son groupe et sa section au centre,
+   puis fait défiler jusqu'à elle. **Racine** rejoint les propriétés générales.
+5. Modifier les valeurs, puis indiquer un chemin libre et utiliser
+   **Enregistrer une copie** pour la configuration sélectionnée.
 
 La navigation ne perd pas les modifications des autres configurations.
 **Annuler les modifications du fichier** restaure uniquement le fichier actif
@@ -109,3 +106,28 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
 4. Ajouter un export du pack complet et la prévisualisation 3D.
+
+## Nom et icônes de l'application
+
+La crate reste nommée `cpm-app` ; son exécutable est désormais `cpm`
+(`cpm.exe` sur Windows). La commande de lancement reste :
+
+```sh
+cargo run -p cpm-app
+```
+
+Pour une version distribuable sous Windows :
+
+```sh
+cargo build -p cpm-app --release
+```
+
+Le résultat est `target/release/cpm.exe`. Les anciens fichiers `cpm-app.exe`
+ne sont pas supprimés automatiquement par Cargo.
+
+Le logo existant de CPM est utilisé pour l'icône de fenêtre. Une version ICO
+multirésolution est aussi incorporée à l'exécutable Windows, avec les
+métadonnées ProductName, FileDescription et OriginalFilename, par `build.rs`
+et `winresource`. Cette compilation nécessite les outils de ressources du
+Windows SDK (normalement présents avec les outils C++ pour Rust MSVC).
+Le cache d'icônes de l'Explorateur Windows peut retarder l'affichage du logo.

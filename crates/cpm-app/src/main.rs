@@ -1,4 +1,5 @@
 mod editor;
+mod navigation;
 
 use cpm_core::Pack;
 use editor::Editor;
@@ -9,7 +10,11 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 740.0])
-            .with_min_inner_size([760.0, 480.0]),
+            .with_min_inner_size([760.0, 480.0])
+            .with_icon(
+                eframe::icon_data::from_png_bytes(include_bytes!("../assets/cpm.png"))
+                    .expect("logo CPM valide"),
+            ),
         ..Default::default()
     };
     eframe::run_native(
@@ -42,6 +47,7 @@ impl CpmApp {
             || self.cached.values().any(Editor::is_dirty)
     }
 
+    #[cfg(test)]
     fn open(&mut self) {
         let path = std::path::PathBuf::from(&self.open_path);
         self.open_selection(&path);
@@ -158,56 +164,42 @@ impl CpmApp {
             self.confirm_close = true;
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("CPM");
-                ui.label("Éditeur de configuration DynamX");
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    ui.add_enabled_ui(!self.dirty(), |ui| {
+                        ui.menu_button("Importer", |ui| {
+                            let choices = [
+                                ("Fichier (.dynx)…", "Configuration DynamX", vec!["dynx"]),
+                                ("Pack (.dnxpack)…", "Pack DynamX", vec!["dnxpack"]),
+                                ("ZIP (.zip)…", "Archive ZIP", vec!["zip"]),
+                            ];
+                            if ui.button("Dossier de pack…").clicked() {
+                                ui.close();
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .set_title("Choisir le dossier du pack")
+                                    .pick_folder()
+                                {
+                                    self.open_selection(&path);
+                                }
+                            }
+                            for (label, title, extensions) in choices {
+                                if ui.button(label).clicked() {
+                                    ui.close();
+                                    if let Some(path) = rfd::FileDialog::new()
+                                        .set_title(title)
+                                        .add_filter(title, &extensions)
+                                        .add_filter("Tous les fichiers", &["*"])
+                                        .pick_file()
+                                    {
+                                        self.open_selection(&path);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
-                }
-            });
-            ui.horizontal_wrapped(|ui| {
-                let can_open = !self.dirty();
-                if ui.add_enabled(can_open, egui::Button::new("Configuration (.dynx)…")).clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .set_title("Ouvrir une configuration DynamX")
-                        .add_filter("Configuration DynamX (*.dynx)", &["dynx"])
-                        .add_filter("Tous les fichiers", &["*"])
-                        .pick_file()
-                    { self.open_selection(&path); }
-                }
-                if ui.add_enabled(can_open, egui::Button::new("Pack ZIP / DNXPACK…")).clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .set_title("Ouvrir un pack compressé ZIP ou DNXPACK")
-                        .add_filter("Packs compressés (*.zip, *.dnxpack)", &["zip", "dnxpack"])
-                        .add_filter("Archives ZIP (*.zip)", &["zip"])
-                        .add_filter("Packs DynamX (*.dnxpack)", &["dnxpack"])
-                        .add_filter("Tous les fichiers", &["*"])
-                        .pick_file()
-                    { self.open_selection(&path); }
-                }
-                if ui.add_enabled(can_open, egui::Button::new("Dossier de pack…")).clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .set_title("Choisir le dossier contenant pack_info.dynx")
-                        .pick_folder()
-                    { self.open_selection(&path); }
-                }
-                if !can_open { ui.label("Enregistre ou annule les modifications avant de changer de pack ou fichier."); }
-            });
-            ui.horizontal_wrapped(|ui| {
-                ui.label("Chemin");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.open_path)
-                        .desired_width(500.0)
-                        .hint_text("Configuration .dynx, dossier ou archive .zip / .dnxpack"),
-                );
-                if ui
-                    .add_enabled(
-                        !self.dirty() && !self.open_path.is_empty(),
-                        egui::Button::new("Ouvrir"),
-                    )
-                    .clicked()
-                {
-                    self.open();
                 }
             });
             ui.horizontal_wrapped(|ui| {
@@ -269,24 +261,41 @@ impl CpmApp {
                             ui.label(path.file_name().unwrap_or_default().to_string_lossy());
                         }
                         if let Some(pack) = &self.pack {
-                            for (index, path) in pack.configs().iter().enumerate() {
-                                let dirty = if self.selected_config == Some(index) {
-                                    self.editor.as_ref().is_some_and(Editor::is_dirty)
-                                } else {
-                                    self.cached.get(&index).is_some_and(Editor::is_dirty)
-                                };
-                                let label = format!(
-                                    "{}{}",
-                                    if dirty { "● " } else { "" },
-                                    config_name(path)
-                                );
-                                if ui
-                                    .selectable_label(self.selected_config == Some(index), label)
-                                    .on_hover_text(path.display().to_string())
-                                    .clicked()
-                                {
-                                    requested = Some(index);
-                                }
+                            for (category, indices) in navigation::config_groups(pack.configs()) {
+                                let selected = self
+                                    .selected_config
+                                    .is_some_and(|index| indices.contains(&index));
+                                egui::CollapsingHeader::new(format!(
+                                    "{category} ({})",
+                                    indices.len()
+                                ))
+                                .id_salt(("config-category", &self.open_path, category))
+                                .default_open(selected)
+                                .show(ui, |ui| {
+                                    for index in indices {
+                                        let path = &pack.configs()[index];
+                                        let dirty = if self.selected_config == Some(index) {
+                                            self.editor.as_ref().is_some_and(Editor::is_dirty)
+                                        } else {
+                                            self.cached.get(&index).is_some_and(Editor::is_dirty)
+                                        };
+                                        let label = format!(
+                                            "{}{}",
+                                            if dirty { "● " } else { "" },
+                                            config_name(path)
+                                        );
+                                        if ui
+                                            .selectable_label(
+                                                self.selected_config == Some(index),
+                                                label,
+                                            )
+                                            .on_hover_text(path.display().to_string())
+                                            .clicked()
+                                        {
+                                            requested = Some(index);
+                                        }
+                                    }
+                                });
                             }
                         }
                     });
@@ -306,16 +315,46 @@ impl CpmApp {
                             self.pending_scroll = Some(None);
                         }
                         if let Some(editor) = &self.editor {
-                            for (index, section) in editor.document.sections().iter().enumerate() {
-                                if ui
-                                    .selectable_label(
-                                        self.selected_section == Some(index),
-                                        format!("{} · ligne {}", section.name, section.line),
-                                    )
-                                    .clicked()
-                                {
-                                    self.selected_section = Some(index);
-                                    self.pending_scroll = Some(Some(index));
+                            for (group, indices) in
+                                navigation::section_groups(editor.document.sections())
+                            {
+                                let target = self
+                                    .pending_scroll
+                                    .flatten()
+                                    .is_some_and(|index| indices.contains(&index));
+                                let grouped = indices.len() > 1
+                                    || editor.document.sections()[indices[0]].name != group;
+                                let mut links = |ui: &mut egui::Ui| {
+                                    for &index in &indices {
+                                        let section = &editor.document.sections()[index];
+                                        if ui
+                                            .selectable_label(
+                                                self.selected_section == Some(index),
+                                                &section.name,
+                                            )
+                                            .on_hover_text(format!("Ligne {}", section.line))
+                                            .clicked()
+                                        {
+                                            self.selected_section = Some(index);
+                                            self.pending_scroll = Some(Some(index));
+                                        }
+                                    }
+                                };
+                                if grouped {
+                                    egui::CollapsingHeader::new(format!(
+                                        "{group} ({})",
+                                        indices.len()
+                                    ))
+                                    .id_salt((
+                                        "nav-section-group",
+                                        &self.open_path,
+                                        self.selected_config,
+                                        &group,
+                                    ))
+                                    .open(if target { Some(true) } else { None })
+                                    .show(ui, &mut links);
+                                } else {
+                                    links(ui);
                                 }
                             }
                         }
@@ -324,7 +363,7 @@ impl CpmApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
-                ui.label("Choisis Configuration pour un .dynx, Pack ZIP / DNXPACK pour une archive, ou Dossier de pack pour un pack non compressé.");
+                ui.label("Utilise File → Importer, puis choisis un fichier, un dossier de pack, un pack .dnxpack ou une archive ZIP.");
                 ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
                 return;
             };
@@ -381,6 +420,9 @@ fn show_document(
     error: &mut Option<String>,
     jump: Option<Option<usize>>,
 ) -> Vec<egui::Id> {
+    if jump.is_some() {
+        ui.style_mut().animation_time = 0.0;
+    }
     let properties = editor.document.properties().to_vec();
     let sections = editor.document.sections().to_vec();
     let mut headers = Vec::with_capacity(sections.len());
@@ -389,23 +431,39 @@ fn show_document(
         root.scroll_to_me(Some(egui::Align::Min));
     }
     show_properties(ui, editor, &properties, None, error);
-    for (index, section) in sections.iter().enumerate() {
+    headers.resize(sections.len(), egui::Id::NULL);
+    for (group, indices) in navigation::section_groups(&sections) {
         ui.separator();
-        let response = egui::CollapsingHeader::new(&section.name)
-            .id_salt(("config-section", index))
-            .open(if jump == Some(Some(index)) {
-                Some(true)
-            } else {
-                None
-            })
-            .show(ui, |ui| {
-                show_properties(ui, editor, &properties, Some(index), error);
-            });
-        headers.push(response.header_response.id);
-        if jump == Some(Some(index)) {
-            response
-                .header_response
-                .scroll_to_me(Some(egui::Align::Min));
+        let grouped = indices.len() > 1 || sections[indices[0]].name != group;
+        let target = jump.flatten().is_some_and(|index| indices.contains(&index));
+        let mut children = |ui: &mut egui::Ui| {
+            for &index in &indices {
+                let section = &sections[index];
+                let response = egui::CollapsingHeader::new(&section.name)
+                    .id_salt(("config-section", index))
+                    .open(if jump == Some(Some(index)) {
+                        Some(true)
+                    } else {
+                        None
+                    })
+                    .show(ui, |ui| {
+                        show_properties(ui, editor, &properties, Some(index), error);
+                    });
+                headers[index] = response.header_response.id;
+                if jump == Some(Some(index)) {
+                    response
+                        .header_response
+                        .scroll_to_me(Some(egui::Align::Min));
+                }
+            }
+        };
+        if grouped {
+            egui::CollapsingHeader::new(format!("{group} ({})", indices.len()))
+                .id_salt(("section-group", &group))
+                .open(if target { Some(true) } else { None })
+                .show(ui, &mut children);
+        } else {
+            children(ui);
         }
     }
     ui.separator();
@@ -470,6 +528,11 @@ mod tests {
         ] {
             let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
                 let headers = show_document(ui, &mut editor, &mut error, jump);
+                if jump.is_none() {
+                    assert!(headers.iter().all(|id| *id == egui::Id::NULL));
+                    states = vec![false, false];
+                    return;
+                }
                 assert_ne!(headers[0], headers[1]);
                 states = headers
                     .iter()

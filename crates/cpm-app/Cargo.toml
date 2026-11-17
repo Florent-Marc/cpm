@@ -9,3 +9,10 @@ publish.workspace = true
 cpm-core.workspace = true
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "clipboard"] }
 rfd = "0.18"
+
+[[bin]]
+name = "cpm"
+path = "src/main.rs"
+
+[build-dependencies]
+winresource = "0.1.34"
