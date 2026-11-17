@@ -837,7 +837,13 @@ fn show_document(
     let properties = editor.document.properties().to_vec();
     let sections = editor.document.sections().to_vec();
     let mut headers = Vec::with_capacity(sections.len());
-    let root = ui.strong("Racine");
+    let diagnostics = editor.catalog.diagnostics(&editor.path, &editor.document);
+    let root_problems: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d.section.is_none())
+        .cloned()
+        .collect();
+    let root = ui.label(diagnostic_text("Racine", &root_problems).strong());
     if jump == Some(None) {
         root.scroll_to_me(Some(egui::Align::Min));
     }
@@ -850,16 +856,22 @@ fn show_document(
         let mut children = |ui: &mut egui::Ui| {
             for &index in &indices {
                 let section = &sections[index];
-                let response = egui::CollapsingHeader::new(&section.name)
-                    .id_salt(("config-section", index))
-                    .open(if jump == Some(Some(index)) {
-                        Some(true)
-                    } else {
-                        None
-                    })
-                    .show(ui, |ui| {
-                        show_properties(ui, editor, &properties, Some(index), error);
-                    });
+                let problems: Vec<_> = diagnostics
+                    .iter()
+                    .filter(|d| d.section == Some(index))
+                    .cloned()
+                    .collect();
+                let response =
+                    egui::CollapsingHeader::new(diagnostic_text(&section.name, &problems))
+                        .id_salt(("config-section", index))
+                        .open(if jump == Some(Some(index)) {
+                            Some(true)
+                        } else {
+                            None
+                        })
+                        .show(ui, |ui| {
+                            show_properties(ui, editor, &properties, Some(index), error);
+                        });
                 headers[index] = response.header_response.id;
                 if jump == Some(Some(index)) {
                     response
@@ -869,10 +881,18 @@ fn show_document(
             }
         };
         if grouped {
-            egui::CollapsingHeader::new(format!("{group} ({})", indices.len()))
-                .id_salt(("section-group", &group))
-                .open(if target { Some(true) } else { None })
-                .show(ui, &mut children);
+            let problems: Vec<_> = diagnostics
+                .iter()
+                .filter(|d| d.section.is_some_and(|id| indices.contains(&id)))
+                .cloned()
+                .collect();
+            egui::CollapsingHeader::new(diagnostic_text(
+                format!("{group} ({})", indices.len()),
+                &problems,
+            ))
+            .id_salt(("section-group", &group))
+            .open(if target { Some(true) } else { None })
+            .show(ui, &mut children);
         } else {
             children(ui);
         }
@@ -903,6 +923,26 @@ fn show_document(
     headers
 }
 
+fn diagnostic_text(
+    text: impl Into<String>,
+    diagnostics: &[cpm_core::Diagnostic],
+) -> egui::RichText {
+    let label = egui::RichText::new(text.into());
+    if diagnostics
+        .iter()
+        .any(|d| d.severity == cpm_core::Severity::Error)
+    {
+        label.color(egui::Color32::LIGHT_RED)
+    } else if diagnostics
+        .iter()
+        .any(|d| d.severity == cpm_core::Severity::Warning)
+    {
+        label.color(egui::Color32::YELLOW)
+    } else {
+        label
+    }
+}
+
 fn show_properties(
     ui: &mut egui::Ui,
     editor: &mut Editor,
@@ -910,6 +950,15 @@ fn show_properties(
     section: Option<usize>,
     error: &mut Option<String>,
 ) {
+    let definitions = editor
+        .catalog
+        .parameters(&editor.path, &editor.document, section);
+    let diagnostics: Vec<_> = editor
+        .catalog
+        .diagnostics(&editor.path, &editor.document)
+        .into_iter()
+        .filter(|d| d.section == section)
+        .collect();
     ui.push_id(("add-parameter", section), |ui| {
         ui.menu_button("+", |ui| {
             ui.label("Ajouter un paramètre");
@@ -928,7 +977,22 @@ fn show_properties(
                 } else {
                     spec.name.to_owned()
                 };
-                if ui.button(label).clicked() {
+                let problems: Vec<_> = diagnostics
+                    .iter()
+                    .filter(|d| d.parameter == spec.name)
+                    .cloned()
+                    .collect();
+                if ui
+                    .button(diagnostic_text(label, &problems))
+                    .on_hover_text(
+                        problems
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    )
+                    .clicked()
+                {
                     editor.pending_add = Some((
                         section,
                         spec.name.to_owned(),
@@ -949,6 +1013,27 @@ fn show_properties(
         .response
         .on_hover_text("Ajouter un paramètre à cette section");
     });
+    for diagnostic in &diagnostics {
+        if let Some(definition) = definitions
+            .iter()
+            .find(|p| p.name == diagnostic.parameter && !p.is_present(&editor.document, section))
+        {
+            ui.horizontal(|ui| {
+                ui.label(diagnostic_text(
+                    format!("{} — absent", definition.name),
+                    std::slice::from_ref(diagnostic),
+                ))
+                .on_hover_text(diagnostic.to_string());
+                if ui.small_button("+ Ajouter").clicked() {
+                    editor.pending_add = Some((
+                        section,
+                        definition.name.clone(),
+                        definition.default_value.clone().unwrap_or_default(),
+                    ));
+                }
+            });
+        }
+    }
     for (index, property) in properties
         .iter()
         .enumerate()
@@ -963,11 +1048,14 @@ fn show_properties(
                 {
                     editor.pending_delete = Some(index);
                 }
-                let definition = editor
-                    .catalog
-                    .parameters(&editor.path, &editor.document, section)
-                    .into_iter()
+                let definition = definitions
+                    .iter()
                     .find(|p| p.name == property.key || p.aliases.contains(&property.key));
+                let problems: Vec<_> = diagnostics
+                    .iter()
+                    .filter(|d| definition.is_some_and(|p| p.name == d.parameter))
+                    .cloned()
+                    .collect();
                 let hint = definition
                     .map(|p| {
                         format!(
@@ -984,14 +1072,31 @@ fn show_properties(
                         )
                     })
                     .unwrap_or_else(|| format!("Ligne {} · paramètre personnalisé", property.line));
-                ui.label(&property.key).on_hover_text(hint);
-                if ui
-                    .add(
-                        egui::TextEdit::singleline(&mut editor.values[index])
-                            .desired_width(f32::INFINITY),
+                let hint = if problems.is_empty() {
+                    hint
+                } else {
+                    format!(
+                        "{}\n{hint}",
+                        problems
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join("\n")
                     )
-                    .changed()
+                };
+                ui.label(diagnostic_text(&property.key, &problems))
+                    .on_hover_text(&hint);
+                let mut input = egui::TextEdit::singleline(&mut editor.values[index])
+                    .desired_width(f32::INFINITY);
+                if problems
+                    .iter()
+                    .any(|d| d.severity == cpm_core::Severity::Error)
                 {
+                    input = input.text_color(egui::Color32::LIGHT_RED);
+                } else if !problems.is_empty() {
+                    input = input.text_color(egui::Color32::YELLOW);
+                }
+                if ui.add(input).on_hover_text(hint).changed() {
                     if let Err(edit_error) = editor.document.set_value(index, &editor.values[index])
                     {
                         *error = Some(edit_error.to_string());
@@ -1005,6 +1110,85 @@ fn show_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn property_labels_show_errors_warnings_missing_and_clear_after_correction() {
+        fn has_color(
+            shapes: &[egui::epaint::ClippedShape],
+            text: &str,
+            color: egui::Color32,
+        ) -> bool {
+            fn matches(shape: &egui::epaint::Shape, text: &str, color: egui::Color32) -> bool {
+                match shape {
+                    egui::epaint::Shape::Text(shape) => {
+                        shape.galley.job.text == text
+                            && shape
+                                .galley
+                                .job
+                                .sections
+                                .iter()
+                                .any(|s| s.format.color == color)
+                    }
+                    egui::epaint::Shape::Vec(shapes) => {
+                        shapes.iter().any(|s| matches(s, text, color))
+                    }
+                    _ => false,
+                }
+            }
+            shapes.iter().any(|s| matches(&s.shape, text, color))
+        }
+        let ctx = egui::Context::default();
+        let mut editor = Editor::from_document(
+            cpm_core::Document::parse("Power: wrong\nMaxRPM: 6000\n").unwrap(),
+            std::path::Path::new("engine_demo.dynx"),
+        );
+        let mut error = None;
+        let mut draw = |editor: &mut Editor| {
+            let properties = editor.document.properties().to_vec();
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                show_properties(ui, editor, &properties, None, &mut error);
+            });
+            output.textures_delta.clear();
+            output
+        };
+        let _ = draw(&mut editor);
+        let output = draw(&mut editor);
+        assert!(has_color(&output.shapes, "Power", egui::Color32::LIGHT_RED));
+        assert!(has_color(
+            &output.shapes,
+            "Braking — absent",
+            egui::Color32::LIGHT_RED
+        ));
+        let mut catalog = (*editor.catalog).clone();
+        catalog.files[0]
+            .catalog
+            .rules
+            .iter_mut()
+            .find(|r| r.file_pattern == "engine_*.dynx" && r.section_pattern.is_none())
+            .unwrap()
+            .parameters
+            .iter_mut()
+            .find(|p| p.name == "Power")
+            .unwrap()
+            .severity = cpm_core::Severity::Warning;
+        editor.catalog = std::sync::Arc::new(catalog);
+        let output = draw(&mut editor);
+        assert!(has_color(&output.shapes, "Power", egui::Color32::YELLOW));
+        assert!(!has_color(
+            &output.shapes,
+            "Power",
+            egui::Color32::LIGHT_RED
+        ));
+        editor.document.set_value(0, "1000").unwrap();
+        editor.values[0] = "1000".into();
+        let output = draw(&mut editor);
+        assert!(!has_color(
+            &output.shapes,
+            "Power",
+            egui::Color32::LIGHT_RED
+        ));
+        assert!(!has_color(&output.shapes, "Power", egui::Color32::YELLOW));
+    }
 
     #[test]
     fn addon_window_stays_open_when_clicking_and_typing_then_adds_the_parameter() {

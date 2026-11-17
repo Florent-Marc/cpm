@@ -317,3 +317,5 @@ Les valeurs de sévérité JSON sont `ignore`, `warning` et `error`. Les types s
 ## Packs récents
 
 **File → Ouvrir récent** affiche les cinq derniers packs distincts (dossiers, ZIP, DNXPACK ou RAR), du plus récent au plus ancien. Réouvrir le même pack le remonte sans doublon. Seules les ouvertures réussies sont mémorisées ; les fichiers `.dynx` individuels sont exclus. Le chemin complet apparaît au survol. La liste est conservée dans `recent-packs.json` à côté de l’exécutable. Comme pour Importer, il faut enregistrer ou annuler les modifications avant de changer de pack.
+
+Les paramètres en erreur affichent leur nom et leur valeur en rouge dans la vue Propriétés, avec le diagnostic au survol. Les avertissements sont jaunes. Un paramètre obligatoire absent apparaît dans sa section avec un bouton **+ Ajouter** ; les titres des sections et groupes concernés sont également colorés lorsqu’ils sont repliés. La couleur disparaît après correction. Dans le catalogue Propriétés, les définitions invalides (nom, alias dupliqué, choix ou valeur par défaut incompatible) sont aussi marquées en rouge dans la liste, avec le motif à droite.

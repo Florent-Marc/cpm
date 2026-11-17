@@ -123,10 +123,17 @@ impl PropertiesEditor {
                     });
                     ui.columns(2,|columns|{
                         egui::ScrollArea::vertical().id_salt("properties-list").max_height(290.0).show(&mut columns[0],|ui|{
-                            for (index,parameter) in rule.parameters.iter().enumerate(){if ui.selectable_value(&mut self.parameter,index,&parameter.name).changed(){self.fields_for=None;}}
+                            for (index,parameter) in rule.parameters.iter().enumerate(){
+                                let problem=definition_problem(rule,index);
+                                let mut label=egui::RichText::new(&parameter.name);
+                                if problem.is_some(){label=label.color(egui::Color32::LIGHT_RED);}
+                                if ui.selectable_value(&mut self.parameter,index,label).on_hover_text(problem.unwrap_or_default()).changed(){self.fields_for=None;}
+                            }
                         });
+                        let problem=definition_problem(rule,self.parameter);
                         if let Some(parameter)=rule.parameters.get_mut(self.parameter){
                             let ui=&mut columns[1];
+                            if let Some(message)=&problem{ui.colored_label(egui::Color32::LIGHT_RED,message);}
                             ui.horizontal(|ui|{ui.label("Paramètre");ui.text_edit_singleline(&mut parameter.name);});
                             egui::ComboBox::from_id_salt("properties-type").selected_text(parameter.variable_type.label()).show_ui(ui,|ui|{for kind in VariableType::ALL{ui.selectable_value(&mut parameter.variable_type,kind,kind.label());}});
                             ui.checkbox(&mut parameter.required,"Obligatoire");
@@ -156,6 +163,31 @@ impl PropertiesEditor {
         action
     }
 }
+fn definition_problem(rule: &CatalogRule, index: usize) -> Option<String> {
+    let parameter = rule.parameters.get(index)?;
+    for name in std::iter::once(&parameter.name).chain(parameter.aliases.iter()) {
+        if rule
+            .parameters
+            .iter()
+            .enumerate()
+            .any(|(other, p)| other != index && (p.name == *name || p.aliases.contains(name)))
+        {
+            return Some(format!("Paramètre ou alias dupliqué : {name}"));
+        }
+    }
+    let single = CatalogFile {
+        schema_version: 1,
+        label: String::new(),
+        rules: vec![CatalogRule {
+            file_pattern: "*.dynx".into(),
+            section_pattern: None,
+            parent_pattern: None,
+            parameters: vec![parameter.clone()],
+        }],
+    };
+    cpm_core::validate_catalog_file(&single).err()
+}
+
 fn split_list(text: &str) -> Vec<String> {
     text.split(',')
         .map(str::trim)
@@ -178,6 +210,29 @@ fn rule_label(rule: &CatalogRule) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn identifies_invalid_defaults_and_both_duplicate_definitions() {
+        let mut rule = CatalogRule {
+            parameters: vec![ParameterDefinition {
+                name: "Capacity".into(),
+                variable_type: VariableType::Integer,
+                default_value: Some("wrong".into()),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        assert!(definition_problem(&rule, 0).unwrap().contains("défaut"));
+        rule.parameters[0].default_value = Some("42".into());
+        assert!(definition_problem(&rule, 0).is_none());
+        rule.parameters.push(ParameterDefinition {
+            name: "Other".into(),
+            aliases: vec!["Capacity".into()],
+            ..Default::default()
+        });
+        assert!(definition_problem(&rule, 0).unwrap().contains("dupliqué"));
+        assert!(definition_problem(&rule, 1).unwrap().contains("dupliqué"));
+    }
+
     #[test]
     fn draft_changes_apply_only_after_save_and_reload() {
         let directory = std::env::temp_dir().join(format!("cpm-properties-{}", std::process::id()));
