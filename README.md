@@ -14,7 +14,7 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification
   des nouvelles releases Rust.
 
-Le bouton **Aperçu 3D**, à côté du nom de la configuration, affiche les modèles OBJ présents dans le pack avec rotation, zoom et déplacement. Cette première vue affiche la géométrie sans textures ni animations. Le catalogue des paramètres n'est pas un validateur exhaustif de tous les addons DynamX.
+Le bouton **Aperçu 3D**, à côté du nom de la configuration, affiche les modèles OBJ présents dans le pack avec rotation, zoom et déplacement. Les matériaux MTL et leurs textures diffuses sont affichés ; la liste des pièces permet de les masquer ou de les isoler. Les animations et variantes DynamX restent à ajouter. Le catalogue des paramètres n'est pas un validateur exhaustif de tous les addons DynamX.
 
 ## Démarrer
 

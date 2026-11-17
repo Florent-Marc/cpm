@@ -435,6 +435,7 @@ name = "cpm-core"
 version = "0.2.0"
 dependencies = [
  "glob",
+ "image",
  "serde",
  "serde_json",
  "tempfile",
@@ -1252,6 +1253,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]

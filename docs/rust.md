@@ -123,7 +123,7 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
 2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
-4. Étendre la prévisualisation 3D aux textures, matériaux, animations et autres formats.
+4. Étendre la prévisualisation 3D aux variantes DynamX, normal maps, animations et autres formats.
 
 ## Nom et icônes de l'application
 
@@ -332,4 +332,15 @@ Le bouton **Aperçu 3D**, placé à côté du nom du fichier de configuration, o
 
 La géométrie est chargée sur un thread séparé depuis un dossier, un ZIP, un DNXPACK ou un RAR, sans extraction sur disque. Les fichiers `.dynx` ouverts seuls peuvent retrouver les ressources dans leur dossier de pack (premier ancêtre contenant `pack_info.dynx`) ou, à défaut, leur propre dossier. Les chemins relatifs à la racine du pack et au fichier de configuration sont reconnus, ainsi que les ressources de la forme `namespace:models/car.obj` dans `assets/namespace/`. Pour les chemins sans namespace, CPM recherche aussi dans `models/`, `assets/dynamxmod/`, `assets/dynamxmod/models/` et les mêmes dossiers sous `assets/minecraft/`. Les chemins sortant du pack sont refusés.
 
-Cette première version montre la géométrie complète, centrée automatiquement, avec éclairage simple et tampon de profondeur OpenGL. Elle n’applique ni textures/MTL, ni animations, ni transformations ou pièces ajoutées par la configuration DynamX. Le chargeur accepte les faces triangulées et les polygones convertibles en éventail (notamment les quads), pas les polygones concaves arbitraires. Les fichiers illisibles ou invalides sont signalés dans la fenêtre. Limites : 32 Mio pour l’OBJ et un million de triangles. Le rendu nécessite OpenGL 3.1 ou OpenGL ES 3.
+L’aperçu montre la géométrie complète, centrée automatiquement, avec éclairage simple et tampon de profondeur OpenGL. Il applique les couleurs diffuses `Kd`, l’opacité `d` et les textures `map_Kd` des matériaux MTL, en utilisant les coordonnées UV de l’OBJ. Il n’applique pas les animations, transformations, pièces ajoutées ou variantes de textures propres à la configuration DynamX. Le chargeur accepte les faces triangulées et les polygones convertibles en éventail (notamment les quads), pas les polygones concaves arbitraires. Les fichiers illisibles ou invalides sont signalés dans la fenêtre. Limites : 32 Mio pour l’OBJ et un million de triangles. Le rendu nécessite OpenGL 3.1 ou OpenGL ES 3.
+
+
+### Textures et pièces de l’OBJ
+
+Les fichiers déclarés par `mtllib` sont lus relativement à l’OBJ ; les images `map_Kd` sont lues relativement au MTL. Les chemins `../` sont acceptés tant qu’ils restent dans le pack. Les ressources `namespace:chemin` sont également reconnues sous `assets/namespace/`. Aucune ressource située en dehors du pack n’est lue. Les images PNG, JPEG, TGA et BMP sont prises en charge. Plusieurs matériaux qui utilisent la même image partagent une seule texture chargée.
+
+La case **Afficher les textures** permet de comparer le modèle texturé avec ses seules couleurs de matériaux. Les fichiers MTL ou images manquants, les UV absents et les images trop grandes sont signalés dans **Avertissements** ; la géométrie reste disponible avec une couleur de remplacement. Les options `map_Kd` commençant par `-` ne sont pas prises en charge et produisent un avertissement. Les normal maps, textures spéculaires, cartes d’opacité séparées et variantes du champ DynamX `Textures` ne sont pas appliquées. La transparence de la texture diffuse et l’opacité du matériau sont rendues par tri des lots de faces ; les surfaces transparentes qui s’intersectent peuvent présenter des approximations.
+
+La section **Pièces** reprend les noms des objets `o` et groupes `g` de l’OBJ. Chaque case permet d’afficher ou masquer une pièce ; **Isoler** affiche seulement cette pièce, **Tout afficher** rétablit le modèle complet et **Tout masquer** vide la vue. Le survol du nom affiche son nombre de triangles et ses matériaux. Un objet utilisant plusieurs matériaux reste une seule pièce avec plusieurs lots de rendu. Les noms identiques sont regroupés ; sans objet ou groupe nommé, la géométrie apparaît sous `unnamed_object`. Cette liste ne modifie pas les fichiers du pack.
+
+Les textures sont chargées sur le même thread de travail que la géométrie. Limites : 4 Mio par MTL et 16 Mio de MTL par aperçu, 32 Mio par image compressée, dimensions maximales de 4096 × 4096 et 256 Mio de pixels décodés au total. Les textures GPU sont libérées à la fermeture ou au remplacement de l’aperçu.

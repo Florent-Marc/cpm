@@ -9,6 +9,9 @@ pub struct Preview {
     mesh: Option<Arc<GpuMesh>>,
     error: Option<String>,
     statistics: String,
+    parts: Vec<PartVisibility>,
+    warnings: Vec<String>,
+    use_textures: bool,
     yaw: f32,
     pitch: f32,
     zoom: f32,
@@ -29,6 +32,9 @@ impl Preview {
             mesh: None,
             error: None,
             statistics: String::new(),
+            parts: Vec::new(),
+            warnings: Vec::new(),
+            use_textures: true,
             yaw: -0.6,
             pitch: 0.25,
             zoom: 0.9,
@@ -41,8 +47,37 @@ impl Preview {
                 Ok(result) => {
                     self.receiver = None;
                     let result = result.and_then(|mesh| {
-                        self.statistics =
-                            format!("{} triangles · {} objets", mesh.triangles, mesh.objects);
+                        self.statistics = format!(
+                            "{} triangles · {} pièces · {} textures",
+                            mesh.triangles,
+                            mesh.objects,
+                            mesh.textures.len()
+                        );
+                        self.parts = mesh
+                            .parts
+                            .iter()
+                            .map(|p| {
+                                let materials: std::collections::BTreeSet<_> = p
+                                    .batches
+                                    .iter()
+                                    .filter_map(|b| {
+                                        b.material
+                                            .and_then(|i| mesh.materials.get(i))
+                                            .map(|m| m.name.as_str())
+                                    })
+                                    .collect();
+                                PartVisibility {
+                                    name: p.name.clone(),
+                                    visible: true,
+                                    details: format!(
+                                        "{} triangles · Matériaux : {}",
+                                        p.batches.iter().map(|b| b.count / 3).sum::<usize>(),
+                                        materials.into_iter().collect::<Vec<_>>().join(", ")
+                                    ),
+                                }
+                            })
+                            .collect();
+                        self.warnings = mesh.warnings.clone();
                         let gl = gl.ok_or("Le moteur OpenGL de l’aperçu n’est pas disponible")?;
                         GpuMesh::new(gl.clone(), &mesh)
                     });
@@ -71,7 +106,31 @@ impl Preview {
                 ui.label(&self.statistics);
             });
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Géométrie du modèle uniquement — sans textures, animations ni transformations DynamX.");
+            ui.weak("Matériaux OBJ/MTL — sans animations ni variantes de textures DynamX.");
+            ui.checkbox(&mut self.use_textures,"Afficher les textures");
+            if !self.parts.is_empty() {
+                egui::CollapsingHeader::new(format!("Pièces ({})",self.parts.len())).default_open(true).show(ui,|ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Tout afficher").clicked(){for p in &mut self.parts{p.visible=true;}}
+                        if ui.button("Tout masquer").clicked(){for p in &mut self.parts{p.visible=false;}}
+                    });
+                    let mut isolate=None;
+                    egui::ScrollArea::vertical().id_salt("obj-parts").max_height(125.0).show(ui,|ui| {
+                        for (index,part) in self.parts.iter_mut().enumerate(){
+                            ui.push_id(index,|ui|{ui.horizontal(|ui|{
+                                ui.checkbox(&mut part.visible,&part.name).on_hover_text(&part.details);
+                                if ui.small_button("Isoler").clicked(){isolate=Some(index);}
+                            });});
+                        }
+                    });
+                    if let Some(selected)=isolate {for (index,part) in self.parts.iter_mut().enumerate(){part.visible=index==selected;}}
+                });
+            }
+            if !self.warnings.is_empty(){
+                ui.collapsing(format!("Avertissements ({})",self.warnings.len()),|ui|{
+                    egui::ScrollArea::vertical().id_salt("obj-warnings").max_height(100.0).show(ui,|ui|{for warning in &self.warnings{ui.colored_label(egui::Color32::YELLOW,warning);}});
+                });
+            }
             if self.receiver.is_some() { ui.spinner(); ui.label("Chargement du modèle…"); }
             if let Some(error) = &self.error { ui.colored_label(egui::Color32::LIGHT_RED,error); }
             let size=egui::vec2(ui.available_width().max(1.0), ui.available_height().max(180.0));
@@ -88,9 +147,10 @@ impl Preview {
                 self.zoom=(self.zoom*(scroll*0.002).exp()).clamp(0.1,8.0);
             }
             if let Some(mesh) = &self.mesh {
-                let mesh=mesh.clone(); let yaw=self.yaw; let pitch=self.pitch; let zoom=self.zoom; let pan=self.pan;
+                let mesh=mesh.clone(); let view=View {yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan};
+                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;
                 let aspect=rect.width()/rect.height();
-                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),yaw,pitch,zoom,aspect,pan); });
+                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures); });
                 ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
             }
         });
@@ -98,12 +158,34 @@ impl Preview {
     }
 }
 
+struct PartVisibility {
+    name: String,
+    visible: bool,
+    details: String,
+}
+#[derive(Clone, Copy)]
+struct View {
+    yaw: f32,
+    pitch: f32,
+    zoom: f32,
+    pan: egui::Vec2,
+}
+struct DrawBatch {
+    part: usize,
+    first: i32,
+    count: i32,
+    color: [f32; 4],
+    texture: Option<usize>,
+    transparent: bool,
+    center: [f32; 3],
+}
 struct GpuMesh {
     gl: Arc<glow::Context>,
     program: glow::Program,
     vertex_array: glow::VertexArray,
     buffer: glow::Buffer,
-    count: i32,
+    batches: Vec<DrawBatch>,
+    textures: Vec<glow::Texture>,
 }
 impl GpuMesh {
     fn new(gl: Arc<glow::Context>, mesh: &ObjMesh) -> Result<Self, String> {
@@ -135,6 +217,7 @@ impl GpuMesh {
                 }
                 gl.bind_attrib_location(program, 0, "a_position");
                 gl.bind_attrib_location(program, 1, "a_normal");
+                gl.bind_attrib_location(program, 2, "a_uv");
                 gl.link_program(program);
                 if !gl.get_program_link_status(program) {
                     return Err(gl.get_program_info_log(program));
@@ -163,12 +246,13 @@ impl GpuMesh {
                     return Err(error);
                 }
             };
-            let gpu = Self {
+            let mut gpu = Self {
                 gl: gl.clone(),
                 program,
                 vertex_array,
                 buffer,
-                count: mesh.vertices.len() as i32,
+                batches: Vec::new(),
+                textures: Vec::new(),
             };
             let bytes: Vec<u8> = mesh
                 .vertices
@@ -180,22 +264,86 @@ impl GpuMesh {
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
             gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &bytes, glow::STATIC_DRAW);
             gl.enable_vertex_attrib_array(0);
-            gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, 24, 0);
+            gl.vertex_attrib_pointer_f32(0, 3, glow::FLOAT, false, 32, 0);
             gl.enable_vertex_attrib_array(1);
-            gl.vertex_attrib_pointer_f32(1, 3, glow::FLOAT, false, 24, 12);
+            gl.vertex_attrib_pointer_f32(1, 3, glow::FLOAT, false, 32, 12);
+            gl.enable_vertex_attrib_array(2);
+            gl.vertex_attrib_pointer_f32(2, 2, glow::FLOAT, false, 32, 24);
             gl.bind_vertex_array(None);
             gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            gl.active_texture(glow::TEXTURE0);
+            let max_size = gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) as u32;
+            for image in &mesh.textures {
+                if image.width > max_size || image.height > max_size {
+                    return Err(format!(
+                        "Texture trop grande pour la carte graphique : {}",
+                        image.path.display()
+                    ));
+                }
+                let texture = gl.create_texture()?;
+                gpu.textures.push(texture);
+                gl.bind_texture(glow::TEXTURE_2D, Some(texture));
+                gl.tex_parameter_i32(
+                    glow::TEXTURE_2D,
+                    glow::TEXTURE_MIN_FILTER,
+                    glow::LINEAR as i32,
+                );
+                gl.tex_parameter_i32(
+                    glow::TEXTURE_2D,
+                    glow::TEXTURE_MAG_FILTER,
+                    glow::LINEAR as i32,
+                );
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::REPEAT as i32);
+                gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::REPEAT as i32);
+                gl.tex_image_2d(
+                    glow::TEXTURE_2D,
+                    0,
+                    glow::RGBA8 as i32,
+                    image.width as i32,
+                    image.height as i32,
+                    0,
+                    glow::RGBA,
+                    glow::UNSIGNED_BYTE,
+                    glow::PixelUnpackData::Slice(Some(&image.rgba)),
+                );
+            }
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            for (part_index, part) in mesh.parts.iter().enumerate() {
+                for batch in &part.batches {
+                    let material = batch.material.and_then(|i| mesh.materials.get(i));
+                    let color = material
+                        .map(|m| m.diffuse)
+                        .unwrap_or([0.56, 0.68, 0.82, 1.0]);
+                    let texture = material.and_then(|m| m.texture).filter(|_| batch.has_uv);
+                    let transparent =
+                        color[3] < 0.999 || texture.is_some_and(|i| mesh.textures[i].has_alpha);
+                    let mut center = [0.0; 3];
+                    for v in &mesh.vertices[batch.first..batch.first + batch.count] {
+                        for axis in 0..3 {
+                            center[axis] += v[axis] / batch.count as f32;
+                        }
+                    }
+                    gpu.batches.push(DrawBatch {
+                        part: part_index,
+                        first: batch.first as i32,
+                        count: batch.count as i32,
+                        color,
+                        texture,
+                        transparent,
+                        center,
+                    });
+                }
+            }
             Ok(gpu)
         }
     }
     fn paint(
         &self,
         gl: &glow::Context,
-        yaw: f32,
-        pitch: f32,
-        zoom: f32,
+        view: View,
         aspect: f32,
-        pan: egui::Vec2,
+        visible: &[bool],
+        use_textures: bool,
     ) {
         unsafe {
             gl.enable(glow::DEPTH_TEST);
@@ -208,31 +356,88 @@ impl GpuMesh {
             gl.use_program(Some(self.program));
             gl.uniform_2_f32(
                 gl.get_uniform_location(self.program, "u_angles").as_ref(),
-                yaw,
-                pitch,
+                view.yaw,
+                view.pitch,
             );
             gl.uniform_2_f32(
                 gl.get_uniform_location(self.program, "u_scale").as_ref(),
-                zoom / aspect.max(1.0),
-                zoom * aspect.min(1.0),
+                view.zoom / aspect.max(1.0),
+                view.zoom * aspect.min(1.0),
             );
             gl.uniform_2_f32(
                 gl.get_uniform_location(self.program, "u_pan").as_ref(),
-                pan.x,
-                pan.y,
+                view.pan.x,
+                view.pan.y,
             );
+            gl.uniform_1_i32(
+                gl.get_uniform_location(self.program, "u_texture").as_ref(),
+                0,
+            );
+            gl.active_texture(glow::TEXTURE0);
             gl.bind_vertex_array(Some(self.vertex_array));
-            gl.draw_arrays(glow::TRIANGLES, 0, self.count);
+            let mut transparent = Vec::new();
+            for batch in &self.batches {
+                if !visible.get(batch.part).copied().unwrap_or(false) {
+                    continue;
+                }
+                if batch.color[3] < 0.999 || (use_textures && batch.transparent) {
+                    transparent.push(batch);
+                } else {
+                    self.draw(gl, batch, use_textures);
+                }
+            }
+            transparent.sort_by(|a, b| depth(a.center, view).total_cmp(&depth(b.center, view)));
+            gl.enable(glow::BLEND);
+            gl.blend_func_separate(
+                glow::SRC_ALPHA,
+                glow::ONE_MINUS_SRC_ALPHA,
+                glow::ONE,
+                glow::ONE_MINUS_SRC_ALPHA,
+            );
+            gl.depth_mask(false);
+            for batch in transparent {
+                self.draw(gl, batch, use_textures);
+            }
+            gl.depth_mask(true);
+            gl.bind_texture(glow::TEXTURE_2D, None);
             gl.bind_vertex_array(None);
             gl.use_program(None);
             gl.disable(glow::DEPTH_TEST);
-            gl.enable(glow::BLEND);
+        }
+    }
+    fn draw(&self, gl: &glow::Context, batch: &DrawBatch, use_textures: bool) {
+        unsafe {
+            let texture = batch
+                .texture
+                .filter(|_| use_textures)
+                .map(|i| self.textures[i]);
+            gl.bind_texture(glow::TEXTURE_2D, texture);
+            gl.uniform_1_i32(
+                gl.get_uniform_location(self.program, "u_textured").as_ref(),
+                i32::from(texture.is_some()),
+            );
+            gl.uniform_4_f32(
+                gl.get_uniform_location(self.program, "u_color").as_ref(),
+                batch.color[0],
+                batch.color[1],
+                batch.color[2],
+                batch.color[3],
+            );
+            gl.draw_arrays(glow::TRIANGLES, batch.first, batch.count);
         }
     }
 }
+fn depth(p: [f32; 3], view: View) -> f32 {
+    let z = -view.yaw.sin() * p[0] + view.yaw.cos() * p[2];
+    view.pitch.sin() * p[1] + view.pitch.cos() * z
+}
+
 impl Drop for GpuMesh {
     fn drop(&mut self) {
         unsafe {
+            for texture in &self.textures {
+                self.gl.delete_texture(*texture);
+            }
             self.gl.delete_buffer(self.buffer);
             self.gl.delete_vertex_array(self.vertex_array);
             self.gl.delete_program(self.program);
@@ -243,6 +448,8 @@ const VERTEX_SHADER: &str = r#"
 precision highp float;
 in vec3 a_position;
 in vec3 a_normal;
+in vec2 a_uv;
+out vec2 v_uv;
 uniform vec2 u_angles;
 uniform vec2 u_scale;
 uniform vec2 u_pan;
@@ -257,15 +464,23 @@ void main() {
     vec3 p=rotate(a_position);
     gl_Position=vec4(p.xy*u_scale+u_pan,-p.z*0.5,1.0);
     v_normal=rotate(a_normal);
+    v_uv=a_uv;
 }
 "#;
 const FRAGMENT_SHADER: &str = r#"
 precision mediump float;
 in vec3 v_normal;
+in vec2 v_uv;
+uniform sampler2D u_texture;
+uniform bool u_textured;
+uniform vec4 u_color;
 out vec4 out_color;
 void main() {
     vec3 n=normalize(v_normal)*(gl_FrontFacing?1.0:-1.0);
     float light=0.3+0.7*max(0.0,dot(n,normalize(vec3(-0.4,0.7,1.0))));
-    out_color=vec4(vec3(0.56,0.68,0.82)*light,1.0);
+    vec4 color=u_color;
+    if(u_textured){color*=texture(u_texture,v_uv);}
+    if(color.a<0.01){discard;}
+    out_color=vec4(color.rgb*light,color.a);
 }
 "#;
