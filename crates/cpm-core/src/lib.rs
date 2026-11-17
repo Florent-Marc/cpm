@@ -25,3 +25,6 @@ pub use catalog::{
     validate_catalog_file, CatalogFile, CatalogLoad, CatalogRule, CatalogStore, Diagnostic,
     NamedCatalogFile, ParameterCatalog, ParameterDefinition, Severity, VariableType,
 };
+
+mod model;
+pub use model::{ObjMesh, ObjRequest};

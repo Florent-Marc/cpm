@@ -123,7 +123,7 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
 2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
-4. Ajouter la prévisualisation 3D et des contrôles métier supplémentaires.
+4. Étendre la prévisualisation 3D aux textures, matériaux, animations et autres formats.
 
 ## Nom et icônes de l'application
 
@@ -319,3 +319,17 @@ Les valeurs de sévérité JSON sont `ignore`, `warning` et `error`. Les types s
 **File → Ouvrir récent** affiche les cinq derniers packs distincts (dossiers, ZIP, DNXPACK ou RAR), du plus récent au plus ancien. Réouvrir le même pack le remonte sans doublon. Seules les ouvertures réussies sont mémorisées ; les fichiers `.dynx` individuels sont exclus. Le chemin complet apparaît au survol. La liste est conservée dans `recent-packs.json` à côté de l’exécutable. Comme pour Importer, il faut enregistrer ou annuler les modifications avant de changer de pack.
 
 Les paramètres en erreur affichent leur nom et leur valeur en rouge dans la vue Propriétés, avec le diagnostic au survol. Les avertissements sont jaunes. Un paramètre obligatoire absent apparaît dans sa section avec un bouton **+ Ajouter** ; les titres des sections et groupes concernés sont également colorés lorsqu’ils sont repliés. La couleur disparaît après correction. Dans le catalogue Propriétés, les définitions invalides (nom, alias dupliqué, choix ou valeur par défaut incompatible) sont aussi marquées en rouge dans la liste, avec le motif à droite.
+
+
+## Aperçu 3D des modèles OBJ
+
+Le bouton **Aperçu 3D**, placé à côté du nom du fichier de configuration, ouvre une fenêtre redimensionnable. Il est activé lorsque le champ racine `Model` désigne un OBJ présent dans le pack. S’il est désactivé, le survol explique le problème (modèle absent, format différent ou moteur OpenGL indisponible). Le chemin du modèle est visible dans la fenêtre ; si la configuration change pendant que la fenêtre reste ouverte, elle continue d’afficher ce modèle jusqu’à une nouvelle ouverture.
+
+- Glisser avec le bouton gauche : tourner autour du modèle.
+- Molette au-dessus de l’aperçu : zoomer.
+- Glisser avec le bouton droit : déplacer la vue.
+- **Recentrer**, **Face**, **Côté**, **Dessus** : retrouver une vue pratique.
+
+La géométrie est chargée sur un thread séparé depuis un dossier, un ZIP, un DNXPACK ou un RAR, sans extraction sur disque. Les fichiers `.dynx` ouverts seuls peuvent retrouver les ressources dans leur dossier de pack (premier ancêtre contenant `pack_info.dynx`) ou, à défaut, leur propre dossier. Les chemins relatifs à la racine du pack et au fichier de configuration sont reconnus, ainsi que les ressources de la forme `namespace:models/car.obj` dans `assets/namespace/`. Pour les chemins sans namespace, CPM recherche aussi dans `models/`, `assets/dynamxmod/`, `assets/dynamxmod/models/` et les mêmes dossiers sous `assets/minecraft/`. Les chemins sortant du pack sont refusés.
+
+Cette première version montre la géométrie complète, centrée automatiquement, avec éclairage simple et tampon de profondeur OpenGL. Elle n’applique ni textures/MTL, ni animations, ni transformations ou pièces ajoutées par la configuration DynamX. Le chargeur accepte les faces triangulées et les polygones convertibles en éventail (notamment les quads), pas les polygones concaves arbitraires. Les fichiers illisibles ou invalides sont signalés dans la fenêtre. Limites : 32 Mio pour l’OBJ et un million de triangles. Le rendu nécessite OpenGL 3.1 ou OpenGL ES 3.

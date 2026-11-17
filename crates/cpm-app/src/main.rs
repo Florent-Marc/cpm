@@ -1,6 +1,7 @@
 mod editor;
 mod export_dialog;
 mod navigation;
+mod preview;
 mod properties_editor;
 mod recent;
 mod update;
@@ -12,6 +13,7 @@ use std::collections::BTreeMap;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
+        depth_buffer: 24,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 740.0])
             .with_min_inner_size([760.0, 480.0])
@@ -24,8 +26,11 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "CPM — Éditeur de configuration",
         options,
-        Box::new(|_| {
-            let mut app = CpmApp::default();
+        Box::new(|cc| {
+            let mut app = CpmApp {
+                gl: cc.gl.clone(),
+                ..Default::default()
+            };
             app.load_properties();
             app.load_recent();
             app.updater.check();
@@ -36,6 +41,8 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct CpmApp {
+    gl: Option<std::sync::Arc<eframe::glow::Context>>,
+    preview: Option<preview::Preview>,
     recent: recent::RecentPacks,
     catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
     properties_editor: Option<properties_editor::PropertiesEditor>,
@@ -530,7 +537,7 @@ impl CpmApp {
                 });
             });
             if updating { ui.horizontal(|ui| { ui.spinner(); ui.label("Téléchargement et vérification de la mise à jour…"); }); }
-            ui.small("Navigation dans le pack : les modifications restent en mémoire. File → Exporter pour sauvegarder le pack complet. Prévisualisation 3D à venir.");
+            ui.small("Navigation dans le pack : les modifications restent en mémoire. File → Exporter pour sauvegarder le pack complet. Aperçu OBJ disponible à côté du nom de la configuration.");
         });
         egui::Panel::left("sections")
             .default_size(220.0)
@@ -677,12 +684,15 @@ impl CpmApp {
                 ui.label("Les commentaires et les champs d'addons sont conservés. Utilise File → Exporter pour enregistrer tes modifications.");
                 return;
             };
-            if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
-                ui.heading(config_name(&pack.configs()[index])).on_hover_text(pack.configs()[index].display().to_string());
-            }
-            if let Some(path) = &self.standalone_path {
-                ui.heading(path.file_name().unwrap_or_default().to_string_lossy());
-            }
+            ui.horizontal_wrapped(|ui| {
+                let path = if let (Some(pack),Some(index))=(&self.pack,self.selected_config) { pack.configs()[index].clone() } else { editor.path.clone() };
+                ui.heading(config_name(&path)).on_hover_text(path.display().to_string());
+                let request=cpm_core::ObjRequest::resolve(self.pack.as_ref(),&path,&editor.document);
+                let hint=if self.gl.is_none(){"Le moteur OpenGL de l’aperçu n’est pas disponible".to_owned()}else{request.as_ref().map(|r|format!("Ouvrir {}",r.path.display())).unwrap_or_else(|e|e.clone())};
+                if ui.add_enabled(request.is_ok() && self.gl.is_some(),egui::Button::new("Aperçu 3D")).on_hover_text(hint).clicked() {
+                    if let Ok(request)=request { self.preview=Some(preview::Preview::open(request,&ctx)); }
+                }
+            });
             ui.label("Propriétés");
             let issues = editor.issues();
             if !issues.is_empty() {
@@ -739,6 +749,11 @@ impl CpmApp {
                     self.status = "Propriétés enregistrées et appliquées".into();
                     self.error = (!warnings.is_empty()).then(|| warnings.join("\n"));
                 }
+            }
+        }
+        if let Some(mut preview) = self.preview.take() {
+            if preview.show(&ctx, self.gl.as_ref()) {
+                self.preview = Some(preview);
             }
         }
         if self.confirm_close {

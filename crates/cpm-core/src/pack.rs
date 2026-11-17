@@ -14,12 +14,14 @@ pub struct Pack {
     configs: Vec<PathBuf>,
     archive_indices: Option<BTreeMap<PathBuf, usize>>,
     rar: bool,
+    resources: std::sync::Arc<BTreeMap<PathBuf, usize>>,
 }
 
 impl Pack {
     pub fn open(path: &Path) -> Result<Self, String> {
         let source = fs::canonicalize(path).map_err(|e| e.to_string())?;
         let mut configs = Vec::new();
+        let mut resources = BTreeMap::new();
         let rar = source
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("rar"));
@@ -32,14 +34,22 @@ impl Pack {
                     // Ne pas suivre de liens vers d'autres packs ou des cycles.
                     if kind.is_dir() {
                         pending.push(entry.path());
-                    } else if kind.is_file() && is_config(&entry.path()) {
-                        configs.push(
-                            entry
-                                .path()
-                                .strip_prefix(&source)
-                                .map_err(|e| e.to_string())?
-                                .to_owned(),
-                        );
+                    } else if kind.is_file() {
+                        let relative = entry
+                            .path()
+                            .strip_prefix(&source)
+                            .map_err(|e| e.to_string())?
+                            .to_owned();
+                        resources.insert(relative.clone(), 0);
+                        if is_config(&relative) {
+                            configs.push(
+                                entry
+                                    .path()
+                                    .strip_prefix(&source)
+                                    .map_err(|e| e.to_string())?
+                                    .to_owned(),
+                            );
+                        }
                     }
                 }
             }
@@ -55,6 +65,9 @@ impl Pack {
                     return Err(
                         "Les RAR chiffrés ou multivolumes ne sont pas pris en charge".into(),
                     );
+                }
+                if entry.is_file() && resources.insert(name.clone(), 0).is_some() {
+                    return Err("Ressource RAR dupliquée".into());
                 }
                 if entry.is_file() && is_config(&name) {
                     if configs.contains(&name) {
@@ -73,6 +86,12 @@ impl Pack {
                 let name = entry
                     .enclosed_name()
                     .ok_or("Chemin non sûr dans l'archive")?;
+                if !entry.is_dir() {
+                    let safe = safe_archive_path(&entry.name().map_err(|e| e.to_string())?)?;
+                    if resources.insert(safe, index).is_some() {
+                        return Err("Ressource ZIP dupliquée".into());
+                    }
+                }
                 if !entry.is_dir() && is_config(&name) {
                     if entry
                         .unix_mode()
@@ -106,6 +125,7 @@ impl Pack {
             configs,
             archive_indices,
             rar,
+            resources: std::sync::Arc::new(resources),
         })
     }
 
@@ -115,6 +135,63 @@ impl Pack {
     }
     pub fn source(&self) -> &Path {
         &self.source
+    }
+
+    pub fn contains_resource(&self, path: &Path) -> bool {
+        self.resources.contains_key(path)
+    }
+
+    /// Lit une ressource du pack avec une limite, sans extraction sur disque.
+    pub fn read_resource(&self, path: &Path, maximum: u64) -> Result<Vec<u8>, String> {
+        let path = safe_archive_path(&path.to_string_lossy())?;
+        let index = *self
+            .resources
+            .get(&path)
+            .ok_or_else(|| format!("Ressource absente : {}", path.display()))?;
+        if self.rar {
+            let mut archive = unrar::Archive::new(&self.source)
+                .open_for_processing()
+                .map_err(|e| e.to_string())?;
+            while let Some(entry) = archive.read_header().map_err(|e| e.to_string())? {
+                let name = safe_archive_path(&entry.entry().filename.to_string_lossy())?;
+                if name == path {
+                    if entry.entry().is_encrypted()
+                        || entry.entry().is_split()
+                        || entry.entry().file_attr & 0o170000 == 0o120000
+                    {
+                        return Err("Ressource RAR non prise en charge".into());
+                    }
+                    if entry.entry().unpacked_size > maximum {
+                        return Err("Modèle trop volumineux".into());
+                    }
+                    let (bytes, _) = entry.read().map_err(|e| e.to_string())?;
+                    if bytes.len() as u64 > maximum {
+                        return Err("Modèle trop volumineux".into());
+                    }
+                    return Ok(bytes);
+                }
+                archive = entry.skip().map_err(|e| e.to_string())?;
+            }
+            return Err("L’archive a changé : rouvrir le pack".into());
+        }
+        if self.archive_indices.is_some() {
+            let mut archive =
+                zip::ZipArchive::new(File::open(&self.source).map_err(|e| e.to_string())?)
+                    .map_err(|e| e.to_string())?;
+            let entry = archive.by_index(index).map_err(|e| e.to_string())?;
+            if safe_archive_path(&entry.name().map_err(|e| e.to_string())?)? != path {
+                return Err("L’archive a changé : rouvrir le pack".into());
+            }
+            if entry.unix_mode().is_some_and(|m| m & 0o170000 == 0o120000) {
+                return Err("Le modèle est un lien symbolique".into());
+            }
+            return read_resource_limited(entry, maximum);
+        }
+        let full = fs::canonicalize(self.source.join(&path)).map_err(|e| e.to_string())?;
+        if !full.starts_with(&self.source) {
+            return Err("Le modèle sort du dossier du pack".into());
+        }
+        read_resource_limited(File::open(full).map_err(|e| e.to_string())?, maximum)
     }
 
     pub fn read_config(&self, index: usize) -> Result<Document, String> {
@@ -283,4 +360,16 @@ impl Pack {
         }
         Ok(())
     }
+}
+
+fn read_resource_limited(reader: impl Read, maximum: u64) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    reader
+        .take(maximum.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > maximum {
+        return Err("Modèle trop volumineux".into());
+    }
+    Ok(bytes)
 }
