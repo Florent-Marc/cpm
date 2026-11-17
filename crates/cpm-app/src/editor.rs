@@ -1,5 +1,4 @@
 use cpm_core::Document;
-#[cfg(test)]
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::path::Path;
@@ -12,7 +11,6 @@ pub struct Editor {
 }
 
 impl Editor {
-    #[cfg(test)]
     pub fn open(path: &Path) -> Result<Self, String> {
         let file = File::open(path).map_err(|error| format!("Ouverture : {error}"))?;
         let document = Document::read_from(file).map_err(|error| error.to_string())?;

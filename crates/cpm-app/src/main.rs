@@ -26,6 +26,7 @@ struct CpmApp {
     cached: BTreeMap<usize, Editor>,
     selected_config: Option<usize>,
     open_path: String,
+    standalone_path: Option<std::path::PathBuf>,
     save_path: String,
     selected_section: Option<usize>,
     status: String,
@@ -41,9 +42,49 @@ impl CpmApp {
     }
 
     fn open(&mut self) {
-        match Pack::open(std::path::Path::new(&self.open_path)) {
+        let path = std::path::PathBuf::from(&self.open_path);
+        self.open_selection(&path);
+    }
+
+    fn open_selection(&mut self, path: &std::path::Path) {
+        if self.dirty() {
+            self.error = Some(
+                "Enregistre ou annule les modifications avant d'ouvrir un autre fichier ou pack."
+                    .into(),
+            );
+            return;
+        }
+        if path.is_file()
+            && path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dynx"))
+        {
+            match Editor::open(path) {
+                Ok(editor) => {
+                    let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+                    self.save_path = path
+                        .with_file_name(format!("{stem}_edited.dynx"))
+                        .display()
+                        .to_string();
+                    self.editor = Some(editor);
+                    self.pack = None;
+                    self.cached.clear();
+                    self.selected_config = None;
+                    self.selected_section = None;
+                    self.standalone_path = Some(path.to_owned());
+                    self.open_path = path.display().to_string();
+                    self.error = None;
+                    self.status = "Configuration ouverte".into();
+                }
+                Err(error) => self.error = Some(error),
+            }
+            return;
+        }
+        match Pack::open(path) {
             Ok(pack) => {
                 self.pack = Some(pack);
+                self.standalone_path = None;
+                self.open_path = path.display().to_string();
                 self.editor = None;
                 self.cached.clear();
                 self.selected_config = None;
@@ -122,16 +163,35 @@ impl CpmApp {
                 }
             });
             ui.horizontal_wrapped(|ui| {
-                ui.label("Pack");
+                let can_open = !self.dirty();
+                if ui.add_enabled(can_open, egui::Button::new("Ouvrir un fichier…")).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title("Ouvrir une configuration ou une archive de pack")
+                        .add_filter("Configurations et packs DynamX", &["dynx", "dnxpack", "zip"])
+                        .add_filter("Configurations", &["dynx"])
+                        .add_filter("Archives de pack", &["dnxpack", "zip"])
+                        .pick_file()
+                    { self.open_selection(&path); }
+                }
+                if ui.add_enabled(can_open, egui::Button::new("Ouvrir un dossier de pack…")).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title("Choisir le dossier contenant pack_info.dynx")
+                        .pick_folder()
+                    { self.open_selection(&path); }
+                }
+                if !can_open { ui.label("Enregistre ou annule les modifications avant de changer de pack ou fichier."); }
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Chemin");
                 ui.add(
                     egui::TextEdit::singleline(&mut self.open_path)
                         .desired_width(500.0)
-                        .hint_text("Dossier de pack ou fichier .dnxpack"),
+                        .hint_text("Configuration .dynx, dossier ou archive .dnxpack"),
                 );
                 if ui
                     .add_enabled(
                         !self.dirty() && !self.open_path.is_empty(),
-                        egui::Button::new("Ouvrir le pack"),
+                        egui::Button::new("Ouvrir"),
                     )
                     .clicked()
                 {
@@ -193,6 +253,9 @@ impl CpmApp {
                     .id_salt("configs")
                     .max_height(250.0)
                     .show(ui, |ui| {
+                        if let Some(path) = &self.standalone_path {
+                            ui.label(path.file_name().unwrap_or_default().to_string_lossy());
+                        }
                         if let Some(pack) = &self.pack {
                             for (index, path) in pack.configs().iter().enumerate() {
                                 let dirty = if self.selected_config == Some(index) {
@@ -234,12 +297,15 @@ impl CpmApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
-                ui.label("Indique le dossier contenant pack_info.dynx, ou le chemin d’une archive .dnxpack, puis ouvre le pack.");
+                ui.label("Clique sur Ouvrir un fichier pour une configuration ou une archive, ou sur Ouvrir un dossier de pack pour un pack non compressé.");
                 ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
                 return;
             };
             if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
                 ui.heading(pack.configs()[index].display().to_string());
+            }
+            if let Some(path) = &self.standalone_path {
+                ui.heading(path.file_name().unwrap_or_default().to_string_lossy());
             }
             ui.label("Propriétés");
             if editor.is_pack_info {
@@ -287,6 +353,45 @@ impl CpmApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selecting_files_or_packs_preserves_edits_and_keeps_state_on_failure() {
+        let directory = std::env::temp_dir().join(format!("cpm-selection-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let config = directory.join("item_seul.DYNX");
+        std::fs::write(&config, "Name: Standalone\n").unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(&config);
+        assert!(app.error.is_none());
+        assert!(app.pack.is_none());
+        assert_eq!(app.standalone_path.as_ref(), Some(&config));
+        app.editor
+            .as_mut()
+            .unwrap()
+            .document
+            .set_value(0, "Changed")
+            .unwrap();
+        std::fs::write(directory.join("pack_info.dynx"), "PackName: Pack\n").unwrap();
+        app.open_selection(&directory);
+        assert!(app.error.is_some());
+        assert_eq!(
+            app.editor.as_ref().unwrap().document.properties()[0].value,
+            "Changed"
+        );
+        app.editor.as_mut().unwrap().revert();
+        app.open_selection(&directory);
+        assert!(app.error.is_none());
+        assert!(app.pack.is_some());
+        assert!(app.standalone_path.is_none());
+        app.open_selection(&directory.join("missing.dnxpack"));
+        assert!(app.error.is_some());
+        assert!(app.pack.is_some());
+        app.open_selection(&config);
+        assert!(app.error.is_none());
+        assert!(app.pack.is_none());
+        assert!(app.cached.is_empty());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
 
     #[test]
     fn renders_empty_and_loaded_editor_without_a_window() {

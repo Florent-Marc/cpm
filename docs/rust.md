@@ -18,15 +18,19 @@ cargo run -p cpm-app
 ```
 
 Le core utilise `zip` pour les archives (Stored et Deflate). L'application utilise egui via eframe
-avec le moteur OpenGL (`glow`). `Cargo.lock` est conservé dans Git.
+avec le moteur OpenGL (`glow`), et `rfd` pour les sélecteurs natifs.
+Sous Linux, un portail de bureau XDG est nécessaire pour les sélecteurs. `Cargo.lock` est conservé dans Git.
 Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 
 ## Interface egui
 
 `cargo run -p cpm-app` lance l'éditeur de packs :
 
-1. Saisir le chemin d'un dossier contenant `pack_info.dynx`, ou d'un fichier
-   `.dnxpack` / ZIP, puis cliquer sur **Ouvrir le pack**.
+1. Cliquer sur **Ouvrir un fichier…** pour une configuration `.dynx` isolée ou
+   une archive `.dnxpack` / ZIP. Cliquer sur **Ouvrir un dossier de pack…** pour
+   choisir un dossier contenant `pack_info.dynx`. Ces boutons affichent le
+   sélecteur du système. Annuler la sélection conserve le document courant.
+   La saisie manuelle d'un chemin reste possible avec le bouton **Ouvrir**.
 2. Choisir une configuration dans la liste de gauche (chemins relatifs,
    y compris les sous-dossiers), puis choisir sa section.
 3. Modifier ses valeurs. Les documents visités restent en mémoire et les
@@ -36,15 +40,15 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 
 La navigation ne perd pas les modifications des autres configurations.
 **Annuler les modifications du fichier** restaure uniquement le fichier actif
-à son dernier état enregistré. L'ouverture d'un autre pack est bloquée tant
+à son dernier état enregistré. L'ouverture d'un autre fichier ou pack est bloquée tant
 qu'un document visité reste modifié. La fermeture demande de confirmer l'abandon
 des modifications de l'ensemble des fichiers.
 
 La sauvegarde crée une copie de la configuration active, pas un nouveau pack.
 Elle refuse tout chemin existant ; pour une sauvegarde suivante, choisir un autre
 nom. Une erreur d'écriture peut laisser une copie incomplète. Le dossier ou
-l'archive source n'est pas réécrit. Les chemins sont encore saisis manuellement.
-Le sélecteur natif, l'export du pack entier et la 3D restent à ajouter.
+l'archive source n'est pas réécrit. Le chemin de sauvegarde reste saisi
+manuellement. L'export du pack entier et la 3D restent à ajouter.
 
 ## Première API du core
 
@@ -95,6 +99,6 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 ## Prochaines étapes
 
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
-2. Ajouter un sélecteur de dossier/archive et la recherche dans les configurations.
+2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
 4. Ajouter un export du pack complet et la prévisualisation 3D.
