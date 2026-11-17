@@ -381,12 +381,12 @@ impl CpmApp {
                     ui.add_enabled_ui(!self.dirty(), |ui| {
                         ui.menu_button("Importer", |ui| {
                             let choices = [
-                                ("Fichier (.dynx)…", "Configuration DynamX", vec!["dynx"]),
-                                ("Pack (.dnxpack)…", "Pack DynamX", vec!["dnxpack"]),
-                                ("ZIP (.zip)…", "Archive ZIP", vec!["zip"]),
-                                ("RAR (.rar)…", "Archive RAR", vec!["rar"]),
+                                ("Fichier (.dynx)", "Configuration DynamX", vec!["dynx"]),
+                                ("Pack (.dnxpack)", "Pack DynamX", vec!["dnxpack"]),
+                                ("ZIP (.zip)", "Archive ZIP", vec!["zip"]),
+                                ("RAR (.rar)", "Archive RAR", vec!["rar"]),
                             ];
-                            if ui.button("Dossier de pack…").clicked() {
+                            if ui.button("Dossier de pack").clicked() {
                                 ui.close();
                                 if let Some(path) = rfd::FileDialog::new()
                                     .set_title("Choisir le dossier du pack")
@@ -413,7 +413,7 @@ impl CpmApp {
                     if ui
                         .add_enabled(
                             self.pack.is_some() || self.editor.is_some(),
-                            egui::Button::new("Exporter…"),
+                            egui::Button::new("Exporter"),
                         )
                         .clicked()
                     {
