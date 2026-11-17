@@ -3,3 +3,6 @@ name = "cpm-core"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+
+[dependencies]
+zip = { version = "9.6", default-features = false, features = ["deflate"] }

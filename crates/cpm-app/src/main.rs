@@ -1,7 +1,9 @@
 mod editor;
 
+use cpm_core::Pack;
 use editor::Editor;
 use eframe::egui;
+use std::collections::BTreeMap;
 
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
@@ -20,6 +22,9 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct CpmApp {
     editor: Option<Editor>,
+    pack: Option<Pack>,
+    cached: BTreeMap<usize, Editor>,
+    selected_config: Option<usize>,
     open_path: String,
     save_path: String,
     selected_section: Option<usize>,
@@ -32,24 +37,66 @@ struct CpmApp {
 impl CpmApp {
     fn dirty(&self) -> bool {
         self.editor.as_ref().is_some_and(Editor::is_dirty)
+            || self.cached.values().any(Editor::is_dirty)
     }
 
     fn open(&mut self) {
-        match Editor::open(std::path::Path::new(&self.open_path)) {
-            Ok(editor) => {
-                let path = std::path::Path::new(&self.open_path);
-                let stem = path.file_stem().unwrap_or_default().to_string_lossy();
-                self.save_path = path
-                    .with_file_name(format!("{stem}_edited.dynx"))
-                    .display()
-                    .to_string();
-                self.editor = Some(editor);
-                self.selected_section = None;
-                self.status = "Fichier ouvert".into();
-                self.error = None;
+        match Pack::open(std::path::Path::new(&self.open_path)) {
+            Ok(pack) => {
+                self.pack = Some(pack);
+                self.editor = None;
+                self.cached.clear();
+                self.selected_config = None;
+                self.status = "Pack ouvert".into();
+                self.switch_config(0);
             }
             Err(error) => self.error = Some(error),
         }
+    }
+
+    fn switch_config(&mut self, index: usize) {
+        if self.selected_config == Some(index) {
+            return;
+        }
+        let Some(pack) = &self.pack else {
+            return;
+        };
+        let Some(path) = pack.configs().get(index) else {
+            return;
+        };
+        let next = if let Some(editor) = self.cached.remove(&index) {
+            editor
+        } else {
+            match pack.read_config(index) {
+                Ok(document) => Editor::from_document(document, path),
+                Err(error) => {
+                    self.error = Some(error);
+                    return;
+                }
+            }
+        };
+        let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let parent = if pack.source().is_dir() {
+            pack.source()
+        } else {
+            pack.source().parent().unwrap_or(std::path::Path::new("."))
+        };
+        self.save_path = parent
+            .join(if pack.source().is_dir() {
+                path.as_path()
+            } else {
+                std::path::Path::new(path.file_name().unwrap_or_default())
+            })
+            .with_file_name(format!("{stem}_edited.dynx"))
+            .display()
+            .to_string();
+        if let (Some(previous), Some(editor)) = (self.selected_config, self.editor.take()) {
+            self.cached.insert(previous, editor);
+        }
+        self.editor = Some(next);
+        self.selected_config = Some(index);
+        self.selected_section = None;
+        self.error = None;
     }
 }
 
@@ -75,16 +122,16 @@ impl CpmApp {
                 }
             });
             ui.horizontal_wrapped(|ui| {
-                ui.label("Fichier .dynx");
+                ui.label("Pack");
                 ui.add(
                     egui::TextEdit::singleline(&mut self.open_path)
                         .desired_width(500.0)
-                        .hint_text("Chemin du fichier à ouvrir"),
+                        .hint_text("Dossier de pack ou fichier .dnxpack"),
                 );
                 if ui
                     .add_enabled(
                         !self.dirty() && !self.open_path.is_empty(),
-                        egui::Button::new("Ouvrir"),
+                        egui::Button::new("Ouvrir le pack"),
                     )
                     .clicked()
                 {
@@ -116,7 +163,10 @@ impl CpmApp {
                     }
                 }
                 if ui
-                    .add_enabled(self.dirty(), egui::Button::new("Annuler les modifications"))
+                    .add_enabled(
+                        self.editor.as_ref().is_some_and(Editor::is_dirty),
+                        egui::Button::new("Annuler les modifications du fichier"),
+                    )
                     .clicked()
                 {
                     if let Some(editor) = &mut self.editor {
@@ -132,33 +182,66 @@ impl CpmApp {
                 ui.colored_label(egui::Color32::LIGHT_RED, error);
             }
             ui.label(&self.status);
-            ui.small("Première version : un fichier à la fois. Dossiers, archives et 3D à venir.");
+            ui.small("Navigation dans le pack : les modifications restent en mémoire. Enregistrement par copie de configuration ; export du pack complet et 3D à venir.");
         });
         egui::Panel::left("sections")
             .default_size(220.0)
             .show(ui, |ui| {
-                ui.heading("Sections");
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.selectable_value(&mut self.selected_section, None, "Racine");
-                    if let Some(editor) = &self.editor {
-                        for (index, section) in editor.document.sections().iter().enumerate() {
-                            ui.selectable_value(
-                                &mut self.selected_section,
-                                Some(index),
-                                format!("{} · ligne {}", section.name, section.line),
-                            );
+                ui.heading("Configurations");
+                let mut requested = None;
+                egui::ScrollArea::vertical()
+                    .id_salt("configs")
+                    .max_height(250.0)
+                    .show(ui, |ui| {
+                        if let Some(pack) = &self.pack {
+                            for (index, path) in pack.configs().iter().enumerate() {
+                                let dirty = if self.selected_config == Some(index) {
+                                    self.editor.as_ref().is_some_and(Editor::is_dirty)
+                                } else {
+                                    self.cached.get(&index).is_some_and(Editor::is_dirty)
+                                };
+                                let label =
+                                    format!("{}{}", if dirty { "● " } else { "" }, path.display());
+                                if ui
+                                    .selectable_label(self.selected_config == Some(index), label)
+                                    .clicked()
+                                {
+                                    requested = Some(index);
+                                }
+                            }
                         }
-                    }
-                });
+                    });
+                if let Some(index) = requested {
+                    self.switch_config(index);
+                }
+                ui.separator();
+                ui.heading("Sections");
+                egui::ScrollArea::vertical()
+                    .id_salt("sections")
+                    .show(ui, |ui| {
+                        ui.selectable_value(&mut self.selected_section, None, "Racine");
+                        if let Some(editor) = &self.editor {
+                            for (index, section) in editor.document.sections().iter().enumerate() {
+                                ui.selectable_value(
+                                    &mut self.selected_section,
+                                    Some(index),
+                                    format!("{} · ligne {}", section.name, section.line),
+                                );
+                            }
+                        }
+                    });
             });
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
-                ui.heading("Ouvrir une configuration");
-                ui.label("Indique le chemin d'un fichier .dynx dans la barre supérieure, puis clique sur Ouvrir.");
+                ui.heading("Ouvrir un pack DynamX");
+                ui.label("Indique le dossier contenant pack_info.dynx, ou le chemin d’une archive .dnxpack, puis ouvre le pack.");
                 ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
                 return;
             };
-            ui.heading("Propriétés");
+            if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
+                ui.heading(pack.configs()[index].display().to_string());
+            }
+            ui.label("Propriétés");
             if editor.is_pack_info {
                 match cpm_core::PackInfo::from_document(&editor.document) {
                     Ok(info) => { ui.label(format!("Pack : {}", info.pack_name)); }
@@ -212,11 +295,22 @@ mod tests {
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.draw(ui));
         assert!(!output.shapes.is_empty());
         output.textures_delta.clear();
-        let path = std::env::temp_dir().join(format!("cpm-ui-{}.dynx", std::process::id()));
-        std::fs::write(&path, "Name: Demo\nSeat_front{\n Driver: True\n}\n").unwrap();
+        let path = std::env::temp_dir().join(format!("cpm-ui-{}", std::process::id()));
+        std::fs::create_dir_all(&path).unwrap();
+        std::fs::write(
+            path.join("pack_info.dynx"),
+            "PackName: Test\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        std::fs::write(
+            path.join("vehicle_test.dynx"),
+            "Name: Demo\nSeat_front{\n Driver: True\n}\n",
+        )
+        .unwrap();
         app.open_path = path.display().to_string();
         app.open();
         assert!(app.error.is_none());
+        app.switch_config(1);
         for section in [None, Some(0)] {
             app.selected_section = section;
             let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.draw(ui));
@@ -233,6 +327,13 @@ mod tests {
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.draw(ui));
         assert!(!output.shapes.is_empty());
         output.textures_delta.clear();
-        std::fs::remove_file(path).unwrap();
+        app.switch_config(0);
+        assert!(app.dirty());
+        app.switch_config(1);
+        assert_eq!(
+            app.editor.as_ref().unwrap().document.properties()[0].value,
+            "Changed"
+        );
+        std::fs::remove_dir_all(path).unwrap();
     }
 }

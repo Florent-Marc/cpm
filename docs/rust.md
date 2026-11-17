@@ -17,31 +17,45 @@ cargo run -p cpm-core --example edit_config
 cargo run -p cpm-app
 ```
 
-Le core n'a aucune dépendance externe. L'application utilise egui via eframe
+Le core utilise `zip` pour les archives (Stored et Deflate). L'application utilise egui via eframe
 avec le moteur OpenGL (`glow`). `Cargo.lock` est conservé dans Git.
 Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 
 ## Interface egui
 
-`cargo run -p cpm-app` lance l'éditeur d'un fichier `.dynx` à la fois :
+`cargo run -p cpm-app` lance l'éditeur de packs :
 
-1. Saisir le chemin du fichier, puis cliquer sur **Ouvrir**.
-2. Choisir la racine ou une section à gauche, puis modifier ses valeurs.
-3. Consulter le texte résultant et les erreurs de métadonnées de pack.
-4. Indiquer un chemin libre et cliquer sur **Enregistrer une copie**.
+1. Saisir le chemin d'un dossier contenant `pack_info.dynx`, ou d'un fichier
+   `.dnxpack` / ZIP, puis cliquer sur **Ouvrir le pack**.
+2. Choisir une configuration dans la liste de gauche (chemins relatifs,
+   y compris les sous-dossiers), puis choisir sa section.
+3. Modifier ses valeurs. Les documents visités restent en mémoire et les
+   fichiers modifiés sont marqués d'un point dans la liste.
+4. Indiquer un chemin libre et cliquer sur **Enregistrer une copie** pour
+   sauvegarder la configuration sélectionnée.
 
-L'enregistrement refuse tout chemin existant. Pour une sauvegarde suivante,
-choisir un autre nom. Une erreur d'écriture peut laisser une copie incomplète,
-mais le fichier d'origine n'est pas modifié. **Annuler les modifications**
-restaure le dernier état enregistré. L'ouverture d'un autre fichier est bloquée
-si des modifications restent à enregistrer ; la fermeture demande de confirmer
-leur abandon. Les chemins sont saisis manuellement dans cette première version.
+La navigation ne perd pas les modifications des autres configurations.
+**Annuler les modifications du fichier** restaure uniquement le fichier actif
+à son dernier état enregistré. L'ouverture d'un autre pack est bloquée tant
+qu'un document visité reste modifié. La fermeture demande de confirmer l'abandon
+des modifications de l'ensemble des fichiers.
 
-Les dossiers de packs, les archives, le sélecteur de fichiers natif et la
-prévisualisation 3D ne sont pas encore intégrés.
+La sauvegarde crée une copie de la configuration active, pas un nouveau pack.
+Elle refuse tout chemin existant ; pour une sauvegarde suivante, choisir un autre
+nom. Une erreur d'écriture peut laisser une copie incomplète. Le dossier ou
+l'archive source n'est pas réécrit. Les chemins sont encore saisis manuellement.
+Le sélecteur natif, l'export du pack entier et la 3D restent à ajouter.
 
 ## Première API du core
 
+- `Pack::open` indexe récursivement les configurations `.dynx` d'un dossier
+  ou d'une archive, avec `pack_info.dynx` obligatoire à la racine.
+- `Pack::read_config` charge uniquement le document demandé ; un fichier
+  malformé ne bloque pas la navigation vers les autres.
+- Les archives sont lues sans extraction ; les chemins non sûrs, les doublons
+  de configurations et les liens de configurations en archive sont refusés.
+  Les liens symboliques des dossiers sont ignorés, et une configuration est
+  limitée à 8 Mio décompressés. Les ressources ne sont pas chargées en mémoire.
 - `Document::parse` et `read_from` lisent une configuration UTF-8.
 - `properties()` expose les clés, valeurs, sections et numéros de ligne.
 - `sections()` expose les noms et parents des sections ; leurs indices sont
@@ -73,8 +87,7 @@ des packs réels et toutes les extensions d'addons reste à vérifier. Le lecteu
 ne valide pas encore la contrainte des frontières de sections dans les
 commentaires multilignes. Il ne traite pas les commentaires en fin de propriété.
 
-Cette première version ne charge pas un dossier ou une archive `.dnxpack`,
-n'interprète pas encore les champs des véhicules et ne gère pas l'ajout ou la
+Cette première version n'interprète pas encore les champs des véhicules et ne gère pas l'ajout ou la
 suppression de propriétés. La validation des versions, des références et des
 types de valeurs reste à implémenter. `write_to` écrit dans un flux : l'appelant
 doit gérer les sauvegardes atomiques et les copies de secours sur disque.
@@ -82,6 +95,6 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 ## Prochaines étapes
 
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
-2. Charger les dossiers de packs et détecter leurs fichiers de configuration.
+2. Ajouter un sélecteur de dossier/archive et la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
-4. Ajouter les archives avec contrôle des chemins, puis l'interface et la 3D.
+4. Ajouter un export du pack complet et la prévisualisation 3D.

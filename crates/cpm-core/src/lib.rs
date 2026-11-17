@@ -4,7 +4,9 @@
 //! Aucune dépendance à une interface graphique.
 
 mod document;
+mod pack;
 mod pack_info;
+pub use pack::Pack;
 
 pub use document::{Document, EditError, ParseError, Property, ReadError, Section};
 pub use pack_info::{PackInfo, ValidationError};

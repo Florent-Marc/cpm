@@ -1,5 +1,7 @@
 use cpm_core::Document;
-use std::fs::{File, OpenOptions};
+#[cfg(test)]
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::path::Path;
 
 pub struct Editor {
@@ -10,23 +12,28 @@ pub struct Editor {
 }
 
 impl Editor {
+    #[cfg(test)]
     pub fn open(path: &Path) -> Result<Self, String> {
         let file = File::open(path).map_err(|error| format!("Ouverture : {error}"))?;
         let document = Document::read_from(file).map_err(|error| error.to_string())?;
+        Ok(Self::from_document(document, path))
+    }
+
+    pub fn from_document(document: Document, path: &Path) -> Self {
         let values = document
             .properties()
             .iter()
             .map(|p| p.value.clone())
             .collect();
         let saved_source = document.source().to_owned();
-        Ok(Self {
+        Self {
             document,
             values,
             saved_source,
             is_pack_info: path
                 .file_name()
                 .is_some_and(|name| name == "pack_info.dynx"),
-        })
+        }
     }
     pub fn is_dirty(&self) -> bool {
         self.document.source() != self.saved_source
