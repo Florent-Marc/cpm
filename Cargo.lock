@@ -423,6 +423,7 @@ dependencies = [
  "rfd",
  "semver",
  "serde",
+ "serde_json",
  "sha2",
  "tempfile",
  "ureq",
@@ -433,6 +434,9 @@ dependencies = [
 name = "cpm-core"
 version = "0.2.0"
 dependencies = [
+ "glob",
+ "serde",
+ "serde_json",
  "tempfile",
  "unrar",
  "zip",
@@ -973,6 +977,12 @@ dependencies = [
  "smallvec",
  "vello_common",
 ]
+
+[[package]]
+name = "glob"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "glow"

@@ -54,7 +54,12 @@ impl ExportDialog {
     pub fn busy(&self) -> bool {
         self.worker.is_some()
     }
-    pub fn start(&mut self, pack: Pack, documents: BTreeMap<PathBuf, Document>) {
+    pub fn start(
+        &mut self,
+        pack: Pack,
+        documents: BTreeMap<PathBuf, Document>,
+        catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
+    ) {
         if self.busy() {
             return;
         }
@@ -63,7 +68,7 @@ impl ExportDialog {
         self.worker = Some(receiver);
         self.error = None;
         std::thread::spawn(move || {
-            let result = pack.export(&options, &documents);
+            let result = pack.export_with_catalog(&options, &documents, &catalog);
             let _ = sender.send(result);
         });
     }

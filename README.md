@@ -62,3 +62,5 @@ règles de validation et la publication des releases utilisées par l'updater.
 ## Auteur
 
 [@MK](https://github.com/Florent-Marc)
+
+Le bouton **Propriétés** permet de personnaliser les types, obligations, sévérités et valeurs par défaut. Les définitions sont enregistrées dans `properties/` à côté de l’exécutable ; des fichiers JSON supplémentaires permettent de prendre en charge les addons. Voir [le guide](docs/rust.md#catalogue-de-propriétés-et-addons).

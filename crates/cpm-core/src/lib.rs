@@ -19,3 +19,9 @@ pub use export::{ExportFormat, ExportOptions, PackMetadata};
 
 mod parameters;
 pub use parameters::{configuration_issues, has_parameter, parameter_catalog, ParameterSpec};
+
+mod catalog;
+pub use catalog::{
+    validate_catalog_file, CatalogFile, CatalogLoad, CatalogRule, CatalogStore, Diagnostic,
+    NamedCatalogFile, ParameterCatalog, ParameterDefinition, Severity, VariableType,
+};

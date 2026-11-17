@@ -276,3 +276,40 @@ utilisées par Rust (logo, icône Windows et script de mise à jour) restent dan
 Java et Maven ne sont nécessaires ni pour compiler ni pour lancer CPM Rust.
 L'ancienne implémentation reste consultable dans l'historique Git et dans la
 branche Java ; aucun historique n'a été réécrit lors de ce nettoyage.
+
+
+## Catalogue de propriétés et addons
+
+Le bouton **Propriétés**, à côté de File, ouvre l’éditeur des définitions utilisées par les boutons `+`, la validation et l’export. Choisir un fichier de catalogue, une règle de fichier/section puis un paramètre pour modifier son type, son caractère obligatoire, sa sévérité et sa valeur par défaut facultative. Les types disponibles comprennent texte, entier, décimal, booléen, vecteurs, quaternion, ressource, liste et choix prédéfinis. Un survol du nom d’un paramètre dans l’éditeur principal affiche sa définition.
+
+**Enregistrer et appliquer** écrit les définitions et revalide les configurations ouvertes et en mémoire. **Fermer sans appliquer** abandonne le brouillon. Une erreur bloque l’export et colore la configuration en rouge ; un avertissement est affiché en jaune dans la configuration et ne bloque pas l’export. Ignorer désactive le diagnostic de ce paramètre. Un paramètre facultatif reste contrôlé s’il est présent. Une valeur par défaut sert de suggestion au bouton `+` ; elle ne modifie jamais automatiquement un pack.
+
+Au premier lancement, CPM crée `properties/dynamx.json` à côté de l’exécutable avec le catalogue DynamX actuellement pris en charge. Le dossier doit être accessible en écriture. Tous les autres fichiers `.json` de ce dossier sont chargés comme catalogues d’addons : `dynamx.json` en premier, puis les addons par ordre alphabétique. À nom de paramètre et portée identiques, la dernière définition remplace entièrement la précédente. Les motifs de fichier portent sur le nom seul, sans chemin ; les motifs de section et de parent respectent la casse. L’absence de `section_pattern` cible la racine du fichier.
+
+On peut créer un fichier addon dans la fenêtre ou y importer un JSON. Après ajout manuel dans le dossier, utiliser **Recharger le dossier** puis **Enregistrer et appliquer**, ou redémarrer CPM. Les fichiers invalides sont signalés et ignorés sans être effacés. Un catalogue DynamX invalide entraîne un repli en mémoire sur les définitions intégrées. Le remplacement de l’exécutable lors d’une mise à jour conserve ce dossier.
+
+Exemple de fichier `properties/mon-addon.json` :
+
+```json
+{
+  "schema_version": 1,
+  "label": "Mon addon",
+  "rules": [
+    {
+      "file_pattern": "vehicle_*.dynx",
+      "parameters": [
+        {
+          "name": "AddonPower",
+          "variable_type": "decimal",
+          "required": true,
+          "severity": "warning",
+          "allow_empty": false,
+          "default_value": "1.0"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Les valeurs de sévérité JSON sont `ignore`, `warning` et `error`. Les types sont `text`, `integer`, `decimal`, `boolean`, `vector2`, `vector3`, `quaternion`, `resource`, `enumeration` et `list`. Pour une énumération, ajouter `choices` (tableau de chaînes). `aliases` permet d’accepter d’autres noms pour un même paramètre. Pour une section, ajouter `section_pattern`, par exemple `Point_*`, et éventuellement `parent_pattern` pour limiter au parent direct. Les champs inconnus et versions de schéma non prises en charge sont refusés pour éviter les fautes silencieuses.

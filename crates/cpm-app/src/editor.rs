@@ -8,6 +8,7 @@ pub struct Editor {
     pub values: Vec<String>,
     pub is_pack_info: bool,
     pub path: std::path::PathBuf,
+    pub catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
     pub custom_key: String,
     pub custom_value: String,
     pub custom_parameter: Option<Option<usize>>,
@@ -35,6 +36,7 @@ impl Editor {
             values,
             saved_source,
             path: path.to_owned(),
+            catalog: std::sync::Arc::default(),
             custom_key: String::new(),
             custom_value: String::new(),
             custom_parameter: None,
@@ -75,7 +77,16 @@ impl Editor {
         Ok(())
     }
     pub fn issues(&self) -> Vec<String> {
-        cpm_core::configuration_issues(&self.path, &self.document)
+        self.catalog.errors(&self.path, &self.document)
+    }
+
+    pub fn warnings(&self) -> Vec<String> {
+        self.catalog
+            .diagnostics(&self.path, &self.document)
+            .into_iter()
+            .filter(|d| d.severity == cpm_core::Severity::Warning)
+            .map(|d| d.to_string())
+            .collect()
     }
 
     pub fn is_dirty(&self) -> bool {

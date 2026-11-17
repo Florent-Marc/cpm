@@ -1,4 +1,4 @@
-use crate::{Document, Pack, PackInfo};
+use crate::{Document, Pack, ParameterCatalog};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{self, Write};
@@ -103,6 +103,15 @@ impl Pack {
         options: &ExportOptions,
         documents: &BTreeMap<PathBuf, Document>,
     ) -> Result<PathBuf, String> {
+        self.export_with_catalog(options, documents, &ParameterCatalog::builtin())
+    }
+
+    pub fn export_with_catalog(
+        &self,
+        options: &ExportOptions,
+        documents: &BTreeMap<PathBuf, Document>,
+        catalog: &ParameterCatalog,
+    ) -> Result<PathBuf, String> {
         let parent =
             fs::canonicalize(&options.destination).map_err(|e| format!("Destination : {e}"))?;
         if !parent.is_dir() {
@@ -155,13 +164,6 @@ impl Pack {
         {
             set_root(&mut info, "Description", &options.metadata.description)?;
         }
-        PackInfo::from_document(&info).map_err(|errors| {
-            errors
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("; ")
-        })?;
         fs::write(&info_path, info.source()).map_err(|e| e.to_string())?;
         if !old_name.is_empty() && old_name != options.metadata.name.trim() {
             rename_known_references(self, &content, &old_name, options.metadata.name.trim())?;
@@ -171,7 +173,8 @@ impl Pack {
             match Document::read_from(File::open(content.join(path)).map_err(|e| e.to_string())?) {
                 Ok(document) => {
                     validation_errors.extend(
-                        crate::configuration_issues(path, &document)
+                        catalog
+                            .errors(path, &document)
                             .into_iter()
                             .map(|issue| format!("{} : {issue}", path.display())),
                     );

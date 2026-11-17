@@ -1,6 +1,7 @@
 mod editor;
 mod export_dialog;
 mod navigation;
+mod properties_editor;
 mod update;
 
 use cpm_core::Pack;
@@ -24,6 +25,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(|_| {
             let mut app = CpmApp::default();
+            app.load_properties();
             app.updater.check();
             Ok(Box::new(app))
         }),
@@ -32,6 +34,8 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct CpmApp {
+    catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
+    properties_editor: Option<properties_editor::PropertiesEditor>,
     editor: Option<Editor>,
     pack: Option<Pack>,
     cached: BTreeMap<usize, Editor>,
@@ -52,6 +56,34 @@ struct CpmApp {
 }
 
 impl CpmApp {
+    fn properties_directory() -> Result<std::path::PathBuf, String> {
+        Ok(std::env::current_exe()
+            .map_err(|e| e.to_string())?
+            .parent()
+            .ok_or("Dossier introuvable")?
+            .join("properties"))
+    }
+    fn load_properties(&mut self) {
+        match Self::properties_directory()
+            .and_then(|directory| (cpm_core::CatalogStore { directory }).load())
+        {
+            Ok(loaded) => {
+                self.apply_catalog(loaded.catalog);
+                self.error = (!loaded.warnings.is_empty()).then(|| loaded.warnings.join("\n"));
+            }
+            Err(error) => self.error = Some(format!("Catalogue : {error}")),
+        }
+    }
+    fn apply_catalog(&mut self, catalog: cpm_core::ParameterCatalog) {
+        self.catalog = std::sync::Arc::new(catalog);
+        if let Some(editor) = &mut self.editor {
+            editor.catalog = self.catalog.clone();
+        }
+        for editor in self.cached.values_mut() {
+            editor.catalog = self.catalog.clone();
+        }
+        self.start_validation();
+    }
     fn dirty(&self) -> bool {
         self.editor.as_ref().is_some_and(Editor::is_dirty)
             || self.cached.values().any(Editor::is_dirty)
@@ -77,7 +109,8 @@ impl CpmApp {
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("dynx"))
         {
             match Editor::open(path) {
-                Ok(editor) => {
+                Ok(mut editor) => {
+                    editor.catalog = self.catalog.clone();
                     self.editor = Some(editor);
                     self.pack = None;
                     self.validation.clear();
@@ -116,12 +149,13 @@ impl CpmApp {
         let Some(pack) = self.pack.clone() else {
             return;
         };
+        let catalog = self.catalog.clone();
         let (sender, receiver) = std::sync::mpsc::channel();
         self.validation_worker = Some(receiver);
         std::thread::spawn(move || {
             for (index, path) in pack.configs().iter().enumerate() {
                 let issues = match pack.read_config(index) {
-                    Ok(document) => cpm_core::configuration_issues(path, &document),
+                    Ok(document) => catalog.errors(path, &document),
                     Err(error) => vec![error],
                 };
                 if sender.send((index, issues)).is_err() {
@@ -263,7 +297,7 @@ impl CpmApp {
         let Some(path) = pack.configs().get(index) else {
             return;
         };
-        let next = if let Some(editor) = self.cached.remove(&index) {
+        let mut next = if let Some(editor) = self.cached.remove(&index) {
             editor
         } else {
             match pack.read_config(index) {
@@ -277,6 +311,7 @@ impl CpmApp {
         if let (Some(previous), Some(editor)) = (self.selected_config, self.editor.take()) {
             self.cached.insert(previous, editor);
         }
+        next.catalog = self.catalog.clone();
         self.editor = Some(next);
         self.selected_config = Some(index);
         self.selected_section = None;
@@ -333,7 +368,11 @@ impl CpmApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.confirm_close = true;
         }
-        if self.export_dialog.is_some() || updating || self.restarting {
+        if self.export_dialog.is_some()
+            || self.properties_editor.is_some()
+            || updating
+            || self.restarting
+        {
             ui.disable();
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
@@ -410,6 +449,12 @@ impl CpmApp {
                         ui.close();
                     }
                 });
+                if ui.button("Propriétés").clicked() {
+                    match Self::properties_directory() {
+                        Ok(directory) => self.properties_editor = Some(properties_editor::PropertiesEditor::new(directory, &self.catalog)),
+                        Err(error) => self.error = Some(error),
+                    }
+                }
                 ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/");
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
@@ -598,15 +643,12 @@ impl CpmApp {
             ui.label("Propriétés");
             let issues = editor.issues();
             if !issues.is_empty() {
-                ui.colored_label(egui::Color32::LIGHT_RED, format!("{} problème(s) de paramètres obligatoires", issues.len()))
+                ui.colored_label(egui::Color32::LIGHT_RED, format!("{} erreur(s) de paramètres", issues.len()))
                     .on_hover_text(issues.join("\n"));
             }
-            if editor.is_pack_info {
-                match cpm_core::PackInfo::from_document(&editor.document) {
-                    Ok(info) => { ui.label(format!("Pack : {}", info.pack_name)); }
-                    Err(errors) => { for error in errors { ui.colored_label(egui::Color32::YELLOW, error.to_string()); } }
-                }
-            }
+            if editor.is_pack_info { ui.label(format!("Pack : {}", cpm_core::PackMetadata::from_document(&editor.document).name)); }
+            let warnings = editor.warnings();
+            if !warnings.is_empty() { ui.colored_label(egui::Color32::YELLOW, format!("{} avertissement(s)", warnings.len())).on_hover_text(warnings.join("\n")); }
             let document_id = (&self.open_path, self.selected_config);
             let jump = self.pending_scroll.take();
             ui.push_id(document_id, |ui| {
@@ -633,7 +675,7 @@ impl CpmApp {
                 match dialog.show(&ctx) {
                     export_dialog::Action::Start => {
                         if let Some(pack) = &self.pack {
-                            dialog.start(pack.clone(), self.documents());
+                            dialog.start(pack.clone(), self.documents(), self.catalog.clone());
                             ctx.request_repaint_after(std::time::Duration::from_millis(100));
                         }
                     }
@@ -643,6 +685,17 @@ impl CpmApp {
             }
             if keep {
                 self.export_dialog = Some(dialog);
+            }
+        }
+        if let Some(mut window) = self.properties_editor.take() {
+            match window.show(&ctx) {
+                properties_editor::Action::None => self.properties_editor = Some(window),
+                properties_editor::Action::Close => {}
+                properties_editor::Action::Applied(catalog, warnings) => {
+                    self.apply_catalog(catalog);
+                    self.status = "Propriétés enregistrées et appliquées".into();
+                    self.error = (!warnings.is_empty()).then(|| warnings.join("\n"));
+                }
             }
         }
         if self.confirm_close {
@@ -817,22 +870,27 @@ fn show_properties(
     ui.push_id(("add-parameter", section), |ui| {
         ui.menu_button("+", |ui| {
             ui.label("Ajouter un paramètre");
-            let mut specs = cpm_core::parameter_catalog(&editor.path, &editor.document, section);
+            let mut specs = editor
+                .catalog
+                .parameters(&editor.path, &editor.document, section);
             specs.sort_by_key(|spec| !spec.required);
             let mut available = false;
             for spec in specs {
-                if cpm_core::has_parameter(&editor.document, section, &spec) {
+                if spec.is_present(&editor.document, section) {
                     continue;
                 }
                 available = true;
                 let label = if spec.required {
-                    format!("{} * obligatoire", spec.key)
+                    format!("{} * obligatoire", spec.name)
                 } else {
-                    spec.key.to_owned()
+                    spec.name.to_owned()
                 };
                 if ui.button(label).clicked() {
-                    editor.pending_add =
-                        Some((section, spec.key.to_owned(), spec.default_value.to_owned()));
+                    editor.pending_add = Some((
+                        section,
+                        spec.name.to_owned(),
+                        spec.default_value.unwrap_or_default(),
+                    ));
                     ui.close();
                 }
             }
@@ -862,8 +920,28 @@ fn show_properties(
                 {
                     editor.pending_delete = Some(index);
                 }
-                ui.label(&property.key)
-                    .on_hover_text(format!("Ligne {}", property.line));
+                let definition = editor
+                    .catalog
+                    .parameters(&editor.path, &editor.document, section)
+                    .into_iter()
+                    .find(|p| p.name == property.key || p.aliases.contains(&property.key));
+                let hint = definition
+                    .map(|p| {
+                        format!(
+                            "Ligne {} · {} · {} · {}\nDéfaut : {}",
+                            property.line,
+                            p.variable_type.label(),
+                            if p.required {
+                                "obligatoire"
+                            } else {
+                                "facultatif"
+                            },
+                            p.severity.label(),
+                            p.default_value.as_deref().unwrap_or("aucun")
+                        )
+                    })
+                    .unwrap_or_else(|| format!("Ligne {} · paramètre personnalisé", property.line));
+                ui.label(&property.key).on_hover_text(hint);
                 if ui
                     .add(
                         egui::TextEdit::singleline(&mut editor.values[index])
