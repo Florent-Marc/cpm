@@ -47,6 +47,7 @@ pub struct Section {
     pub name: String,
     pub parent: Option<usize>,
     pub line: usize,
+    closing_offset: usize,
 }
 
 /// Propriété identifiée par sa position dans `Document::properties()`.
@@ -64,6 +65,9 @@ pub struct Property {
 pub enum EditError {
     UnknownProperty(usize),
     MultilineValue,
+    InvalidKey,
+    UnknownSection(usize),
+    DuplicateProperty,
 }
 
 impl fmt::Display for EditError {
@@ -71,6 +75,9 @@ impl fmt::Display for EditError {
         match self {
             Self::UnknownProperty(index) => write!(f, "propriété inconnue : {index}"),
             Self::MultilineValue => write!(f, "une valeur doit tenir sur une seule ligne"),
+            Self::InvalidKey => write!(f, "nom de paramètre invalide"),
+            Self::UnknownSection(index) => write!(f, "section inconnue : {index}"),
+            Self::DuplicateProperty => write!(f, "ce paramètre existe déjà dans cette section"),
         }
     }
 }
@@ -94,7 +101,7 @@ impl Document {
             properties: Vec::new(),
             sections: Vec::new(),
         };
-        let mut stack = Vec::new();
+        let mut stack: Vec<usize> = Vec::new();
         let mut comment_start = None;
         let mut offset = 0;
         for (index, raw) in source.split_inclusive('\n').enumerate() {
@@ -118,7 +125,9 @@ impl Document {
             } else if text.is_empty() || text.starts_with("//") {
                 // La source conserve les lignes sans contenu sémantique.
             } else if text == "}" {
-                if stack.pop().is_none() {
+                if let Some(id) = stack.pop() {
+                    document.sections[id].closing_offset = offset;
+                } else {
                     return Err(error("accolade fermante sans section ouverte"));
                 }
             } else if let Some((key, value)) = text.split_once(':') {
@@ -150,6 +159,7 @@ impl Document {
                     name: name.to_owned(),
                     parent: stack.last().copied(),
                     line,
+                    closing_offset: 0,
                 });
                 stack.push(id);
             } else {
@@ -194,6 +204,58 @@ impl Document {
     /// Écrit le texte courant. L'appelant gère la sauvegarde atomique sur disque.
     pub fn write_to(&self, mut writer: impl Write) -> io::Result<()> {
         writer.write_all(self.source.as_bytes())
+    }
+
+    /// Ajoute un paramètre sans reconstruire le document ni modifier les autres
+    /// lignes. Les indices de propriétés peuvent changer après l'insertion.
+    pub fn add_property(
+        &mut self,
+        section: Option<usize>,
+        key: &str,
+        value: &str,
+    ) -> Result<(), EditError> {
+        if key.is_empty()
+            || !key
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c))
+        {
+            return Err(EditError::InvalidKey);
+        }
+        if value.contains(['\r', '\n']) {
+            return Err(EditError::MultilineValue);
+        }
+        if self
+            .properties
+            .iter()
+            .any(|p| p.section == section && p.key == key)
+        {
+            return Err(EditError::DuplicateProperty);
+        }
+        let newline = if self.source.contains("\r\n") {
+            "\r\n"
+        } else {
+            "\n"
+        };
+        let mut source = self.source.clone();
+        if let Some(id) = section {
+            let section = self.sections.get(id).ok_or(EditError::UnknownSection(id))?;
+            let closing = &self.source[section.closing_offset..];
+            let indent: String = closing
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .collect();
+            source.insert_str(
+                section.closing_offset,
+                &format!("{indent}    {key}: {}{newline}", value.trim()),
+            );
+        } else {
+            if !source.is_empty() && !source.ends_with('\n') {
+                source.push_str(newline);
+            }
+            source.push_str(&format!("{key}: {}{newline}", value.trim()));
+        }
+        *self = Self::parse(&source).expect("insertion contrôlée d'un paramètre");
+        Ok(())
     }
 
     /// Remplace seulement la valeur indiquée, même si une clé apparaît plusieurs

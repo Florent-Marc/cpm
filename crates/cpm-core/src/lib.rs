@@ -16,3 +16,6 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 mod export;
 pub use export::{ExportFormat, ExportOptions, PackMetadata};
+
+mod parameters;
+pub use parameters::{configuration_issues, has_parameter, parameter_catalog, ParameterSpec};

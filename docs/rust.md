@@ -39,21 +39,24 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
    fichier restent inchangés, y compris pour les doublons.
 4. Cliquer sur une section à gauche ouvre son groupe et sa section au centre,
    puis fait défiler jusqu'à elle. **Racine** rejoint les propriétés générales.
-5. Modifier les valeurs, puis indiquer un chemin libre et utiliser
-   **Enregistrer une copie** pour la configuration sélectionnée, ou **File → Exporter** pour le pack entier.
+5. Utiliser le petit **+** au-dessus des propriétés de la racine ou d'une
+   section pour insérer un paramètre absent. Les obligatoires sont proposés
+   en premier ; les paramètres déjà présents sont masqués. Le champ personnalisé
+   accepte les paramètres d'addons.
+6. Utiliser **File → Exporter** pour enregistrer le pack entier. Pour un fichier
+   `.dynx` isolé, cette commande ouvre un sélecteur de fichier de sortie.
+7. **Wiki**, à côté de **File**, ouvre directement la documentation DynamX
+   dans le navigateur par défaut.
 
 La navigation ne perd pas les modifications des autres configurations.
-**Annuler les modifications du fichier** restaure uniquement le fichier actif
+**File → Annuler les modifications du fichier** restaure uniquement le fichier actif
 à son dernier état enregistré. L'ouverture d'un autre fichier ou pack est bloquée tant
 qu'un document visité reste modifié. La fermeture demande de confirmer l'abandon
 des modifications de l'ensemble des fichiers.
 
-La sauvegarde crée une copie de la configuration active, pas un nouveau pack.
-Elle refuse tout chemin existant ; pour une sauvegarde suivante, choisir un autre
-nom. Une erreur d'écriture peut laisser une copie incomplète. Le dossier ou
-l'archive source n'est pas réécrit par cette commande. Le chemin de sauvegarde
-individuelle reste saisi manuellement. L'export du pack complet est décrit ci-dessous ;
-la 3D reste à ajouter.
+La ligne « Nouvelle copie » a été retirée de la fenêtre principale. L'export
+individuel refuse d'écraser un fichier existant. L'export du pack entier et son
+option de remplacement sont décrits ci-dessous.
 
 ## Première API du core
 
@@ -72,6 +75,12 @@ la 3D reste à ajouter.
 - `set_value(index, value)` modifie une propriété existante par son indice.
   Les indices restent stables après modification. Les valeurs multilignes
   sont refusées ; les espaces externes de la nouvelle valeur sont retirés.
+- `add_property(section, key, value)` insère une propriété à la racine ou avant
+  la fermeture d'une section, sans déplacer les lignes existantes. Les doublons
+  dans la même section et les noms invalides sont refusés. Les indices de
+  propriétés peuvent changer après insertion : rafraîchir les valeurs affichées.
+- `parameter_catalog` expose les paramètres connus et leurs valeurs proposées ;
+  `configuration_issues` vérifie leurs champs obligatoires dans la bonne portée.
 - `source()` et `write_to` restituent le texte, avec ses commentaires, son
   ordre, ses champs inconnus, son BOM éventuel et ses fins de ligne.
 - `PackInfo::from_document` vérifie la présence de `PackName` et
@@ -96,9 +105,11 @@ des packs réels et toutes les extensions d'addons reste à vérifier. Le lecteu
 ne valide pas encore la contrainte des frontières de sections dans les
 commentaires multilignes. Il ne traite pas les commentaires en fin de propriété.
 
-Cette première version n'interprète pas encore les champs des véhicules et ne gère pas l'ajout ou la
-suppression de propriétés. La validation des versions, des références et des
-types de valeurs reste à implémenter. `write_to` écrit dans un flux : l'appelant
+Le catalogue initial couvre les métadonnées, les champs de base des items,
+blocs, armures et véhicules, les moteurs, roues, ainsi que des sections usuelles
+(points, rapports, sièges, formes, sons et addons requis). Il n'est pas un
+schéma exhaustif pour toutes les extensions DynamX. La suppression de propriétés,
+la validation des plages numériques et des références reste à implémenter. `write_to` écrit dans un flux : l'appelant
 doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 
 ## Prochaines étapes
@@ -183,3 +194,28 @@ concurrente du disque par une autre application.
 Après un export réussi, CPM ouvre le pack exporté, dont les modifications sont
 alors enregistrées. L'export du pack entier n'est pas proposé pour un fichier
 `.dynx` isolé : ouvrir le dossier ou l'archive du pack pour l'utiliser.
+
+## Paramètres obligatoires et signalement
+
+À l'ouverture d'un pack, les configurations sont vérifiées en arrière-plan.
+Un nom de fichier et sa catégorie apparaissent en rouge si une configuration
+est illisible ou si un paramètre obligatoire connu manque, est vide (sauf
+texte descriptif autorisé vide) ou est dupliqué. Le survol du fichier affiche
+son chemin et les raisons. Pour un document ouvert, le signalement reflète
+immédiatement les modifications en mémoire.
+
+Les mêmes règles bloquent l'export, avant installation de la sortie. Ajouter
+un champ obligatoire vide ne suffit pas : il faut renseigner sa valeur.
+`DcFileVersion` est proposé avec `12.5.0`, conformément à l'exemple du wiki.
+Les propriétés facultatives absentes et les paramètres inconnus d'addons
+ne sont pas signalés uniquement parce qu'ils sont inconnus.
+
+Références du catalogue :
+
+- [Métadonnées](https://wiki.dynamx.fr/fr/dynamx/DynamXPackBase/)
+- [Véhicules et sections](https://wiki.dynamx.fr/fr/dynamx/vehicles/ModularVehicleInfo/)
+- [Moteurs et sons](https://wiki.dynamx.fr/fr/dynamx/vehicles/EngineInfo/)
+- [Roues](https://wiki.dynamx.fr/fr/dynamx/vehicles/WheelInfo/)
+- [Items](https://wiki.dynamx.fr/fr/dynamx/DynamXItems/)
+- [Blocs](https://wiki.dynamx.fr/fr/dynamx/DynamXPropsAndBlocks/)
+- [Armures](https://wiki.dynamx.fr/fr/dynamx/DynamXArmors/)

@@ -13,8 +13,12 @@ fn fixture() -> tempfile::TempDir {
         "// metadata\r\nPackName: Original\r\nDcFileVersion: 12.5.0\r\nCustom: keep\r\n",
     )
     .unwrap();
-    fs::write(source.join("vehicle_car.dynx"), "Name: Car\nDefaultEngine: Original.engine_car\nWheel_front{\n AttachedWheel: Original.wheel_car\n}\n").unwrap();
-    fs::write(source.join("engine_car.dynx"), "Power: 1000\n").unwrap();
+    fs::write(source.join("vehicle_car.dynx"), "Name: Car\nDescription: Test\nModel: obj/car.obj\nCenterOfGravityOffset: 0 0 0\nDragCoefficient: 0.3\nEmptyMass: 1500\nDefaultEngine: Original.engine_car\nWheel_front{\n AttachedWheel: Original.wheel_car\n DrivingWheel: true\n IsRight: false\n IsSteerable: true\n MaxTurn: 0.7\n Position: 0 0 0\n}\n").unwrap();
+    fs::write(
+        source.join("engine_car.dynx"),
+        "Power: 1000\nMaxRPM: 6000\nBraking: 100\n",
+    )
+    .unwrap();
     fs::write(source.join("assets/model.obj"), [0, 1, 255, 42]).unwrap();
     temp
 }
@@ -52,10 +56,10 @@ fn exports_all_formats_with_assets_metadata_and_every_in_memory_edit() {
     let pack = Pack::open(&temp.path().join("source")).unwrap();
     let original = fs::read(pack.source().join("pack_info.dynx")).unwrap();
     let mut documents = BTreeMap::new();
-    documents.insert(PathBuf::from("vehicle_car.dynx"), Document::parse("Name: Edited\nDefaultEngine: Original.engine_car\nWheel_front{\n AttachedWheel: Original.wheel_car\n}\n").unwrap());
+    documents.insert(PathBuf::from("vehicle_car.dynx"), Document::parse("Name: Edited\nDescription: Test\nModel: obj/car.obj\nCenterOfGravityOffset: 0 0 0\nDragCoefficient: 0.3\nEmptyMass: 1500\nDefaultEngine: Original.engine_car\nWheel_front{\n AttachedWheel: Original.wheel_car\n DrivingWheel: true\n IsRight: false\n IsSteerable: true\n MaxTurn: 0.7\n Position: 0 0 0\n}\n").unwrap());
     documents.insert(
         PathBuf::from("engine_car.dynx"),
-        Document::parse("Power: 3000\n").unwrap(),
+        Document::parse("Power: 3000\nMaxRPM: 6000\nBraking: 100\n").unwrap(),
     );
     for format in [
         ExportFormat::Folder,
@@ -80,7 +84,10 @@ fn exports_all_formats_with_assets_metadata_and_every_in_memory_edit() {
         assert!(vehicle.contains("Name: Edited"));
         assert!(vehicle.contains("DefaultEngine: Renamed.engine_car"));
         assert!(vehicle.contains("AttachedWheel: Renamed.wheel_car"));
-        assert_eq!(read_resource(&output, "engine_car.dynx"), b"Power: 3000\n");
+        assert_eq!(
+            read_resource(&output, "engine_car.dynx"),
+            b"Power: 3000\nMaxRPM: 6000\nBraking: 100\n"
+        );
         assert_eq!(
             read_resource(&output, "assets/model.obj"),
             vec![0, 1, 255, 42]

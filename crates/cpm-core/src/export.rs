@@ -166,6 +166,25 @@ impl Pack {
         if !old_name.is_empty() && old_name != options.metadata.name.trim() {
             rename_known_references(self, &content, &old_name, options.metadata.name.trim())?;
         }
+        let mut validation_errors = Vec::new();
+        for path in self.configs() {
+            match Document::read_from(File::open(content.join(path)).map_err(|e| e.to_string())?) {
+                Ok(document) => {
+                    validation_errors.extend(
+                        crate::configuration_issues(path, &document)
+                            .into_iter()
+                            .map(|issue| format!("{} : {issue}", path.display())),
+                    );
+                }
+                Err(error) => validation_errors.push(format!("{} : {error}", path.display())),
+            }
+        }
+        if !validation_errors.is_empty() {
+            return Err(format!(
+                "Export bloqué : corriger les configurations en rouge.\n{}",
+                validation_errors.join("\n")
+            ));
+        }
         let prepared = if options.format == ExportFormat::Folder {
             content
         } else {

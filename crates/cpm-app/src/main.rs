@@ -33,7 +33,6 @@ struct CpmApp {
     selected_config: Option<usize>,
     open_path: String,
     standalone_path: Option<std::path::PathBuf>,
-    save_path: String,
     selected_section: Option<usize>,
     pending_scroll: Option<Option<usize>>,
     status: String,
@@ -41,6 +40,8 @@ struct CpmApp {
     confirm_close: bool,
     allow_close: bool,
     export_dialog: Option<export_dialog::ExportDialog>,
+    validation: BTreeMap<usize, Vec<String>>,
+    validation_worker: Option<std::sync::mpsc::Receiver<(usize, Vec<String>)>>,
 }
 
 impl CpmApp {
@@ -70,13 +71,10 @@ impl CpmApp {
         {
             match Editor::open(path) {
                 Ok(editor) => {
-                    let stem = path.file_stem().unwrap_or_default().to_string_lossy();
-                    self.save_path = path
-                        .with_file_name(format!("{stem}_edited.dynx"))
-                        .display()
-                        .to_string();
                     self.editor = Some(editor);
                     self.pack = None;
+                    self.validation.clear();
+                    self.validation_worker = None;
                     self.cached.clear();
                     self.selected_config = None;
                     self.selected_section = None;
@@ -99,9 +97,96 @@ impl CpmApp {
                 self.cached.clear();
                 self.selected_config = None;
                 self.status = "Pack ouvert".into();
+                self.start_validation();
                 self.switch_config(0);
             }
             Err(error) => self.error = Some(error),
+        }
+    }
+
+    fn start_validation(&mut self) {
+        self.validation.clear();
+        let Some(pack) = self.pack.clone() else {
+            return;
+        };
+        let (sender, receiver) = std::sync::mpsc::channel();
+        self.validation_worker = Some(receiver);
+        std::thread::spawn(move || {
+            for (index, path) in pack.configs().iter().enumerate() {
+                let issues = match pack.read_config(index) {
+                    Ok(document) => cpm_core::configuration_issues(path, &document),
+                    Err(error) => vec![error],
+                };
+                if sender.send((index, issues)).is_err() {
+                    break;
+                }
+            }
+        });
+    }
+
+    fn poll_validation(&mut self) {
+        let mut finished = false;
+        if let Some(receiver) = &self.validation_worker {
+            loop {
+                match receiver.try_recv() {
+                    Ok((index, issues)) => {
+                        self.validation.insert(index, issues);
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if finished {
+            self.validation_worker = None;
+        }
+    }
+
+    fn issues_for(&self, index: usize) -> Vec<String> {
+        if self.selected_config == Some(index) {
+            if let Some(editor) = &self.editor {
+                return editor.issues();
+            }
+        }
+        if let Some(editor) = self.cached.get(&index) {
+            return editor.issues();
+        }
+        self.validation.get(&index).cloned().unwrap_or_default()
+    }
+
+    fn export_current_file(&mut self) {
+        let Some(editor) = &mut self.editor else {
+            return;
+        };
+        let issues = editor.issues();
+        if !issues.is_empty() {
+            self.error = Some(format!("Export bloqué :\n{}", issues.join("\n")));
+            return;
+        }
+        let filename = format!(
+            "{}_edited.dynx",
+            editor
+                .path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+        );
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Exporter la configuration")
+            .set_file_name(filename)
+            .add_filter("Configuration DynamX", &["dynx"])
+            .save_file()
+        {
+            match editor.save_copy(&path) {
+                Ok(()) => {
+                    self.status = format!("Fichier exporté : {}", path.display());
+                    self.error = None;
+                }
+                Err(error) => self.error = Some(error),
+            }
         }
     }
 
@@ -149,6 +234,7 @@ impl CpmApp {
                 self.pending_scroll = None;
                 self.open_path = path.display().to_string();
                 self.standalone_path = None;
+                self.start_validation();
                 self.switch_config(0);
                 self.status = format!("Pack exporté : {}", path.display());
             }
@@ -181,21 +267,6 @@ impl CpmApp {
                 }
             }
         };
-        let stem = path.file_stem().unwrap_or_default().to_string_lossy();
-        let parent = if pack.source().is_dir() {
-            pack.source()
-        } else {
-            pack.source().parent().unwrap_or(std::path::Path::new("."))
-        };
-        self.save_path = parent
-            .join(if pack.source().is_dir() {
-                path.as_path()
-            } else {
-                std::path::Path::new(path.file_name().unwrap_or_default())
-            })
-            .with_file_name(format!("{stem}_edited.dynx"))
-            .display()
-            .to_string();
         if let (Some(previous), Some(editor)) = (self.selected_config, self.editor.take()) {
             self.cached.insert(previous, editor);
         }
@@ -216,6 +287,10 @@ impl eframe::App for CpmApp {
 impl CpmApp {
     fn draw(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
+        self.poll_validation();
+        if self.validation_worker.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
         let exporting = self
             .export_dialog
             .as_ref()
@@ -270,53 +345,37 @@ impl CpmApp {
                         });
                     });
                     if ui
-                        .add_enabled(self.pack.is_some(), egui::Button::new("Exporter…"))
+                        .add_enabled(
+                            self.pack.is_some() || self.editor.is_some(),
+                            egui::Button::new("Exporter…"),
+                        )
                         .clicked()
                     {
                         ui.close();
-                        self.prepare_export();
-                    }
-                });
-                if self.dirty() {
-                    ui.label("● Modifications non enregistrées");
-                }
-            });
-            ui.horizontal_wrapped(|ui| {
-                ui.label("Nouvelle copie");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.save_path)
-                        .desired_width(500.0)
-                        .hint_text("Chemin de la copie à créer"),
-                );
-                if ui
-                    .add_enabled(
-                        self.editor.is_some() && !self.save_path.is_empty(),
-                        egui::Button::new("Enregistrer une copie"),
-                    )
-                    .clicked()
-                {
-                    if let Some(editor) = &mut self.editor {
-                        match editor.save_copy(std::path::Path::new(&self.save_path)) {
-                            Ok(()) => {
-                                self.status = format!("Copie enregistrée : {}", self.save_path);
-                                self.error = None;
-                            }
-                            Err(error) => self.error = Some(error),
+                        if self.pack.is_some() {
+                            self.prepare_export();
+                        } else {
+                            self.export_current_file();
                         }
                     }
-                }
-                if ui
-                    .add_enabled(
-                        self.editor.as_ref().is_some_and(Editor::is_dirty),
-                        egui::Button::new("Annuler les modifications du fichier"),
-                    )
-                    .clicked()
-                {
-                    if let Some(editor) = &mut self.editor {
-                        editor.revert();
+                    if ui
+                        .add_enabled(
+                            self.editor.as_ref().is_some_and(Editor::is_dirty),
+                            egui::Button::new("Annuler les modifications du fichier"),
+                        )
+                        .clicked()
+                    {
+                        if let Some(editor) = &mut self.editor {
+                            editor.revert();
+                        }
+                        self.error = None;
+                        self.status = "Modifications annulées".into();
+                        ui.close();
                     }
-                    self.error = None;
-                    self.status = "Modifications annulées".into();
+                });
+                ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/");
+                if self.dirty() {
+                    ui.label("● Modifications non enregistrées");
                 }
             });
         });
@@ -337,44 +396,70 @@ impl CpmApp {
                     .max_height(250.0)
                     .show(ui, |ui| {
                         if let Some(path) = &self.standalone_path {
-                            ui.label(path.file_name().unwrap_or_default().to_string_lossy());
+                            let issues =
+                                self.editor.as_ref().map(Editor::issues).unwrap_or_default();
+                            let mut text = egui::RichText::new(config_name(path));
+                            if !issues.is_empty() {
+                                text = text.color(egui::Color32::LIGHT_RED);
+                            }
+                            ui.label(text).on_hover_text(format!(
+                                "{}\n{}",
+                                path.display(),
+                                issues.join("\n")
+                            ));
                         }
                         if let Some(pack) = &self.pack {
                             for (category, indices) in navigation::config_groups(pack.configs()) {
                                 let selected = self
                                     .selected_config
                                     .is_some_and(|index| indices.contains(&index));
-                                egui::CollapsingHeader::new(format!(
-                                    "{category} ({})",
-                                    indices.len()
-                                ))
-                                .id_salt(("config-category", &self.open_path, category))
-                                .default_open(selected)
-                                .show(ui, |ui| {
-                                    for index in indices {
-                                        let path = &pack.configs()[index];
-                                        let dirty = if self.selected_config == Some(index) {
-                                            self.editor.as_ref().is_some_and(Editor::is_dirty)
-                                        } else {
-                                            self.cached.get(&index).is_some_and(Editor::is_dirty)
-                                        };
-                                        let label = format!(
-                                            "{}{}",
-                                            if dirty { "● " } else { "" },
-                                            config_name(path)
-                                        );
-                                        if ui
-                                            .selectable_label(
-                                                self.selected_config == Some(index),
-                                                label,
-                                            )
-                                            .on_hover_text(path.display().to_string())
-                                            .clicked()
-                                        {
-                                            requested = Some(index);
+                                let invalid = indices
+                                    .iter()
+                                    .any(|index| !self.issues_for(*index).is_empty());
+                                let mut category_label =
+                                    egui::RichText::new(format!("{category} ({})", indices.len()));
+                                if invalid {
+                                    category_label = category_label.color(egui::Color32::LIGHT_RED);
+                                }
+                                egui::CollapsingHeader::new(category_label)
+                                    .id_salt(("config-category", &self.open_path, category))
+                                    .default_open(selected)
+                                    .show(ui, |ui| {
+                                        for index in indices {
+                                            let path = &pack.configs()[index];
+                                            let dirty = if self.selected_config == Some(index) {
+                                                self.editor.as_ref().is_some_and(Editor::is_dirty)
+                                            } else {
+                                                self.cached
+                                                    .get(&index)
+                                                    .is_some_and(Editor::is_dirty)
+                                            };
+                                            let label = format!(
+                                                "{}{}",
+                                                if dirty { "● " } else { "" },
+                                                config_name(path)
+                                            );
+                                            let issues = self.issues_for(index);
+                                            let mut text = egui::RichText::new(label);
+                                            if !issues.is_empty() {
+                                                text = text.color(egui::Color32::LIGHT_RED);
+                                            }
+                                            if ui
+                                                .selectable_label(
+                                                    self.selected_config == Some(index),
+                                                    text,
+                                                )
+                                                .on_hover_text(format!(
+                                                    "{}\n{}",
+                                                    path.display(),
+                                                    issues.join("\n")
+                                                ))
+                                                .clicked()
+                                            {
+                                                requested = Some(index);
+                                            }
                                         }
-                                    }
-                                });
+                                    });
                             }
                         }
                     });
@@ -443,7 +528,7 @@ impl CpmApp {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
                 ui.label("Utilise File → Importer, puis choisis un fichier, un dossier de pack, un pack .dnxpack ou une archive ZIP / RAR.");
-                ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
+                ui.label("Les commentaires et les champs d'addons sont conservés. Utilise File → Exporter pour enregistrer tes modifications.");
                 return;
             };
             if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
@@ -453,6 +538,11 @@ impl CpmApp {
                 ui.heading(path.file_name().unwrap_or_default().to_string_lossy());
             }
             ui.label("Propriétés");
+            let issues = editor.issues();
+            if !issues.is_empty() {
+                ui.colored_label(egui::Color32::LIGHT_RED, format!("{} problème(s) de paramètres obligatoires", issues.len()))
+                    .on_hover_text(issues.join("\n"));
+            }
             if editor.is_pack_info {
                 match cpm_core::PackInfo::from_document(&editor.document) {
                     Ok(info) => { ui.label(format!("Pack : {}", info.pack_name)); }
@@ -576,6 +666,16 @@ fn show_document(
     ui.collapsing("Texte du fichier après modification", |ui| {
         ui.monospace(editor.document.source());
     });
+    if let Some((section, key, value)) = editor.pending_add.take() {
+        match editor.add_parameter(section, &key, &value) {
+            Ok(()) => {
+                *error = None;
+                editor.custom_key.clear();
+                ui.ctx().request_repaint();
+            }
+            Err(message) => *error = Some(message),
+        }
+    }
     headers
 }
 
@@ -586,6 +686,45 @@ fn show_properties(
     section: Option<usize>,
     error: &mut Option<String>,
 ) {
+    ui.push_id(("add-parameter", section), |ui| {
+        ui.menu_button("+", |ui| {
+            ui.label("Ajouter un paramètre");
+            let mut specs = cpm_core::parameter_catalog(&editor.path, &editor.document, section);
+            specs.sort_by_key(|spec| !spec.required);
+            let mut available = false;
+            for spec in specs {
+                if cpm_core::has_parameter(&editor.document, section, &spec) {
+                    continue;
+                }
+                available = true;
+                let label = if spec.required {
+                    format!("{} * obligatoire", spec.key)
+                } else {
+                    spec.key.to_owned()
+                };
+                if ui.button(label).clicked() {
+                    editor.pending_add =
+                        Some((section, spec.key.to_owned(), spec.default_value.to_owned()));
+                    ui.close();
+                }
+            }
+            if !available {
+                ui.label("Aucun paramètre connu manquant.");
+            }
+            ui.separator();
+            ui.label("Paramètre personnalisé (addon)");
+            ui.text_edit_singleline(&mut editor.custom_key);
+            if ui
+                .add_enabled(!editor.custom_key.is_empty(), egui::Button::new("Ajouter"))
+                .clicked()
+            {
+                editor.pending_add = Some((section, editor.custom_key.clone(), String::new()));
+                ui.close();
+            }
+        })
+        .response
+        .on_hover_text("Ajouter un paramètre à cette section");
+    });
     for (index, property) in properties
         .iter()
         .enumerate()
@@ -617,6 +756,40 @@ mod tests {
     use super::*;
 
     #[test]
+    fn adding_missing_parameter_refreshes_navigation_and_export_state() {
+        let root = std::env::temp_dir().join(format!("cpm-parameter-ui-{}", std::process::id()));
+        let source = root.join("source");
+        std::fs::create_dir_all(&source).unwrap();
+        std::fs::write(source.join("pack_info.dynx"), "PackName: Test\n").unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(&source);
+        assert!(app
+            .issues_for(0)
+            .iter()
+            .any(|issue| issue.contains("DcFileVersion")));
+        app.editor.as_mut().unwrap().pending_add =
+            Some((None, "DcFileVersion".into(), "12.5.0".into()));
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.draw(ui));
+        output.textures_delta.clear();
+        assert!(app.issues_for(0).is_empty());
+        let editor = app.editor.as_ref().unwrap();
+        assert_eq!(editor.values.len(), editor.document.properties().len());
+        assert_eq!(editor.values.last().unwrap(), "12.5.0");
+        assert!(app.dirty());
+        app.prepare_export();
+        let mut options = app.export_dialog.as_ref().unwrap().options.clone();
+        options.output_name = "corrected".into();
+        assert!(app
+            .pack
+            .as_ref()
+            .unwrap()
+            .export(&options, &app.documents())
+            .is_ok());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn export_dialog_uses_current_metadata_and_all_cached_configurations() {
         let temp = std::env::temp_dir().join(format!("cpm-export-ui-{}", std::process::id()));
         let source = temp.join("source");
@@ -626,7 +799,7 @@ mod tests {
             "PackName: Demo\nDcFileVersion: 12.5.0\n",
         )
         .unwrap();
-        std::fs::write(source.join("vehicle_car.dynx"), "Name: Original\n").unwrap();
+        std::fs::write(source.join("vehicle_car.dynx"), "Name: Original\nDescription: Test\nModel: obj/car.obj\nCenterOfGravityOffset: 0 0 0\nDragCoefficient: 0.3\nEmptyMass: 1500\n").unwrap();
         let mut app = CpmApp::default();
         app.open_selection(&source);
         app.editor

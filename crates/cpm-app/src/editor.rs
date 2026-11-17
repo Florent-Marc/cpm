@@ -7,6 +7,9 @@ pub struct Editor {
     pub document: Document,
     pub values: Vec<String>,
     pub is_pack_info: bool,
+    pub path: std::path::PathBuf,
+    pub custom_key: String,
+    pub pending_add: Option<(Option<usize>, String, String)>,
     saved_source: String,
 }
 
@@ -28,11 +31,35 @@ impl Editor {
             document,
             values,
             saved_source,
+            path: path.to_owned(),
+            custom_key: String::new(),
+            pending_add: None,
             is_pack_info: path
                 .file_name()
                 .is_some_and(|name| name == "pack_info.dynx"),
         }
     }
+    pub fn add_parameter(
+        &mut self,
+        section: Option<usize>,
+        key: &str,
+        value: &str,
+    ) -> Result<(), String> {
+        self.document
+            .add_property(section, key, value)
+            .map_err(|e| e.to_string())?;
+        self.values = self
+            .document
+            .properties()
+            .iter()
+            .map(|p| p.value.clone())
+            .collect();
+        Ok(())
+    }
+    pub fn issues(&self) -> Vec<String> {
+        cpm_core::configuration_issues(&self.path, &self.document)
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.document.source() != self.saved_source
     }

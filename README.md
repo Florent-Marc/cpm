@@ -25,3 +25,5 @@ Being still in development, the CPM program has some errors and unfinished featu
 A Rust workspace is available in this branch: see [the Rust guide](docs/rust.md).
 `cpm-core` reads and edits UTF-8 DynamX configuration documents while preserving their text.
 `cpm-app` opens individual .dynx configurations, pack folders, and .dnxpack/ZIP/RAR archives through File → Importer. It groups configurations and sections, retains edits while navigating, and exports full packs as folders, ZIP, or DNXPACK via File → Exporter, with metadata editing and explicit replacement. The 3D preview is not implemented yet.
+
+Missing parameters can be inserted with the `+` menus. Configurations with missing required fields are marked red, and export checks the same documented rules. The Wiki link opens the DynamX documentation.
