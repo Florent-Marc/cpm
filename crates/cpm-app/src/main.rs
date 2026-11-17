@@ -551,7 +551,7 @@ impl CpmApp {
                         if let Some(path) = &self.standalone_path {
                             let issues =
                                 self.editor.as_ref().map(Editor::issues).unwrap_or_default();
-                            let mut text = egui::RichText::new(config_name(path));
+                            let mut text = egui::RichText::new(navigation::config_label(path));
                             if !issues.is_empty() {
                                 text = text.color(egui::Color32::LIGHT_RED);
                             }
@@ -590,7 +590,7 @@ impl CpmApp {
                                             let label = format!(
                                                 "{}{}",
                                                 if dirty { "● " } else { "" },
-                                                config_name(path)
+                                                navigation::config_label(path)
                                             );
                                             let issues = self.issues_for(index);
                                             let mut text = egui::RichText::new(label);

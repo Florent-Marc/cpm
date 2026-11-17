@@ -1,5 +1,42 @@
 use cpm_core::Section;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Libellé utilisateur du panneau ; le chemin reste l’identité de la configuration.
+pub fn config_label(path: &Path) -> String {
+    let name = if path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("dynx"))
+    {
+        path.file_stem().unwrap_or_default().to_string_lossy()
+    } else {
+        path.file_name().unwrap_or_default().to_string_lossy()
+    };
+    if name.eq_ignore_ascii_case("pack_info") {
+        return "Informations du pack".into();
+    }
+    if let Some((prefix, label)) = name.split_once('_') {
+        if !label.is_empty()
+            && matches!(
+                prefix.to_ascii_lowercase().as_str(),
+                "vehicle"
+                    | "engine"
+                    | "sound"
+                    | "sounds"
+                    | "wheel"
+                    | "trailer"
+                    | "boat"
+                    | "helicopter"
+                    | "block"
+                    | "prop"
+                    | "item"
+                    | "armor"
+            )
+        {
+            return label.to_owned();
+        }
+    }
+    name.into_owned()
+}
 
 pub fn config_groups(paths: &[PathBuf]) -> Vec<(&'static str, Vec<usize>)> {
     let categories = [
