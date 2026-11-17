@@ -29,6 +29,7 @@ struct CpmApp {
     standalone_path: Option<std::path::PathBuf>,
     save_path: String,
     selected_section: Option<usize>,
+    pending_scroll: Option<Option<usize>>,
     status: String,
     error: Option<String>,
     confirm_close: bool,
@@ -71,6 +72,7 @@ impl CpmApp {
                     self.cached.clear();
                     self.selected_config = None;
                     self.selected_section = None;
+                    self.pending_scroll = None;
                     self.standalone_path = Some(path.to_owned());
                     self.open_path = path.display().to_string();
                     self.error = None;
@@ -137,6 +139,7 @@ impl CpmApp {
         self.editor = Some(next);
         self.selected_config = Some(index);
         self.selected_section = None;
+        self.pending_scroll = None;
         self.error = None;
     }
 }
@@ -263,10 +266,14 @@ impl CpmApp {
                                 } else {
                                     self.cached.get(&index).is_some_and(Editor::is_dirty)
                                 };
-                                let label =
-                                    format!("{}{}", if dirty { "● " } else { "" }, path.display());
+                                let label = format!(
+                                    "{}{}",
+                                    if dirty { "● " } else { "" },
+                                    config_name(path)
+                                );
                                 if ui
                                     .selectable_label(self.selected_config == Some(index), label)
+                                    .on_hover_text(path.display().to_string())
                                     .clicked()
                                 {
                                     requested = Some(index);
@@ -282,14 +289,25 @@ impl CpmApp {
                 egui::ScrollArea::vertical()
                     .id_salt("sections")
                     .show(ui, |ui| {
-                        ui.selectable_value(&mut self.selected_section, None, "Racine");
+                        if ui
+                            .selectable_label(self.selected_section.is_none(), "Racine")
+                            .clicked()
+                        {
+                            self.selected_section = None;
+                            self.pending_scroll = Some(None);
+                        }
                         if let Some(editor) = &self.editor {
                             for (index, section) in editor.document.sections().iter().enumerate() {
-                                ui.selectable_value(
-                                    &mut self.selected_section,
-                                    Some(index),
-                                    format!("{} · ligne {}", section.name, section.line),
-                                );
+                                if ui
+                                    .selectable_label(
+                                        self.selected_section == Some(index),
+                                        format!("{} · ligne {}", section.name, section.line),
+                                    )
+                                    .clicked()
+                                {
+                                    self.selected_section = Some(index);
+                                    self.pending_scroll = Some(Some(index));
+                                }
                             }
                         }
                     });
@@ -302,7 +320,7 @@ impl CpmApp {
                 return;
             };
             if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
-                ui.heading(pack.configs()[index].display().to_string());
+                ui.heading(config_name(&pack.configs()[index])).on_hover_text(pack.configs()[index].display().to_string());
             }
             if let Some(path) = &self.standalone_path {
                 ui.heading(path.file_name().unwrap_or_default().to_string_lossy());
@@ -314,20 +332,12 @@ impl CpmApp {
                     Err(errors) => { for error in errors { ui.colored_label(egui::Color32::YELLOW, error.to_string()); } }
                 }
             }
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let properties = editor.document.properties().to_vec();
-                for (index, property) in properties.iter().enumerate().filter(|(_, p)| p.section == self.selected_section) {
-                    ui.push_id(index, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(&property.key).on_hover_text(format!("Ligne {}", property.line));
-                            if ui.add(egui::TextEdit::singleline(&mut editor.values[index]).desired_width(f32::INFINITY)).changed() {
-                                if let Err(error) = editor.document.set_value(index, &editor.values[index]) { self.error = Some(error.to_string()); }
-                            }
-                        });
-                    });
-                }
-                ui.separator();
-                ui.collapsing("Texte du fichier après modification", |ui| { ui.monospace(editor.document.source()); });
+            let document_id = (&self.open_path, self.selected_config);
+            let jump = self.pending_scroll.take();
+            ui.push_id(document_id, |ui| {
+                egui::ScrollArea::vertical().id_salt("document-properties").show(ui, |ui| {
+                    show_document(ui, editor, &mut self.error, jump);
+                });
             });
         });
         if self.confirm_close {
@@ -350,9 +360,136 @@ impl CpmApp {
     }
 }
 
+fn config_name(path: &std::path::Path) -> std::borrow::Cow<'_, str> {
+    path.file_name().unwrap_or_default().to_string_lossy()
+}
+
+/// Toutes les propriétés restent dans la même vue ; la navigation ne filtre
+/// plus le document, elle ouvre et rejoint simplement le bloc demandé.
+fn show_document(
+    ui: &mut egui::Ui,
+    editor: &mut Editor,
+    error: &mut Option<String>,
+    jump: Option<Option<usize>>,
+) -> Vec<egui::Id> {
+    let properties = editor.document.properties().to_vec();
+    let sections = editor.document.sections().to_vec();
+    let mut headers = Vec::with_capacity(sections.len());
+    let root = ui.strong("Racine");
+    if jump == Some(None) {
+        root.scroll_to_me(Some(egui::Align::Min));
+    }
+    show_properties(ui, editor, &properties, None, error);
+    for (index, section) in sections.iter().enumerate() {
+        ui.separator();
+        let response = egui::CollapsingHeader::new(&section.name)
+            .id_salt(("config-section", index))
+            .open(if jump == Some(Some(index)) {
+                Some(true)
+            } else {
+                None
+            })
+            .show(ui, |ui| {
+                show_properties(ui, editor, &properties, Some(index), error);
+            });
+        headers.push(response.header_response.id);
+        if jump == Some(Some(index)) {
+            response
+                .header_response
+                .scroll_to_me(Some(egui::Align::Min));
+        }
+    }
+    ui.separator();
+    ui.collapsing("Texte du fichier après modification", |ui| {
+        ui.monospace(editor.document.source());
+    });
+    headers
+}
+
+fn show_properties(
+    ui: &mut egui::Ui,
+    editor: &mut Editor,
+    properties: &[cpm_core::Property],
+    section: Option<usize>,
+    error: &mut Option<String>,
+) {
+    for (index, property) in properties
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.section == section)
+    {
+        ui.push_id(("property", index), |ui| {
+            ui.horizontal(|ui| {
+                ui.label(&property.key)
+                    .on_hover_text(format!("Ligne {}", property.line));
+                if ui
+                    .add(
+                        egui::TextEdit::singleline(&mut editor.values[index])
+                            .desired_width(f32::INFINITY),
+                    )
+                    .changed()
+                {
+                    if let Err(edit_error) = editor.document.set_value(index, &editor.values[index])
+                    {
+                        *error = Some(edit_error.to_string());
+                    }
+                }
+            });
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn section_navigation_opens_target_and_keeps_independent_fold_states() {
+        let ctx = egui::Context::default();
+        let document = cpm_core::Document::parse(
+            "Name: Demo\nSeat{\n Driver: True\n}\nSeat{\n Driver: False\n}\n",
+        )
+        .unwrap();
+        let mut editor = Editor::from_document(document, std::path::Path::new("vehicle_demo.dynx"));
+        let mut error = None;
+        let mut states = Vec::new();
+        for (jump, expected) in [
+            (None, vec![false, false]),
+            (Some(Some(1)), vec![false, true]),
+            (Some(Some(0)), vec![true, true]),
+            (Some(None), vec![true, true]),
+        ] {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let headers = show_document(ui, &mut editor, &mut error, jump);
+                assert_ne!(headers[0], headers[1]);
+                states = headers
+                    .iter()
+                    .map(|id| {
+                        egui::collapsing_header::CollapsingState::load(ui.ctx(), *id)
+                            .unwrap()
+                            .is_open()
+                    })
+                    .collect();
+            });
+            output.textures_delta.clear();
+            assert_eq!(states, expected);
+        }
+        assert!(error.is_none());
+        assert_eq!(editor.document.properties()[1].value, "True");
+        assert_eq!(editor.document.properties()[2].value, "False");
+    }
+
+    #[test]
+    fn configuration_names_hide_folders_even_when_basenames_match() {
+        assert_eq!(
+            config_name(std::path::Path::new("vehicles/car/vehicle_test.dynx")),
+            "vehicle_test.dynx"
+        );
+        assert_eq!(
+            config_name(std::path::Path::new("other/vehicle_test.dynx")),
+            "vehicle_test.dynx"
+        );
+    }
 
     #[test]
     fn selecting_files_or_packs_preserves_edits_and_keeps_state_on_failure() {

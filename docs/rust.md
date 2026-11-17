@@ -31,11 +31,15 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
    choisir un dossier contenant `pack_info.dynx`. Ces boutons affichent le
    sélecteur du système. Annuler la sélection conserve le document courant.
    La saisie manuelle d'un chemin reste possible avec le bouton **Ouvrir**.
-2. Choisir une configuration dans la liste de gauche (chemins relatifs,
-   y compris les sous-dossiers), puis choisir sa section.
-3. Modifier ses valeurs. Les documents visités restent en mémoire et les
+2. Choisir une configuration dans la liste de gauche : seul le nom du fichier
+   est affiché, avec son chemin relatif au survol pour distinguer les homonymes.
+3. Les propriétés de racine et toutes les sections sont regroupées au centre.
+   Déplier les sections souhaitées avant le bloc **Texte du fichier après
+   modification**. Cliquer sur une section à gauche la déplie et fait défiler
+   la vue jusqu'à elle ; **Racine** ramène aux propriétés générales.
+4. Modifier ses valeurs. Les documents visités restent en mémoire et les
    fichiers modifiés sont marqués d'un point dans la liste.
-4. Indiquer un chemin libre et cliquer sur **Enregistrer une copie** pour
+5. Indiquer un chemin libre et cliquer sur **Enregistrer une copie** pour
    sauvegarder la configuration sélectionnée.
 
 La navigation ne perd pas les modifications des autres configurations.
