@@ -230,3 +230,113 @@ fn duplicate_metadata_does_not_silently_choose_a_value() {
         .contains("dupliquée"));
     assert!(!config.target().unwrap().exists());
 }
+
+#[test]
+fn added_and_deleted_configurations_export_in_all_formats_without_changing_source() {
+    let temp = fixture();
+    let source = temp.path().join("source");
+    let mut pack = Pack::open(&source).unwrap();
+    let index = pack
+        .add_configuration(
+            Path::new("engines/engine_added.dynx"),
+            Document::parse("Power: 1200\nMaxRPM: 6000\nBraking: 100\n").unwrap(),
+        )
+        .unwrap();
+    assert!(pack.has_structure_changes());
+    assert!(pack.read_config(index).unwrap().source().contains("1200"));
+    assert!(pack
+        .add_configuration(
+            Path::new("ENGINES/ENGINE_ADDED.DYNX"),
+            Document::parse("").unwrap()
+        )
+        .is_err());
+    assert!(pack
+        .remove_configuration(Path::new("pack_info.dynx"))
+        .is_err());
+    pack.remove_configuration(Path::new("vehicle_car.dynx"))
+        .unwrap();
+    let mut edits = BTreeMap::new();
+    edits.insert(
+        PathBuf::from("engines/engine_added.dynx"),
+        Document::parse("Power: 2400\nMaxRPM: 6000\nBraking: 100\n").unwrap(),
+    );
+    for (i, format) in [
+        ExportFormat::Folder,
+        ExportFormat::Zip,
+        ExportFormat::Dnxpack,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut options = options(temp.path(), format);
+        options.output_name = format!("changed-{i}");
+        let output = pack.export(&options, &edits).unwrap();
+        let reopened = Pack::open(&output).unwrap();
+        assert!(!reopened
+            .configs()
+            .contains(&PathBuf::from("vehicle_car.dynx")));
+        let index = reopened
+            .configs()
+            .iter()
+            .position(|p| p == Path::new("engines/engine_added.dynx"))
+            .unwrap();
+        assert!(reopened
+            .read_config(index)
+            .unwrap()
+            .source()
+            .contains("2400"));
+        assert_eq!(
+            read_resource(&output, "assets/model.obj"),
+            vec![0, 1, 255, 42]
+        );
+        // The same editing operations also work with an archive as source.
+        if format != ExportFormat::Folder {
+            let mut archived = reopened.clone();
+            archived
+                .remove_configuration(Path::new("engines/engine_added.dynx"))
+                .unwrap();
+            archived
+                .add_configuration(
+                    Path::new("engine_other.dynx"),
+                    Document::parse("Power: 3000\nMaxRPM: 6000\nBraking: 100\n").unwrap(),
+                )
+                .unwrap();
+            let mut next = options.clone();
+            next.output_name = format!("reexport-{i}");
+            let out = archived.export(&next, &BTreeMap::new()).unwrap();
+            let next = Pack::open(&out).unwrap();
+            assert!(next.configs().contains(&PathBuf::from("engine_other.dynx")));
+            assert!(!next
+                .configs()
+                .contains(&PathBuf::from("engines/engine_added.dynx")));
+        }
+    }
+    assert!(source.join("vehicle_car.dynx").is_file());
+    assert!(!source.join("engines/engine_added.dynx").exists());
+}
+#[test]
+fn new_configuration_paths_are_safe_and_export_validates_added_documents() {
+    let temp = fixture();
+    let mut pack = Pack::open(&temp.path().join("source")).unwrap();
+    for path in [
+        "../bad.dynx",
+        "/bad.dynx",
+        "CON.dynx",
+        "test.txt",
+        "assets/model.obj/engine_bad.dynx",
+    ] {
+        assert!(
+            pack.add_configuration(Path::new(path), Document::parse("").unwrap())
+                .is_err(),
+            "{path}"
+        );
+    }
+    pack.add_configuration(Path::new("engine_new.dynx"), Document::parse("").unwrap())
+        .unwrap();
+    let target = options(temp.path(), ExportFormat::Folder);
+    assert!(pack.export(&target, &BTreeMap::new()).is_err());
+    assert!(!target.target().unwrap().exists());
+    pack.remove_configuration(Path::new("engine_new.dynx"))
+        .unwrap();
+    assert!(!pack.has_structure_changes());
+}

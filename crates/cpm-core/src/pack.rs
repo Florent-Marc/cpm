@@ -15,6 +15,8 @@ pub struct Pack {
     archive_indices: Option<BTreeMap<PathBuf, usize>>,
     rar: bool,
     resources: std::sync::Arc<BTreeMap<PathBuf, usize>>,
+    added: BTreeMap<PathBuf, Document>,
+    removed: std::collections::BTreeSet<PathBuf>,
 }
 
 impl Pack {
@@ -126,6 +128,8 @@ impl Pack {
             archive_indices,
             rar,
             resources: std::sync::Arc::new(resources),
+            added: BTreeMap::new(),
+            removed: Default::default(),
         })
     }
 
@@ -135,6 +139,86 @@ impl Pack {
     }
     pub fn source(&self) -> &Path {
         &self.source
+    }
+
+    pub fn has_structure_changes(&self) -> bool {
+        !self.added.is_empty() || !self.removed.is_empty()
+    }
+    pub fn add_configuration(&mut self, path: &Path, document: Document) -> Result<usize, String> {
+        let path = configuration_path(path)?;
+        if self.configs.iter().any(|p| {
+            p.to_string_lossy()
+                .eq_ignore_ascii_case(&path.to_string_lossy())
+        }) || self.resources.keys().any(|p| {
+            p.to_string_lossy()
+                .eq_ignore_ascii_case(&path.to_string_lossy())
+                && !self.removed.contains(p)
+        }) {
+            return Err("Un fichier portant ce nom existe déjà dans le pack".into());
+        }
+        if self.source.is_dir() && self.source.join(&path).exists() && !self.removed.contains(&path)
+        {
+            return Err("Un fichier ou dossier portant ce nom existe déjà dans le pack".into());
+        }
+        if self
+            .resources
+            .keys()
+            .chain(self.added.keys())
+            .any(|p| p.starts_with(&path) && p != &path)
+        {
+            return Err("Ce nom est déjà utilisé comme dossier".into());
+        }
+        // Aucun dossier parent ne doit être un fichier du pack.
+        for parent in path
+            .ancestors()
+            .skip(1)
+            .filter(|p| !p.as_os_str().is_empty())
+        {
+            if self.resources.keys().chain(self.added.keys()).any(|p| {
+                p.to_string_lossy()
+                    .eq_ignore_ascii_case(&parent.to_string_lossy())
+            }) {
+                return Err("Un dossier parent est déjà utilisé comme fichier".into());
+            }
+        }
+        self.removed.remove(&path);
+        self.added.insert(path.clone(), document);
+        self.configs.push(path);
+        Ok(self.configs.len() - 1)
+    }
+    pub fn remove_configuration(&mut self, path: &Path) -> Result<(), String> {
+        if path
+            .to_string_lossy()
+            .eq_ignore_ascii_case("pack_info.dynx")
+        {
+            return Err("Les informations du pack ne peuvent pas être supprimées".into());
+        }
+        let index = self
+            .configs
+            .iter()
+            .position(|p| p == path)
+            .ok_or("Configuration inconnue")?;
+        self.configs.remove(index);
+        if self.added.remove(path).is_none() || self.resources.contains_key(path) {
+            self.removed.insert(path.to_owned());
+        }
+        Ok(())
+    }
+    pub(crate) fn materialize_edits(&self, destination: &Path) -> Result<(), String> {
+        for path in &self.removed {
+            match std::fs::remove_file(destination.join(path)) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        for (path, document) in &self.added {
+            let target = destination.join(path);
+            std::fs::create_dir_all(target.parent().ok_or("Dossier invalide")?)
+                .map_err(|e| e.to_string())?;
+            std::fs::write(target, document.source()).map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 
     pub fn contains_resource(&self, path: &Path) -> bool {
@@ -196,6 +280,9 @@ impl Pack {
 
     pub fn read_config(&self, index: usize) -> Result<Document, String> {
         let path = self.configs.get(index).ok_or("Configuration inconnue")?;
+        if let Some(document) = self.added.get(path) {
+            return Ok(document.clone());
+        }
         let source = if self.rar {
             let mut archive = unrar::Archive::new(&self.source)
                 .open_for_processing()
@@ -372,4 +459,16 @@ fn read_resource_limited(reader: impl Read, maximum: u64) -> Result<Vec<u8>, Str
         return Err("Modèle trop volumineux".into());
     }
     Ok(bytes)
+}
+
+/// Chemin portable et sûr d’une nouvelle configuration.
+pub fn configuration_path(path: &Path) -> Result<PathBuf, String> {
+    let path = safe_archive_path(&path.to_string_lossy())?;
+    if !is_config(&path) {
+        return Err("Une configuration doit avoir l’extension .dynx".into());
+    }
+    for component in path.components() {
+        crate::export::validate_filename(&component.as_os_str().to_string_lossy())?;
+    }
+    Ok(path)
 }

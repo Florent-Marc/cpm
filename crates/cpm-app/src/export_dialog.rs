@@ -51,6 +51,10 @@ impl ExportDialog {
             worker: None,
         }
     }
+    pub fn set_destination(&mut self, path: PathBuf) {
+        self.destination_text = path.display().to_string();
+        self.options.destination = path;
+    }
     pub fn busy(&self) -> bool {
         self.worker.is_some()
     }

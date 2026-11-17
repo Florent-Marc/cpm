@@ -1,3 +1,4 @@
+mod creation;
 mod editor;
 mod export_dialog;
 mod navigation;
@@ -43,6 +44,11 @@ fn main() -> eframe::Result {
 struct CpmApp {
     gl: Option<std::sync::Arc<eframe::glow::Context>>,
     preview: Option<preview::Preview>,
+    creation: Option<creation::Creation>,
+    manager: Option<creation::Manager>,
+    draft_pack: Option<tempfile::TempDir>,
+    draft_name: String,
+    draft_file: bool,
     recent: recent::RecentPacks,
     catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
     properties_editor: Option<properties_editor::PropertiesEditor>,
@@ -121,7 +127,10 @@ impl CpmApp {
         self.start_validation();
     }
     fn dirty(&self) -> bool {
-        self.editor.as_ref().is_some_and(Editor::is_dirty)
+        self.draft_pack.is_some()
+            || self.draft_file
+            || self.pack.as_ref().is_some_and(Pack::has_structure_changes)
+            || self.editor.as_ref().is_some_and(Editor::is_dirty)
             || self.cached.values().any(Editor::is_dirty)
     }
 
@@ -149,6 +158,8 @@ impl CpmApp {
                     editor.catalog = self.catalog.clone();
                     self.editor = Some(editor);
                     self.pack = None;
+                    self.draft_pack = None;
+                    self.draft_file = false;
                     self.validation.clear();
                     self.validation_worker = None;
                     self.cached.clear();
@@ -167,6 +178,8 @@ impl CpmApp {
         match Pack::open(path) {
             Ok(pack) => {
                 self.pack = Some(pack);
+                self.draft_pack = None;
+                self.draft_file = false;
                 self.standalone_path = None;
                 self.open_path = path.display().to_string();
                 self.editor = None;
@@ -244,14 +257,23 @@ impl CpmApp {
             self.error = Some(format!("Export bloqué :\n{}", issues.join("\n")));
             return;
         }
-        let filename = format!(
-            "{}_edited.dynx",
+        let filename = if self.draft_file {
             editor
                 .path
-                .file_stem()
+                .file_name()
                 .unwrap_or_default()
                 .to_string_lossy()
-        );
+                .into_owned()
+        } else {
+            format!(
+                "{}_edited.dynx",
+                editor
+                    .path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            )
+        };
         if let Some(path) = rfd::FileDialog::new()
             .set_title("Exporter la configuration")
             .set_file_name(filename)
@@ -260,6 +282,12 @@ impl CpmApp {
         {
             match editor.save_copy(&path) {
                 Ok(()) => {
+                    if self.draft_file {
+                        editor.path = path.clone();
+                        self.standalone_path = Some(path.clone());
+                        self.open_path = path.display().to_string();
+                    }
+                    self.draft_file = false;
                     self.status = format!("Fichier exporté : {}", path.display());
                     self.error = None;
                 }
@@ -291,10 +319,18 @@ impl CpmApp {
                 .unwrap_or_else(|| pack.read_config(0));
             match metadata {
                 Ok(document) => {
-                    self.export_dialog = Some(export_dialog::ExportDialog::new(
+                    let mut dialog = export_dialog::ExportDialog::new(
                         pack,
                         cpm_core::PackMetadata::from_document(&document),
-                    ))
+                    );
+                    if self.draft_pack.is_some() {
+                        dialog.options.output_name = self.draft_name.clone();
+                        dialog.set_destination(
+                            std::env::current_dir()
+                                .unwrap_or_else(|_| std::path::PathBuf::from(".")),
+                        );
+                    }
+                    self.export_dialog = Some(dialog);
                 }
                 Err(error) => self.error = Some(error),
             }
@@ -305,6 +341,8 @@ impl CpmApp {
         match Pack::open(path) {
             Ok(pack) => {
                 self.pack = Some(pack);
+                self.draft_pack = None;
+                self.draft_file = false;
                 self.editor = None;
                 self.cached.clear();
                 self.selected_config = None;
@@ -323,6 +361,154 @@ impl CpmApp {
                 ))
             }
         }
+    }
+
+    fn create_document(&mut self, created: creation::Created) -> Result<(), String> {
+        match created {
+            creation::Created::Pack { document, name } => {
+                if self.dirty() {
+                    return Err(
+                        "Enregistrer ou annuler les modifications avant de créer un pack".into(),
+                    );
+                }
+                let temporary = tempfile::Builder::new()
+                    .prefix("cpm-new-pack-")
+                    .tempdir()
+                    .map_err(|e| e.to_string())?;
+                std::fs::write(temporary.path().join("pack_info.dynx"), document.source())
+                    .map_err(|e| e.to_string())?;
+                let pack = Pack::open(temporary.path())?;
+                self.pack = Some(pack);
+                self.cached.clear();
+                self.editor = None;
+                self.selected_config = None;
+                self.standalone_path = None;
+                self.draft_name = name.clone();
+                self.open_path = format!("Nouveau pack : {name}");
+                self.draft_pack = Some(temporary);
+                self.draft_file = false;
+                self.preview = None;
+                self.start_validation();
+                self.switch_config(0);
+                self.status = "Nouveau pack créé — File → Exporter pour l’enregistrer".into();
+            }
+            creation::Created::Configuration { path, document } => {
+                if let Some(pack) = &mut self.pack {
+                    let index = pack.add_configuration(&path, document)?;
+                    self.start_validation();
+                    self.switch_config(index);
+                    self.status =
+                        format!("Configuration ajoutée : {} — à exporter", path.display());
+                } else {
+                    if self.dirty() {
+                        return Err("Enregistrer ou annuler les modifications avant de créer une configuration".into());
+                    }
+                    let mut editor = Editor::from_document(document, &path);
+                    editor.catalog = self.catalog.clone();
+                    self.editor = Some(editor);
+                    self.standalone_path = Some(path.clone());
+                    self.open_path = path.display().to_string();
+                    self.cached.clear();
+                    self.selected_config = None;
+                    self.selected_section = None;
+                    self.pending_scroll = None;
+                    self.validation.clear();
+                    self.validation_worker = None;
+                    self.draft_file = true;
+                    self.preview = None;
+                    self.status =
+                        "Nouvelle configuration créée — File → Exporter pour l’enregistrer".into();
+                }
+            }
+        }
+        self.error = None;
+        Ok(())
+    }
+    fn import_configuration(&mut self, path: &std::path::Path) -> Result<(), String> {
+        use std::io::Read as _;
+        if self.pack.is_none() {
+            return Err("Ouvrir ou créer un pack avant d’importer une configuration".into());
+        }
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|e| e.to_string())?
+            .take(8 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|e| e.to_string())?;
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err("Configuration trop volumineuse (maximum 8 Mio)".into());
+        }
+        let document =
+            cpm_core::Document::read_from(bytes.as_slice()).map_err(|e| e.to_string())?;
+        let filename = path.file_name().ok_or("Nom de fichier invalide")?;
+        self.create_document(creation::Created::Configuration {
+            path: filename.into(),
+            document,
+        })
+    }
+
+    fn delete_configuration(&mut self, path: &std::path::Path) -> Result<(), String> {
+        let pack = self.pack.as_mut().ok_or("Aucun pack ouvert")?;
+        let old_paths = pack.configs().to_vec();
+        let selected = self.selected_config.and_then(|i| old_paths.get(i)).cloned();
+        pack.remove_configuration(path)?;
+        self.reindex_editors(old_paths, selected);
+        self.status = format!("Configuration supprimée : {} — à exporter", path.display());
+        Ok(())
+    }
+
+    fn reindex_editors(
+        &mut self,
+        old_paths: Vec<std::path::PathBuf>,
+        selected: Option<std::path::PathBuf>,
+    ) {
+        let mut editors: BTreeMap<_, _> = std::mem::take(&mut self.cached)
+            .into_iter()
+            .map(|(index, editor)| (old_paths[index].clone(), editor))
+            .collect();
+        if let (Some(selected), Some(editor)) = (&selected, self.editor.take()) {
+            editors.insert(selected.clone(), editor);
+        }
+        self.selected_config = None;
+        let pack = self.pack.as_ref().expect("pack ouvert");
+        for (index, path) in pack.configs().iter().enumerate() {
+            if let Some(editor) = editors.remove(path) {
+                self.cached.insert(index, editor);
+            }
+        }
+        let next = selected
+            .and_then(|p| pack.configs().iter().position(|path| *path == p))
+            .unwrap_or(0);
+        self.start_validation();
+        self.switch_config(next);
+    }
+    fn undo_structure(&mut self) -> Result<(), String> {
+        let old = self.pack.as_ref().ok_or("Aucun pack ouvert")?;
+        let replacement = Pack::open(old.source())?;
+        let old_paths = old.configs().to_vec();
+        let selected = self.selected_config.and_then(|i| old_paths.get(i)).cloned();
+        self.pack = Some(replacement);
+        self.reindex_editors(old_paths, selected);
+        self.status = "Ajouts et suppressions de configurations annulés".into();
+        Ok(())
+    }
+    fn discard_draft(&mut self) {
+        self.pack = None;
+        self.editor = None;
+        self.cached.clear();
+        self.selected_config = None;
+        self.standalone_path = None;
+        self.open_path.clear();
+        self.validation.clear();
+        self.validation_worker = None;
+        self.selected_section = None;
+        self.pending_scroll = None;
+        self.preview = None;
+        self.manager = None;
+        self.draft_pack = None;
+        self.draft_file = false;
+        self.error = None;
+        self.status = "Brouillon abandonné".into();
     }
 
     fn switch_config(&mut self, index: usize) {
@@ -408,6 +594,8 @@ impl CpmApp {
         }
         if self.export_dialog.is_some()
             || self.properties_editor.is_some()
+            || self.creation.is_some()
+            || self.manager.is_some()
             || updating
             || self.restarting
         {
@@ -416,6 +604,7 @@ impl CpmApp {
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("Créer").clicked(){self.creation=Some(creation::Creation::new(self.pack.is_some()));ui.close();}
                     ui.add_enabled_ui(!self.dirty(), |ui| {
                         ui.menu_button("Ouvrir récent", |ui| {
                             if self.recent.paths.is_empty() { ui.label("Aucun pack récent"); }
@@ -488,6 +677,10 @@ impl CpmApp {
                         self.status = "Modifications annulées".into();
                         ui.close();
                     }
+                    if ui.add_enabled(self.pack.as_ref().is_some_and(Pack::has_structure_changes),egui::Button::new("Annuler les ajouts et suppressions")).on_hover_text("Rétablit la liste d’origine ; les modifications des configurations existantes sont conservées").clicked(){
+                        if let Err(error)=self.undo_structure(){self.error=Some(error);}ui.close();
+                    }
+                    if (self.draft_pack.is_some() || self.draft_file) && ui.button("Abandonner le brouillon").on_hover_text("Ferme le nouveau pack ou fichier et abandonne ses changements en mémoire").clicked(){self.discard_draft();ui.close();}
                     if ui
                         .add_enabled(
                             !self.updater.checking(),
@@ -542,7 +735,16 @@ impl CpmApp {
         egui::Panel::left("sections")
             .default_size(220.0)
             .show(ui, |ui| {
-                ui.heading("Configurations");
+                ui.horizontal(|ui| {
+                    ui.heading("Configurations");
+                    if ui
+                        .add_enabled(self.pack.is_some(), egui::Button::new("✎"))
+                        .on_hover_text("Ajouter ou supprimer des configurations du pack")
+                        .clicked()
+                    {
+                        self.manager = Some(creation::Manager::default());
+                    }
+                });
                 let mut requested = None;
                 egui::ScrollArea::vertical()
                     .id_salt("configs")
@@ -748,6 +950,38 @@ impl CpmApp {
                     self.apply_catalog(catalog);
                     self.status = "Propriétés enregistrées et appliquées".into();
                     self.error = (!warnings.is_empty()).then(|| warnings.join("\n"));
+                }
+            }
+        }
+        if let Some(mut creation) = self.creation.take() {
+            match creation.show(&ctx, &self.catalog, self.pack.is_some(), !self.dirty()) {
+                creation::Action::None => self.creation = Some(creation),
+                creation::Action::Close => {}
+                creation::Action::Create(created) => {
+                    if let Err(error) = self.create_document(created) {
+                        creation.error = Some(error);
+                        self.creation = Some(creation);
+                    }
+                }
+            }
+        }
+        if let Some(mut manager) = self.manager.take() {
+            let paths = self
+                .pack
+                .as_ref()
+                .map(|p| p.configs().to_vec())
+                .unwrap_or_default();
+            match manager.show(&ctx, &paths) {
+                creation::ManageAction::None => self.manager = Some(manager),
+                creation::ManageAction::Close => {}
+                creation::ManageAction::Add => self.creation = Some(creation::Creation::new(true)),
+                creation::ManageAction::Delete(path) => {
+                    manager.error = self.delete_configuration(&path).err();
+                    self.manager = Some(manager);
+                }
+                creation::ManageAction::Import(path) => {
+                    manager.error = self.import_configuration(&path).err();
+                    self.manager = Some(manager);
                 }
             }
         }
@@ -1125,6 +1359,105 @@ fn show_properties(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn importing_configuration_preserves_source_and_refuses_duplicate_names() {
+        let source = tempfile::tempdir().unwrap();
+        let pack = tempfile::tempdir().unwrap();
+        let file = source.path().join("engine_imported.dynx");
+        let text = "Power: 5000\nMaxRPM: 6000\nBraking: 100\n";
+        std::fs::write(&file, text).unwrap();
+        std::fs::write(
+            pack.path().join("pack_info.dynx"),
+            "PackName: Test\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(pack.path());
+        app.import_configuration(&file).unwrap();
+        assert!(app.dirty());
+        assert_eq!(app.editor.as_ref().unwrap().document.source(), text);
+        assert!(app.import_configuration(&file).is_err());
+        assert_eq!(std::fs::read_to_string(file).unwrap(), text);
+        assert!(!pack.path().join("engine_imported.dynx").exists());
+    }
+
+    #[test]
+    fn deleting_and_undoing_structure_preserves_other_dirty_editors() {
+        let temp = tempfile::tempdir().unwrap();
+        for (name, text) in [
+            ("pack_info.dynx", "PackName: Demo\nDcFileVersion: 12.5.0\n"),
+            ("engine_a.dynx", "Power: 1000\nMaxRPM: 6000\nBraking: 100\n"),
+            ("engine_b.dynx", "Power: 2000\nMaxRPM: 6000\nBraking: 100\n"),
+        ] {
+            std::fs::write(temp.path().join(name), text).unwrap();
+        }
+        let mut app = CpmApp::default();
+        app.open_selection(temp.path());
+        app.switch_config(2);
+        app.editor
+            .as_mut()
+            .unwrap()
+            .document
+            .set_value(0, "8000")
+            .unwrap();
+        app.delete_configuration(std::path::Path::new("engine_a.dynx"))
+            .unwrap();
+        assert!(app.editor.as_ref().unwrap().is_dirty());
+        assert_eq!(app.selected_config, Some(1));
+        assert!(app.documents()[std::path::Path::new("engine_b.dynx")]
+            .source()
+            .contains("8000"));
+        app.create_document(creation::Created::Configuration {
+            path: "engine_c.dynx".into(),
+            document: cpm_core::Document::parse("Power: 3000\nMaxRPM: 6000\nBraking: 100\n")
+                .unwrap(),
+        })
+        .unwrap();
+        assert!(app.dirty());
+        app.undo_structure().unwrap();
+        assert!(!app.pack.as_ref().unwrap().has_structure_changes());
+        assert!(app.documents()[std::path::Path::new("engine_b.dynx")]
+            .source()
+            .contains("8000"));
+        assert!(app.dirty());
+        assert!(!temp.path().join("engine_c.dynx").exists());
+    }
+    #[test]
+    fn new_pack_draft_exports_reopens_and_clears_dirty_state() {
+        let document = cpm_core::Document::parse(
+            "PackName: NewPack\nPackVersion: 1.0\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        let mut app = CpmApp::default();
+        app.create_document(creation::Created::Pack {
+            document,
+            name: "NewPack".into(),
+        })
+        .unwrap();
+        assert!(app.dirty());
+        assert!(app.draft_pack.is_some());
+        assert!(app.recent.paths.is_empty());
+        app.prepare_export();
+        assert_eq!(
+            app.export_dialog.as_ref().unwrap().options.output_name,
+            "NewPack"
+        );
+        let temp = tempfile::tempdir().unwrap();
+        let mut options = app.export_dialog.as_ref().unwrap().options.clone();
+        options.destination = temp.path().into();
+        options.format = cpm_core::ExportFormat::Folder;
+        let output = app
+            .pack
+            .as_ref()
+            .unwrap()
+            .export(&options, &app.documents())
+            .unwrap();
+        app.adopt_export(&output);
+        assert!(!app.dirty());
+        assert!(app.draft_pack.is_none());
+        assert!(output.join("pack_info.dynx").is_file());
+    }
 
     #[test]
     fn property_labels_show_errors_warnings_missing_and_clear_after_correction() {

@@ -9,6 +9,7 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 - Navigation par catégories et sections, avec conservation des modifications.
 - Ajout, modification et suppression de paramètres ; signalement des champs
   obligatoires connus et contrôle avant export.
+- Création de packs et configurations ; bouton crayon pour créer, importer ou supprimer des fichiers `.dynx`.
 - Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
   explicite d'une sortie existante.
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification

@@ -6,7 +6,7 @@
 mod document;
 mod pack;
 mod pack_info;
-pub use pack::Pack;
+pub use pack::{configuration_path, Pack};
 
 pub use document::{Document, EditError, ParseError, Property, ReadError, Section};
 pub use pack_info::{PackInfo, ValidationError};

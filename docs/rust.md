@@ -344,3 +344,16 @@ La case **Afficher les textures** permet de comparer le modèle texturé avec se
 La section **Pièces** reprend les noms des objets `o` et groupes `g` de l’OBJ. Chaque case permet d’afficher ou masquer une pièce ; **Isoler** affiche seulement cette pièce, **Tout afficher** rétablit le modèle complet et **Tout masquer** vide la vue. Le survol du nom affiche son nombre de triangles et ses matériaux. Un objet utilisant plusieurs matériaux reste une seule pièce avec plusieurs lots de rendu. Les noms identiques sont regroupés ; sans objet ou groupe nommé, la géométrie apparaît sous `unnamed_object`. Cette liste ne modifie pas les fichiers du pack.
 
 Les textures sont chargées sur le même thread de travail que la géométrie. Limites : 4 Mio par MTL et 16 Mio de MTL par aperçu, 32 Mio par image compressée, dimensions maximales de 4096 × 4096 et 256 Mio de pixels décodés au total. Les textures GPU sont libérées à la fermeture ou au remplacement de l’aperçu.
+
+
+## Créer et gérer les configurations
+
+**File → Créer** ouvre un formulaire permettant de choisir un nouveau pack ou une configuration : véhicule, moteur, roue, sons, remorque, bateau, hélicoptère, bloc, prop, item, armure ou fichier personnalisé pour un addon.
+
+Pour un pack, renseigner le nom, la version, `DcFileVersion` et la description. CPM prépare un brouillon avec son `pack_info.dynx` ; **File → Exporter** permet ensuite de choisir la destination et le format (dossier, ZIP ou DNXPACK). Le brouillon n’est pas ajouté aux packs récents avant son premier export. **File → Abandonner le brouillon** permet de le fermer sans créer de sortie.
+
+Pour une configuration, saisir son nom et, dans un pack, un sous-dossier facultatif. Le préfixe et l’extension sont ajoutés automatiquement pour les types connus ; le type personnalisé conserve le nom de base saisi. Le formulaire utilise les paramètres racine obligatoires du catalogue actif, avec leurs valeurs par défaut disponibles. Une case permet aussi d’inclure les paramètres facultatifs ayant une valeur par défaut. Les champs obligatoires encore incomplets peuvent être complétés après création dans l’éditeur ; ils restent contrôlés avant export. Une configuration créée sans pack est un brouillon de fichier individuel, enregistré par **File → Exporter**.
+
+Le bouton crayon **✎**, à côté de **Configurations**, ouvre la gestion des fichiers `.dynx` du pack courant. Il permet de créer une configuration, d’importer un `.dynx` existant à la racine ou de supprimer une configuration après confirmation. L’import conserve le fichier source intact. Les noms en double (y compris les différences de casse), chemins sortant du pack et noms de fichiers non portables sont refusés. `pack_info.dynx` est protégé contre la suppression.
+
+Les changements de liste sont gardés en mémoire, y compris pour les archives RAR. **File → Exporter** les applique à la sortie en conservant les ressources du pack. Ils ne modifient pas directement le dossier ou l’archive source. **File → Annuler les ajouts et suppressions** rétablit la liste initiale, enlève les nouveaux fichiers et conserve les modifications des configurations existantes encore ouvertes. La suppression abandonne les modifications en mémoire du fichier supprimé ; les références à ce fichier dans les autres configurations ne sont pas réécrites automatiquement.

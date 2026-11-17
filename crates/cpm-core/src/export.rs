@@ -71,7 +71,7 @@ impl ExportOptions {
     }
 }
 
-fn validate_filename(name: &str) -> Result<(), String> {
+pub(crate) fn validate_filename(name: &str) -> Result<(), String> {
     if name.is_empty()
         || name == "."
         || name == ".."
@@ -147,6 +147,7 @@ impl Pack {
         let content = stage.path().join("content");
         fs::create_dir(&content).map_err(|e| e.to_string())?;
         self.materialize(&content)?;
+        self.materialize_edits(&content)?;
         for (path, document) in documents {
             fs::write(content.join(path), document.source()).map_err(|e| e.to_string())?;
         }
