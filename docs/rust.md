@@ -313,3 +313,7 @@ Exemple de fichier `properties/mon-addon.json` :
 ```
 
 Les valeurs de sévérité JSON sont `ignore`, `warning` et `error`. Les types sont `text`, `integer`, `decimal`, `boolean`, `vector2`, `vector3`, `quaternion`, `resource`, `enumeration` et `list`. Pour une énumération, ajouter `choices` (tableau de chaînes). `aliases` permet d’accepter d’autres noms pour un même paramètre. Pour une section, ajouter `section_pattern`, par exemple `Point_*`, et éventuellement `parent_pattern` pour limiter au parent direct. Les champs inconnus et versions de schéma non prises en charge sont refusés pour éviter les fautes silencieuses.
+
+## Packs récents
+
+**File → Ouvrir récent** affiche les cinq derniers packs distincts (dossiers, ZIP, DNXPACK ou RAR), du plus récent au plus ancien. Réouvrir le même pack le remonte sans doublon. Seules les ouvertures réussies sont mémorisées ; les fichiers `.dynx` individuels sont exclus. Le chemin complet apparaît au survol. La liste est conservée dans `recent-packs.json` à côté de l’exécutable. Comme pour Importer, il faut enregistrer ou annuler les modifications avant de changer de pack.

@@ -2,6 +2,7 @@ mod editor;
 mod export_dialog;
 mod navigation;
 mod properties_editor;
+mod recent;
 mod update;
 
 use cpm_core::Pack;
@@ -26,6 +27,7 @@ fn main() -> eframe::Result {
         Box::new(|_| {
             let mut app = CpmApp::default();
             app.load_properties();
+            app.load_recent();
             app.updater.check();
             Ok(Box::new(app))
         }),
@@ -34,6 +36,7 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct CpmApp {
+    recent: recent::RecentPacks,
     catalog: std::sync::Arc<cpm_core::ParameterCatalog>,
     properties_editor: Option<properties_editor::PropertiesEditor>,
     editor: Option<Editor>,
@@ -56,6 +59,32 @@ struct CpmApp {
 }
 
 impl CpmApp {
+    fn load_recent(&mut self) {
+        match std::env::current_exe()
+            .map_err(|e| e.to_string())
+            .and_then(|p| {
+                p.parent()
+                    .map(|p| p.join("recent-packs.json"))
+                    .ok_or("Dossier introuvable".into())
+            }) {
+            Ok(path) => {
+                let (recent, warning) = recent::RecentPacks::load(path);
+                self.recent = recent;
+                if let Some(warning) = warning {
+                    self.error = Some(match self.error.take() {
+                        Some(error) => format!("{error}\n{warning}"),
+                        None => warning,
+                    });
+                }
+            }
+            Err(error) => self.error = Some(error),
+        }
+    }
+    fn remember_pack(&mut self, path: &std::path::Path) {
+        if let Err(error) = self.recent.remember(path) {
+            self.error = Some(error);
+        }
+    }
     fn properties_directory() -> Result<std::path::PathBuf, String> {
         Ok(std::env::current_exe()
             .map_err(|e| e.to_string())?
@@ -139,6 +168,7 @@ impl CpmApp {
                 self.status = "Pack ouvert".into();
                 self.start_validation();
                 self.switch_config(0);
+                self.remember_pack(path);
             }
             Err(error) => self.error = Some(error),
         }
@@ -277,6 +307,7 @@ impl CpmApp {
                 self.standalone_path = None;
                 self.start_validation();
                 self.switch_config(0);
+                self.remember_pack(path);
                 self.status = format!("Pack exporté : {}", path.display());
             }
             Err(error) => {
@@ -378,6 +409,18 @@ impl CpmApp {
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    ui.add_enabled_ui(!self.dirty(), |ui| {
+                        ui.menu_button("Ouvrir récent", |ui| {
+                            if self.recent.paths.is_empty() { ui.label("Aucun pack récent"); }
+                            for path in self.recent.paths.clone() {
+                                let name = path.file_name().unwrap_or_default().to_string_lossy();
+                                if ui.button(name.as_ref()).on_hover_text(path.display().to_string()).clicked() {
+                                    ui.close();
+                                    self.open_selection(&path);
+                                }
+                            }
+                        });
+                    });
                     ui.add_enabled_ui(!self.dirty(), |ui| {
                         ui.menu_button("Importer", |ui| {
                             let choices = [
@@ -1046,6 +1089,40 @@ mod tests {
         assert!(editor.custom_parameter.is_none());
         assert_eq!(editor.document.properties()[1].key, "AddonFlag");
         assert_eq!(editor.document.properties()[1].value, "True");
+    }
+
+    #[test]
+    fn recent_history_tracks_only_successful_pack_opens() {
+        let temp = tempfile::tempdir().unwrap();
+        let pack = temp.path().join("pack");
+        std::fs::create_dir(&pack).unwrap();
+        std::fs::write(
+            pack.join("pack_info.dynx"),
+            "PackName: Demo\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(&pack);
+        assert_eq!(
+            app.recent.paths,
+            vec![std::fs::canonicalize(&pack).unwrap()]
+        );
+        app.open_selection(&pack.join("pack_info.dynx"));
+        assert_eq!(app.recent.paths.len(), 1);
+        app.open_selection(&temp.path().join("missing.zip"));
+        assert_eq!(app.recent.paths.len(), 1);
+        app.editor
+            .as_mut()
+            .unwrap()
+            .document
+            .set_value(0, "Changed")
+            .unwrap();
+        let other = temp.path().join("other");
+        std::fs::create_dir(&other).unwrap();
+        std::fs::write(other.join("pack_info.dynx"), "PackName: Other\n").unwrap();
+        app.open_selection(&other);
+        assert_eq!(app.recent.paths.len(), 1);
+        assert!(app.error.as_ref().unwrap().contains("Enregistre"));
     }
 
     #[test]
