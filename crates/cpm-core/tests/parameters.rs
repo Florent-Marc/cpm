@@ -188,3 +188,42 @@ fn removing_required_parameter_immediately_produces_a_validation_issue() {
         .unwrap();
     assert!(configuration_issues(Path::new("pack_info.dynx"), &document).is_empty());
 }
+
+#[test]
+fn pitch_range_is_optional_in_all_sound_sections_and_does_not_block_export() {
+    let source = "Engine{\n Interior{\n  Starting{\n   Sound: start\n  }\n  0-1500{\n   Sound: idle\n  }\n }\n Exterior{\n  1500-5000{\n   Sound: drive\n   PitchRange:\n  }\n }\n}\n";
+    let document = Document::parse(source).unwrap();
+    let path = Path::new("sounds_car.dynx");
+    assert!(configuration_issues(path, &document).is_empty());
+    for (index, section) in document.sections().iter().enumerate() {
+        if ["Starting", "0-1500", "1500-5000"].contains(&section.name.as_str()) {
+            let spec = parameter_catalog(path, &document, Some(index))
+                .into_iter()
+                .find(|p| p.key == "PitchRange")
+                .unwrap();
+            assert!(!spec.required);
+        }
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let source_dir = temp.path().join("source");
+    std::fs::create_dir(&source_dir).unwrap();
+    std::fs::write(
+        source_dir.join("pack_info.dynx"),
+        "PackName: Test\nDcFileVersion: 12.5.0\n",
+    )
+    .unwrap();
+    std::fs::write(source_dir.join(path), source).unwrap();
+    let pack = Pack::open(&source_dir).unwrap();
+    let options = ExportOptions {
+        destination: temp.path().to_owned(),
+        output_name: "result".into(),
+        format: ExportFormat::Dnxpack,
+        replace_existing: false,
+        metadata: PackMetadata {
+            name: "Test".into(),
+            version: "1.0".into(),
+            description: String::new(),
+        },
+    };
+    assert!(pack.export(&options, &BTreeMap::new()).is_ok());
+}

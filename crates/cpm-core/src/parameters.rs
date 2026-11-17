@@ -127,14 +127,7 @@ pub fn parameter_catalog(
                 ["Interior", "Exterior"].contains(&document.sections()[parent].name.as_str())
             })
         {
-            return vec![
-                r("Sound"),
-                if s == "Starting" {
-                    o("PitchRange", "")
-                } else {
-                    r("PitchRange")
-                },
-            ];
+            return vec![r("Sound"), o("PitchRange", "")];
         }
         return Vec::new();
     }
