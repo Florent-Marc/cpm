@@ -1,8 +1,8 @@
 # CPM en Rust
 
 Le workspace contient `cpm-core`, une bibliothèque sans dépendance graphique,
-et `cpm-app`, le point d'entrée de la future application. Le code Java dans
-`src/` reste une référence pendant la migration.
+et `cpm-app`, l'application de bureau egui. Les anciens fichiers Java et Maven
+ont été retirés de cette branche ; leur historique reste disponible dans Git.
 
 ## Démarrer
 
@@ -266,9 +266,13 @@ correspondant à la version Cargo déclenche aussi la publication d'une release
 avec l'asset nommé comme attendu par le programme. Aucun tag ni release n'est
 créé lors des modifications de code dans cette conversation.
 
-## Ancien code Java
+## Branche Rust uniquement
 
-Les crates Rust ne dépendent ni du code Java, ni de Maven, ni des anciens JAR.
-Aucun JRE/JDK n'est nécessaire pour compiler ou exécuter l'application Rust.
-Les fichiers Java sont encore présents comme référence de migration et pourront
-être retirés séparément sans modifier la structure du workspace Rust.
+Les sources Java, interfaces FXML, anciens JAR, fichiers Maven et traces de
+crash de l'ancienne application ont été retirés de cette branche. Les ressources
+utilisées par Rust (logo, icône Windows et script de mise à jour) restent dans
+`crates/cpm-app/assets`. Les tests et leur fixture RAR restent dans le core.
+
+Java et Maven ne sont nécessaires ni pour compiler ni pour lancer CPM Rust.
+L'ancienne implémentation reste consultable dans l'historique Git et dans la
+branche Java ; aucun historique n'a été réécrit lors de ce nettoyage.

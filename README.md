@@ -1,29 +1,64 @@
+# Content's Pack Modifier — CPM
 
-# Content's Pack Modifier
+Éditeur de packs [DynamX](https://wiki.dynamx.fr/fr/) en Rust, avec une interface
+de bureau egui. Cette branche contient uniquement la version Rust.
 
-The CPM program was created to simplify the creation and modification of [Dynamx](https://dynamx.fr/) packs by consolidating everything into a Java application, which is still in development. This tool aims to streamline processes and enhance efficiency for users working with packs.
+## Fonctionnalités
 
+- Import de dossiers de packs et d'archives ZIP, DNXPACK ou RAR non chiffrées.
+- Navigation par catégories et sections, avec conservation des modifications.
+- Ajout, modification et suppression de paramètres ; signalement des champs
+  obligatoires connus et contrôle avant export.
+- Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
+  explicite d'une sortie existante.
+- Liens vers le wiki et les rapports de bugs, version affichée et vérification
+  des nouvelles releases Rust.
 
-## In progress
+La prévisualisation 3D n'est pas encore implémentée. Le catalogue des paramètres
+n'est pas un validateur exhaustif de tous les addons DynamX.
 
-Being still in development, the CPM program has some errors and unfinished features. However, I am open to discussions and pull requests so that, together, we can create a better tool to save us time.
+## Démarrer
 
+Installer Rust stable (1.95 ou supérieur). Un compilateur C++ est également
+nécessaire pour la bibliothèque de lecture RAR ; sous Windows, utiliser les
+outils Visual Studio C++ et le Windows SDK. Java et Maven ne sont pas nécessaires.
 
+```sh
+cargo run -p cpm-app
+```
 
-## Lib
+Pour compiler une version optimisée :
 
-- json.simple for save data
-- jimObjModelImporterJFX for render 3D
-- javassist for addon import
+```sh
+cargo build -p cpm-app --release
+```
 
-## Authors
+L'exécutable se trouve dans `target/release/cpm.exe` sur Windows, et
+`target/release/cpm` sur Linux. Les sélecteurs Linux nécessitent un portail XDG.
 
-[@MK](https://github.com/Florent-Marc) 
+## Structure
 
-## Rust workspace
+| Dossier | Rôle |
+| --- | --- |
+| `crates/cpm-core` | Lecture, édition, validation et export des packs |
+| `crates/cpm-app` | Interface egui, sélecteurs et mises à jour |
+| `docs/rust.md` | Guide détaillé, limites et fonctionnement des exports |
+| `.github/workflows` | Vérification, compilation et publication Windows |
 
-A Rust workspace is available in this branch: see [the Rust guide](docs/rust.md).
-`cpm-core` reads and edits UTF-8 DynamX configuration documents while preserving their text.
-`cpm-app` opens individual .dynx configurations, pack folders, and .dnxpack/ZIP/RAR archives through File → Importer. It groups configurations and sections, retains edits while navigating, and exports full packs as folders, ZIP, or DNXPACK via File → Exporter, with metadata editing and explicit replacement. The 3D preview is not implemented yet.
+Le core ne dépend pas de l'interface. Les icônes, ressources Windows et le
+script de mise à jour sont inclus dans `crates/cpm-app/assets`.
 
-Missing parameters can be inserted with the `+` menus. Configurations with missing required fields are marked red, and export checks the same documented rules. The Wiki link opens the DynamX documentation.
+## Vérifier
+
+```sh
+cargo fmt --all -- --check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+Voir le [guide détaillé](docs/rust.md) pour les formats pris en charge, les
+règles de validation et la publication des releases utilisées par l'updater.
+
+## Auteur
+
+[@MK](https://github.com/Florent-Marc)

@@ -1,42 +1,17 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Compilation et packaging Rust
+/target/
+/release/
+*.rs.bk
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
-*.iml
-*.ipr
+# Préférences locales des éditeurs
+/.idea/
+/.vscode/
 
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-
-### Mac OS ###
+# Journaux et fichiers du système
+*.log
 .DS_Store
-# Project exclude paths
-/out/
-/.idea/artifacts/CPM_UI_jar.xml
-/CPM-UI.jar
+Thumbs.db
+
+# Dossiers temporaires de CPM
+.cpm-export-*/
+.cpm-update-*/
