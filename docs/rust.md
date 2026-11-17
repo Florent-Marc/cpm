@@ -26,10 +26,13 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 
 `cargo run -p cpm-app` lance l'éditeur de packs :
 
-1. Cliquer sur **Ouvrir un fichier…** pour une configuration `.dynx` isolée ou
-   une archive `.dnxpack` / ZIP. Cliquer sur **Ouvrir un dossier de pack…** pour
-   choisir un dossier contenant `pack_info.dynx`. Ces boutons affichent le
-   sélecteur du système. Annuler la sélection conserve le document courant.
+1. Cliquer sur **Configuration (.dynx)…** pour une configuration isolée,
+   **Pack ZIP / DNXPACK…** pour une archive `.zip` ou `.dnxpack`, ou **Dossier
+   de pack…** pour un dossier contenant `pack_info.dynx`. Les archives se
+   sélectionnent dans une fenêtre de fichiers ; le sélecteur de dossier sert
+   uniquement aux packs non compressés. Le filtre **Tous les fichiers** reste
+   disponible dans les fenêtres de fichiers. Ces boutons affichent le sélecteur
+   du système. Annuler la sélection conserve le document courant.
    La saisie manuelle d'un chemin reste possible avec le bouton **Ouvrir**.
 2. Choisir une configuration dans la liste de gauche : seul le nom du fichier
    est affiché, avec son chemin relatif au survol pour distinguer les homonymes.

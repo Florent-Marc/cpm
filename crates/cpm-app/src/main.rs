@@ -167,16 +167,25 @@ impl CpmApp {
             });
             ui.horizontal_wrapped(|ui| {
                 let can_open = !self.dirty();
-                if ui.add_enabled(can_open, egui::Button::new("Ouvrir un fichier…")).clicked() {
+                if ui.add_enabled(can_open, egui::Button::new("Configuration (.dynx)…")).clicked() {
                     if let Some(path) = rfd::FileDialog::new()
-                        .set_title("Ouvrir une configuration ou une archive de pack")
-                        .add_filter("Configurations et packs DynamX", &["dynx", "dnxpack", "zip"])
-                        .add_filter("Configurations", &["dynx"])
-                        .add_filter("Archives de pack", &["dnxpack", "zip"])
+                        .set_title("Ouvrir une configuration DynamX")
+                        .add_filter("Configuration DynamX (*.dynx)", &["dynx"])
+                        .add_filter("Tous les fichiers", &["*"])
                         .pick_file()
                     { self.open_selection(&path); }
                 }
-                if ui.add_enabled(can_open, egui::Button::new("Ouvrir un dossier de pack…")).clicked() {
+                if ui.add_enabled(can_open, egui::Button::new("Pack ZIP / DNXPACK…")).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title("Ouvrir un pack compressé ZIP ou DNXPACK")
+                        .add_filter("Packs compressés (*.zip, *.dnxpack)", &["zip", "dnxpack"])
+                        .add_filter("Archives ZIP (*.zip)", &["zip"])
+                        .add_filter("Packs DynamX (*.dnxpack)", &["dnxpack"])
+                        .add_filter("Tous les fichiers", &["*"])
+                        .pick_file()
+                    { self.open_selection(&path); }
+                }
+                if ui.add_enabled(can_open, egui::Button::new("Dossier de pack…")).clicked() {
                     if let Some(path) = rfd::FileDialog::new()
                         .set_title("Choisir le dossier contenant pack_info.dynx")
                         .pick_folder()
@@ -189,7 +198,7 @@ impl CpmApp {
                 ui.add(
                     egui::TextEdit::singleline(&mut self.open_path)
                         .desired_width(500.0)
-                        .hint_text("Configuration .dynx, dossier ou archive .dnxpack"),
+                        .hint_text("Configuration .dynx, dossier ou archive .zip / .dnxpack"),
                 );
                 if ui
                     .add_enabled(
@@ -315,7 +324,7 @@ impl CpmApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
-                ui.label("Clique sur Ouvrir un fichier pour une configuration ou une archive, ou sur Ouvrir un dossier de pack pour un pack non compressé.");
+                ui.label("Choisis Configuration pour un .dynx, Pack ZIP / DNXPACK pour une archive, ou Dossier de pack pour un pack non compressé.");
                 ui.label("Les commentaires et les champs d'addons sont conservés. La sauvegarde crée une nouvelle copie sans écraser de fichier existant.");
                 return;
             };

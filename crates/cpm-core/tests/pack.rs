@@ -76,7 +76,7 @@ fn directory_is_recursive_sorted_and_only_loads_selected_config() {
 fn archive_reads_nested_configs_without_extracting_assets() {
     let fixture = Fixture::new();
     let path = fixture.zip(
-        "demo.dnxpack",
+        "demo.zip",
         &[
             ("pack_info.dynx", "PackName: Archive\n"),
             ("car/vehicle_demo.dynx", "Name: Car\n"),
