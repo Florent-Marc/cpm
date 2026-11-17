@@ -146,14 +146,15 @@ impl Pack {
     }
     pub fn add_configuration(&mut self, path: &Path, document: Document) -> Result<usize, String> {
         let path = configuration_path(path)?;
-        if self.configs.iter().any(|p| {
-            p.to_string_lossy()
-                .eq_ignore_ascii_case(&path.to_string_lossy())
-        }) || self.resources.keys().any(|p| {
-            p.to_string_lossy()
-                .eq_ignore_ascii_case(&path.to_string_lossy())
-                && !self.removed.contains(p)
-        }) {
+        if self
+            .configs
+            .iter()
+            .any(|p| same_configuration_path(p, &path))
+            || self
+                .resources
+                .keys()
+                .any(|p| same_configuration_path(p, &path) && !self.removed.contains(p))
+        {
             return Err("Un fichier portant ce nom existe déjà dans le pack".into());
         }
         if self.source.is_dir() && self.source.join(&path).exists() && !self.removed.contains(&path)
@@ -174,10 +175,12 @@ impl Pack {
             .skip(1)
             .filter(|p| !p.as_os_str().is_empty())
         {
-            if self.resources.keys().chain(self.added.keys()).any(|p| {
-                p.to_string_lossy()
-                    .eq_ignore_ascii_case(&parent.to_string_lossy())
-            }) {
+            if self
+                .resources
+                .keys()
+                .chain(self.added.keys())
+                .any(|p| same_configuration_path(p, parent))
+            {
                 return Err("Un dossier parent est déjà utilisé comme fichier".into());
             }
         }
@@ -471,4 +474,26 @@ pub fn configuration_path(path: &Path) -> Result<PathBuf, String> {
         crate::export::validate_filename(&component.as_os_str().to_string_lossy())?;
     }
     Ok(path)
+}
+
+fn same_configuration_path(left: &Path, right: &Path) -> bool {
+    left.to_string_lossy()
+        .replace('\\', "/")
+        .eq_ignore_ascii_case(&right.to_string_lossy().replace('\\', "/"))
+}
+
+#[cfg(test)]
+mod path_tests {
+    #[test]
+    fn collision_checks_normalize_both_windows_separators_and_case() {
+        use std::path::Path;
+        assert!(super::same_configuration_path(
+            Path::new("assets\\model.obj"),
+            Path::new("ASSETS/model.obj")
+        ));
+        assert!(!super::same_configuration_path(
+            Path::new("assets/model.obj"),
+            Path::new("other/model.obj")
+        ));
+    }
 }

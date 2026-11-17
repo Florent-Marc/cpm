@@ -39,9 +39,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
-        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --release --workspace --all-targets -- -D warnings
       - name: Test
-        run: cargo test --locked --workspace
+        run: cargo test --locked --release --workspace
       - name: Build Windows executable
         run: cargo build --locked -p cpm-app --release
       - name: Prepare portable executable
