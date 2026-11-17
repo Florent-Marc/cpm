@@ -5,15 +5,24 @@ on:
   push:
     tags:
       - 'rust-v*'
+  release:
+    types: [published]
 
 permissions:
   contents: write
 
+concurrency:
+  group: cpm-windows-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   windows:
-    runs-on: windows-latest
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'rust-v')
+    runs-on: windows-2025
     env:
       RUSTUP_TOOLCHAIN: stable
+      RUSTFLAGS: '-C target-feature=+crt-static'
+      RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust stable
@@ -21,31 +30,65 @@ jobs:
       - name: Check release version
         shell: pwsh
         run: |
-          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
           $version = ($metadata.packages | Where-Object name -eq 'cpm-app').version
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "rust-v$version") {
+          if (($env:GITHUB_REF_TYPE -eq 'tag' -or $env:GITHUB_EVENT_NAME -eq 'release') -and $env:RELEASE_TAG -ne "rust-v$version") {
             throw "Le tag doit correspondre a la version Cargo : rust-v$version"
           }
           "CPM_VERSION=$version" >> $env:GITHUB_ENV
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Test
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
       - name: Build Windows executable
-        run: cargo build -p cpm-app --release
-      - name: Prepare asset
+        run: cargo build --locked -p cpm-app --release
+      - name: Prepare portable executable
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force release
           Copy-Item target/release/cpm.exe release/cpm-windows-x86_64.exe
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) { throw "Inno Setup est introuvable sur le runner" }
+          & $compiler "/DAppVersion=$env:CPM_VERSION" installer/cpm.iss
+          if ($LASTEXITCODE -ne 0) { throw "Compilation de l'installateur echouee" }
+      - name: Smoke test installer
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'cpm-install-test'
+          $installer = (Resolve-Path release/cpm-setup-windows-x86_64.exe).Path
+          $process = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$destination`"" -Wait -PassThru
+          if ($process.ExitCode -ne 0 -or -not (Test-Path "$destination\cpm.exe")) { throw "Installation de test echouee" }
+          if ((Get-FileHash "$destination\cpm.exe").Hash -ne (Get-FileHash target/release/cpm.exe).Hash) { throw "Executable installe different du build" }
+          $uninstaller = Join-Path $destination 'unins000.exe'
+          $process = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($process.ExitCode -ne 0 -or (Test-Path "$destination\cpm.exe")) { throw "Desinstallation de test echouee" }
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*.exe | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content release/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v7
         with:
           name: cpm-windows-x86_64
-          path: release/cpm-windows-x86_64.exe
+          path: release/*
+          if-no-files-found: error
       - name: Publish tagged Rust release
-        if: startsWith(github.ref, 'refs/tags/rust-v')
+        if: startsWith(github.ref, 'refs/tags/rust-v') || github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" release/cpm-windows-x86_64.exe --title "CPM Rust v$env:CPM_VERSION" --generate-notes --verify-tag
+        shell: pwsh
+        run: |
+          gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload "$env:RELEASE_TAG" release/cpm-windows-x86_64.exe release/cpm-setup-windows-x86_64.exe release/SHA256SUMS.txt --repo "$env:GITHUB_REPOSITORY" --clobber
+          } else {
+            gh release create "$env:RELEASE_TAG" release/cpm-windows-x86_64.exe release/cpm-setup-windows-x86_64.exe release/SHA256SUMS.txt --repo "$env:GITHUB_REPOSITORY" --title "CPM Rust v$env:CPM_VERSION" --notes-file "docs/release-notes-v$env:CPM_VERSION.md" --verify-tag
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Publication de la release echouee" }

@@ -64,3 +64,7 @@ règles de validation et la publication des releases utilisées par l'updater.
 [@MK](https://github.com/Florent-Marc)
 
 Le bouton **Propriétés** permet de personnaliser les types, obligations, sévérités et valeurs par défaut. Les définitions sont enregistrées dans `properties/` à côté de l’exécutable ; des fichiers JSON supplémentaires permettent de prendre en charge les addons. Voir [le guide](docs/rust.md#catalogue-de-propriétés-et-addons).
+
+## Version Windows à télécharger
+
+Les [releases GitHub](https://github.com/Florent-Marc/cpm/releases) proposent un installateur Windows 10/11 x64 (`cpm-setup-windows-x86_64.exe`) et une version portable (`cpm-windows-x86_64.exe`). Java et Rust ne sont pas nécessaires pour utiliser ces exécutables. Le dossier `properties/` et l’historique sont enregistrés à côté du programme.
