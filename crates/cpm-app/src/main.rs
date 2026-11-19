@@ -6,6 +6,7 @@
 mod creation;
 mod editor;
 mod export_dialog;
+mod model_browser;
 mod navigation;
 mod parameter_input;
 mod preview;
@@ -58,6 +59,7 @@ struct CpmApp {
     preview_due: Option<std::time::Instant>,
     search: search::Search,
     report: Option<report::Report>,
+    model_browser: Option<model_browser::Browser>,
     creation: Option<creation::Creation>,
     manager: Option<creation::Manager>,
     draft_pack: Option<tempfile::TempDir>,
@@ -1094,6 +1096,49 @@ impl CpmApp {
                         self.pending_scroll = Some(issue.section);
                     }
                 }
+            }
+        }
+        if let Some(mut browser) = self.model_browser.take() {
+            let (open, selected) = browser.show(&ctx);
+            if let Some(selected) = selected {
+                let request = match selected {
+                    model_browser::Selection::Config(index) => {
+                        self.switch_config(index);
+                        self.preview_config = self
+                            .editor
+                            .as_ref()
+                            .map(|e| e.path.clone())
+                            .unwrap_or_default();
+                        self.request_for(&self.preview_config)
+                    }
+                    model_browser::Selection::Asset(path) => {
+                        self.preview_config = std::path::PathBuf::new();
+                        cpm_core::Document::parse(&format!("Model: {}\n", path.display()))
+                            .map_err(|e| e.to_string())
+                            .and_then(|d| {
+                                cpm_core::ObjRequest::resolve(
+                                    self.pack.as_ref(),
+                                    std::path::Path::new("raw_model.dynx"),
+                                    &d,
+                                )
+                            })
+                    }
+                };
+                match request {
+                    Ok(request) => {
+                        let mut preview =
+                            preview::Preview::open(request.with_documents(self.documents()), &ctx);
+                        preview.live = !self.preview_config.as_os_str().is_empty();
+                        self.preview = Some(preview);
+                        self.preview_source = self.open_path.clone();
+                        self.preview_signature = self.scene_revision();
+                        self.preview_due = None;
+                    }
+                    Err(error) => self.error = Some(error),
+                }
+            }
+            if open {
+                self.model_browser = Some(browser);
             }
         }
         if self.preview_source != self.open_path {

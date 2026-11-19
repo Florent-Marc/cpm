@@ -224,6 +224,13 @@ impl Pack {
         Ok(())
     }
 
+    pub fn obj_resources(&self) -> Vec<PathBuf> {
+        self.resources
+            .keys()
+            .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("obj")))
+            .cloned()
+            .collect()
+    }
     pub fn contains_resource(&self, path: &Path) -> bool {
         self.resources.contains_key(path)
     }

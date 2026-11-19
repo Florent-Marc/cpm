@@ -107,6 +107,7 @@ impl Preview {
                                     })
                                     .collect();
                                 PartVisibility {
+                                    section: p.section,
                                     name: p.name.clone(),
                                     visible: previous.get(&p.name).copied().unwrap_or(true),
                                     details: format!(
@@ -164,11 +165,19 @@ impl Preview {
                     });
                     let mut isolate=None;
                     egui::ScrollArea::vertical().id_salt("obj-parts").max_height(125.0).show(ui,|ui| {
-                        for (index,part) in self.parts.iter_mut().enumerate(){
-                            ui.push_id(index,|ui|{ui.horizontal(|ui|{
-                                ui.checkbox(&mut part.visible,&part.name).on_hover_text(&part.details);
-                                if ui.small_button("Isoler").clicked(){isolate=Some(index);}
-                            });});
+                        let mut groups:std::collections::BTreeMap<String,Vec<usize>>=std::collections::BTreeMap::new();
+                        for (index,part) in self.parts.iter().enumerate(){groups.entry(part.name.split_once('/').map(|(group,_)|group.to_owned()).unwrap_or("Modèle principal".into())).or_default().push(index);}
+                        for (group,indices) in groups {
+                            egui::CollapsingHeader::new(group).default_open(true).show(ui,|ui|{
+                                for index in indices {
+                                    let part=&mut self.parts[index];
+                                    ui.push_id(index,|ui|{ui.horizontal(|ui|{
+                                        ui.checkbox(&mut part.visible,"");
+                                        if ui.selectable_label(part.section.is_some()&&self.selected==part.section,part.name.split_once('/').map(|(_,name)|name).unwrap_or(&part.name)).on_hover_text(&part.details).clicked(){self.selected=part.section;self.selection_changed=Some(part.section);}
+                                        if ui.small_button("Isoler").clicked(){isolate=Some(index);}
+                                    });});
+                                }
+                            });
                         }
                     });
                     if let Some(selected)=isolate {for (index,part) in self.parts.iter_mut().enumerate(){part.visible=index==selected;}}
@@ -215,6 +224,7 @@ impl Preview {
 }
 
 struct PartVisibility {
+    section: Option<usize>,
     name: String,
     visible: bool,
     details: String,
