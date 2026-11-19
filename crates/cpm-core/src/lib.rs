@@ -30,3 +30,6 @@ mod model;
 pub use model::{CollisionWire, ObjBatch, ObjMaterial, ObjMesh, ObjPart, ObjRequest, ObjTexture};
 
 mod scene;
+
+mod audit;
+pub use audit::PackIssue;
