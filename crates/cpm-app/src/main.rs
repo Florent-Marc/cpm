@@ -164,6 +164,9 @@ impl CpmApp {
             );
             return;
         }
+        self.preview = None;
+        self.model_browser = None;
+        self.search = search::Search::default();
         if path.is_file()
             && path
                 .extension()
@@ -537,6 +540,20 @@ impl CpmApp {
         self.status = "Brouillon abandonné".into();
     }
 
+    fn modal(&self) -> bool {
+        self.report.is_some()
+            || self.export_dialog.is_some()
+            || self.properties_editor.is_some()
+            || self.creation.is_some()
+            || self.manager.is_some()
+            || self.confirm_close
+            || self.updater.busy()
+            || self.restarting
+            || self
+                .editor
+                .as_ref()
+                .is_some_and(|e| e.custom_parameter.is_some())
+    }
     fn scene_revision(&self) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut hash = std::collections::hash_map::DefaultHasher::new();
@@ -649,12 +666,7 @@ impl CpmApp {
         {
             ui.disable();
         }
-        if self.export_dialog.is_none()
-            && self.report.is_none()
-            && self.properties_editor.is_none()
-            && self.creation.is_none()
-            && self.manager.is_none()
-        {
+        if !self.modal() && !self.search.open && self.model_browser.is_none() {
             let redo = ctx.input_mut(|i| {
                 i.consume_key(egui::Modifiers::CTRL | egui::Modifiers::SHIFT, egui::Key::Z)
                     || i.consume_key(egui::Modifiers::CTRL, egui::Key::Y)
@@ -1079,10 +1091,12 @@ impl CpmApp {
                 }
             }
         }
-        if let Some(hit) = self.search.show(&ctx, self.pack.as_ref(), self.documents()) {
-            self.switch_config(hit.index);
-            self.selected_section = hit.section;
-            self.pending_scroll = Some(hit.section);
+        if !self.modal() {
+            if let Some(hit) = self.search.show(&ctx, self.pack.as_ref(), self.documents()) {
+                self.switch_config(hit.index);
+                self.selected_section = hit.section;
+                self.pending_scroll = Some(hit.section);
+            }
         }
         if let Some(mut report) = self.report.take() {
             match report.show(&ctx) {
@@ -1098,51 +1112,65 @@ impl CpmApp {
                         self.switch_config(index);
                         self.selected_section = issue.section;
                         self.pending_scroll = Some(issue.section);
+                        if let Some(editor) = &mut self.editor {
+                            editor.focus_key = Some(issue.parameter);
+                        }
                     }
                 }
             }
         }
-        if let Some(mut browser) = self.model_browser.take() {
-            let (open, selected) = browser.show(&ctx);
-            if let Some(selected) = selected {
-                let request = match selected {
-                    model_browser::Selection::Config(index) => {
-                        self.switch_config(index);
-                        self.preview_config = self
-                            .editor
-                            .as_ref()
-                            .map(|e| e.path.clone())
-                            .unwrap_or_default();
-                        self.request_for(&self.preview_config)
+        if self
+            .model_browser
+            .as_ref()
+            .is_some_and(|b| !b.matches(self.pack.as_ref()))
+        {
+            self.model_browser = None;
+        }
+        if !self.modal() {
+            if let Some(mut browser) = self.model_browser.take() {
+                let (open, selected) = browser.show(&ctx);
+                if let Some(selected) = selected {
+                    let request = match selected {
+                        model_browser::Selection::Config(index) => {
+                            self.switch_config(index);
+                            self.preview_config = self
+                                .editor
+                                .as_ref()
+                                .map(|e| e.path.clone())
+                                .unwrap_or_default();
+                            self.request_for(&self.preview_config)
+                        }
+                        model_browser::Selection::Asset(path) => {
+                            self.preview_config = std::path::PathBuf::new();
+                            cpm_core::Document::parse(&format!("Model: {}\n", path.display()))
+                                .map_err(|e| e.to_string())
+                                .and_then(|d| {
+                                    cpm_core::ObjRequest::resolve(
+                                        self.pack.as_ref(),
+                                        std::path::Path::new("raw_model.dynx"),
+                                        &d,
+                                    )
+                                })
+                        }
+                    };
+                    match request {
+                        Ok(request) => {
+                            let mut preview = preview::Preview::open(
+                                request.with_documents(self.documents()),
+                                &ctx,
+                            );
+                            preview.live = !self.preview_config.as_os_str().is_empty();
+                            self.preview = Some(preview);
+                            self.preview_source = self.open_path.clone();
+                            self.preview_signature = self.scene_revision();
+                            self.preview_due = None;
+                        }
+                        Err(error) => self.error = Some(error),
                     }
-                    model_browser::Selection::Asset(path) => {
-                        self.preview_config = std::path::PathBuf::new();
-                        cpm_core::Document::parse(&format!("Model: {}\n", path.display()))
-                            .map_err(|e| e.to_string())
-                            .and_then(|d| {
-                                cpm_core::ObjRequest::resolve(
-                                    self.pack.as_ref(),
-                                    std::path::Path::new("raw_model.dynx"),
-                                    &d,
-                                )
-                            })
-                    }
-                };
-                match request {
-                    Ok(request) => {
-                        let mut preview =
-                            preview::Preview::open(request.with_documents(self.documents()), &ctx);
-                        preview.live = !self.preview_config.as_os_str().is_empty();
-                        self.preview = Some(preview);
-                        self.preview_source = self.open_path.clone();
-                        self.preview_signature = self.scene_revision();
-                        self.preview_due = None;
-                    }
-                    Err(error) => self.error = Some(error),
                 }
-            }
-            if open {
-                self.model_browser = Some(browser);
+                if open {
+                    self.model_browser = Some(browser);
+                }
             }
         }
         if self.preview_source != self.open_path {
@@ -1183,6 +1211,7 @@ impl CpmApp {
             }
         }
         if let Some(mut preview) = self.preview.take() {
+            preview.interactive = !self.modal() && !self.preview_config.as_os_str().is_empty();
             if self
                 .editor
                 .as_ref()
@@ -1221,7 +1250,7 @@ impl CpmApp {
                         }
                     }
                 }
-                if let Some(section) = preview.take_selection() {
+                if let Some(section) = preview.take_selection().filter(|_| preview.interactive) {
                     if let Some(index) = self
                         .pack
                         .as_ref()
@@ -1593,10 +1622,16 @@ fn show_properties(
                 } else {
                     None
                 };
-                if parameter_input::input(ui, &mut editor.values[index], definition, color)
-                    .on_hover_text(hint)
-                    .changed()
-                {
+                let response =
+                    parameter_input::input(ui, &mut editor.values[index], definition, color)
+                        .on_hover_text(hint);
+                if editor.focus_key.as_ref().is_some_and(|key| {
+                    *key == property.key || definition.is_some_and(|d| d.name == *key)
+                }) {
+                    response.scroll_to_me(Some(egui::Align::Center));
+                    editor.focus_key = None;
+                }
+                if response.changed() {
                     if let Err(edit_error) = editor.document.set_value(index, &editor.values[index])
                     {
                         *error = Some(edit_error.to_string());
@@ -2166,5 +2201,115 @@ mod tests {
             "Changed"
         );
         std::fs::remove_dir_all(path).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tools_menu_tests {
+    use super::*;
+    fn text_center(shapes: &[egui::epaint::ClippedShape], label: &str) -> egui::Pos2 {
+        fn find(shape: &egui::epaint::Shape, label: &str) -> Option<egui::Pos2> {
+            match shape {
+                egui::epaint::Shape::Text(t) if t.galley.job.text == label => {
+                    Some(t.pos + t.galley.rect.center().to_vec2())
+                }
+                egui::epaint::Shape::Vec(v) => v.iter().find_map(|s| find(s, label)),
+                _ => None,
+            }
+        }
+        shapes
+            .iter()
+            .find_map(|s| find(&s.shape, label))
+            .unwrap_or_else(|| panic!("control not drawn: {label}"))
+    }
+    fn frame(
+        app: &mut CpmApp,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> Vec<egui::epaint::ClippedShape> {
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1400.0, 900.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ui| app.draw(ui),
+        );
+        output.textures_delta.clear();
+        output.shapes
+    }
+    fn click(
+        app: &mut CpmApp,
+        ctx: &egui::Context,
+        pos: egui::Pos2,
+    ) -> Vec<egui::epaint::ClippedShape> {
+        frame(app, ctx, vec![egui::Event::PointerMoved(pos)]);
+        frame(
+            app,
+            ctx,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        frame(
+            app,
+            ctx,
+            vec![egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        frame(app, ctx, vec![])
+    }
+    #[test]
+    fn tools_menu_opens_models_search_and_diagnostics() {
+        for tool in ["Modèles", "Recherche", "Diagnostic"] {
+            let t = tempfile::tempdir().unwrap();
+            std::fs::write(
+                t.path().join("pack_info.dynx"),
+                "PackName: Demo\nDcFileVersion: 12.5.0\n",
+            )
+            .unwrap();
+            let mut app = CpmApp::default();
+            app.open_selection(t.path());
+            let ctx = egui::Context::default();
+            frame(&mut app, &ctx, vec![]);
+            let shapes = frame(&mut app, &ctx, vec![]);
+            let tools = text_center(&shapes, "Outils");
+            let shapes = click(&mut app, &ctx, tools);
+            let control = text_center(&shapes, tool);
+            click(&mut app, &ctx, control);
+            match tool {
+                "Modèles" => assert!(app.model_browser.is_some()),
+                "Recherche" => assert!(app.search.open),
+                _ => assert!(app.report.is_some()),
+            }
+        }
+    }
+    #[test]
+    fn export_starts_with_report_and_modal_blocks_mutations() {
+        let t = tempfile::tempdir().unwrap();
+        std::fs::write(
+            t.path().join("pack_info.dynx"),
+            "PackName: Demo\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        let mut app = CpmApp::default();
+        app.open_selection(t.path());
+        app.prepare_export();
+        assert!(app.report.is_some());
+        assert!(app.export_dialog.is_none());
+        assert!(app.modal());
     }
 }

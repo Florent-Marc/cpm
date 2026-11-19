@@ -4,9 +4,14 @@ use cpm_core::{ObjMesh, ObjRequest};
 use eframe::{egui, egui_glow, glow};
 pub use gizmo::Edit as GizmoEdit;
 use glow::HasContext as _;
-use std::sync::{mpsc, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc, Arc, Condvar, Mutex, OnceLock,
+};
 
 pub struct Preview {
+    cancel: Arc<AtomicBool>,
+    pub interactive: bool,
     pub live: bool,
     document: cpm_core::Document,
     gizmo: gizmo::Gizmo,
@@ -37,13 +42,10 @@ impl Preview {
         let document = request.document().clone();
         let variant_names = request.variant_names();
         let path = request.path.display().to_string();
-        let (sender, receiver) = mpsc::channel();
-        let ctx = ctx.clone();
-        std::thread::spawn(move || {
-            let _ = sender.send(request.load());
-            ctx.request_repaint();
-        });
+        let (receiver, cancel) = background(request, ctx);
         Self {
+            cancel,
+            interactive: true,
             live: true,
             document,
             gizmo: gizmo::Gizmo::default(),
@@ -88,13 +90,10 @@ impl Preview {
         self.reload_requested = false;
         self.path = request.path.display().to_string();
         self.error = None;
-        let (tx, rx) = mpsc::channel();
-        self.receiver = Some(rx);
-        let ctx = ctx.clone();
-        std::thread::spawn(move || {
-            let _ = tx.send(request.load());
-            ctx.request_repaint();
-        });
+        self.cancel.store(true, Ordering::Relaxed);
+        let (receiver, cancel) = background(request, ctx);
+        self.receiver = Some(receiver);
+        self.cancel = cancel;
     }
     pub fn fail(&mut self, error: String) {
         self.error = Some(error);
@@ -175,7 +174,7 @@ impl Preview {
                 if ui.button("Dessus").clicked() { self.yaw=0.0; self.pitch=std::f32::consts::FRAC_PI_2; }
                 ui.label(&self.statistics);
             });
-            self.gizmo.toolbar(ui);
+            ui.add_enabled_ui(self.interactive,|ui|self.gizmo.toolbar(ui));
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
             ui.weak("Matériaux, roues et volant — aperçu statique, variantes diffuses DynamX. Actualisation après une courte pause de saisie.");
             ui.checkbox(&mut self.live,"Actualisation automatique");
@@ -236,7 +235,7 @@ impl Preview {
                 let scroll=ui.input(|i|i.smooth_scroll_delta.y);
                 self.zoom=(self.zoom*(scroll*0.002).exp()).clamp(0.1,8.0);
             }
-            if response.clicked() && self.gizmo.tool==gizmo::Tool::Orbit {
+            if self.interactive && response.clicked() && self.gizmo.tool==gizmo::Tool::Orbit {
                 if let (Some(geometry),Some(pos))=(&self.geometry,response.interact_pointer_pos()) {
                     let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();
                     if let Some(section)=picking::pick(geometry,&visible,self.show_collisions,View{yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan},rect,pos) {
@@ -250,7 +249,7 @@ impl Preview {
                 let aspect=rect.width()/rect.height();
                 let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,DrawOptions{use_textures:textures,show_collisions:collisions,selected}); });
                 ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
-                if let Some(geometry)=&self.geometry {
+                if let Some(geometry)=self.geometry.as_ref().filter(|_|self.interactive) {
                     if let Some(edit)=self.gizmo.draw(ui,geometry,&self.document,self.selected,view,rect){self.edits.push(edit);}
                 }
             }
@@ -664,3 +663,58 @@ void main() {
     out_color=vec4(color.rgb*(u_unlit?1.0:light),color.a);
 }
 "#;
+
+impl Drop for Preview {
+    fn drop(&mut self) {
+        self.cancel.store(true, Ordering::Relaxed);
+    }
+}
+struct LoadTask {
+    request: ObjRequest,
+    sender: mpsc::Sender<Result<ObjMesh, String>>,
+    cancel: Arc<AtomicBool>,
+    ctx: egui::Context,
+}
+type Pending = Arc<(Mutex<Option<LoadTask>>, Condvar)>;
+fn background(
+    request: ObjRequest,
+    ctx: &egui::Context,
+) -> (mpsc::Receiver<Result<ObjMesh, String>>, Arc<AtomicBool>) {
+    static LOADER: OnceLock<Pending> = OnceLock::new();
+    let pending = LOADER.get_or_init(|| {
+        let shared: Pending = Arc::new((Mutex::new(None), Condvar::new()));
+        let worker = shared.clone();
+        std::thread::spawn(move || loop {
+            let task = {
+                let (lock, ready) = &*worker;
+                let mut pending = lock.lock().unwrap_or_else(|e| e.into_inner());
+                while pending.is_none() {
+                    pending = ready.wait(pending).unwrap_or_else(|e| e.into_inner());
+                }
+                pending.take().unwrap()
+            };
+            if task.cancel.load(Ordering::Relaxed) {
+                continue;
+            }
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| task.request.load()))
+                    .unwrap_or_else(|_| Err("Chargement du modèle interrompu".into()));
+            if !task.cancel.load(Ordering::Relaxed) {
+                let _ = task.sender.send(result);
+                task.ctx.request_repaint();
+            }
+        });
+        shared
+    });
+    let (sender, receiver) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let (lock, ready) = &**pending;
+    *lock.lock().unwrap_or_else(|e| e.into_inner()) = Some(LoadTask {
+        request,
+        sender,
+        cancel: cancel.clone(),
+        ctx: ctx.clone(),
+    });
+    ready.notify_one();
+    (receiver, cancel)
+}

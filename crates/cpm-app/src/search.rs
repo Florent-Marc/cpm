@@ -50,9 +50,13 @@ impl Search {
             return None;
         }
         if let Some(receiver) = &self.receiver {
-            if let Ok(hits) = receiver.try_recv() {
-                self.results = hits;
-                self.receiver = None;
+            match receiver.try_recv() {
+                Ok(hits) => {
+                    self.results = hits;
+                    self.receiver = None;
+                }
+                Err(mpsc::TryRecvError::Disconnected) => self.receiver = None,
+                Err(mpsc::TryRecvError::Empty) => {}
             }
         }
         let mut open = self.open;
@@ -71,6 +75,7 @@ impl Search {
                 {
                     self.changed_at = Some(ui.input(|i| i.time));
                     self.cancel.store(true, Ordering::Relaxed);
+                    self.receiver = None;
                     self.results.clear();
                 }
                 if pack.is_none() {

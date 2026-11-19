@@ -122,6 +122,19 @@ mod tests {
             pick(&mesh, &[false, false], false, view, rect, rect.center()),
             None
         );
+        mesh.collisions.push(cpm_core::CollisionWire {
+            section: 3,
+            name: "Shape_body".into(),
+            vertices: vec![[-0.5, 0.0, 0.0], [0.5, 0.0, 0.0]],
+        });
+        assert_eq!(
+            pick(&mesh, &[true, true], true, view, rect, rect.center()),
+            Some(Some(3))
+        );
+        assert_eq!(
+            pick(&mesh, &[true, true], false, view, rect, rect.center()),
+            Some(Some(2))
+        );
         assert!(
             (segment_distance(Pos2::new(2.0, 1.0), Pos2::ZERO, Pos2::new(4.0, 0.0)) - 1.0).abs()
                 < 0.001

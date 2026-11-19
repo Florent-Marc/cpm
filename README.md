@@ -6,7 +6,8 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 ## Fonctionnalités
 
 - Import de dossiers de packs et d'archives ZIP, DNXPACK ou RAR non chiffrées.
-- Navigation par catégories et sections, avec conservation des modifications.
+- Navigation par catégories et sections, recherche dans le pack et historique annuler/rétablir par fichier.
+- Champs adaptés aux types, descriptions au survol, diagnostic cliquable des paramètres et références.
 - Ajout, modification et suppression de paramètres ; signalement des champs
   obligatoires connus et contrôle avant export.
 - Création de packs et configurations ; bouton crayon pour créer, importer ou supprimer des fichiers `.dynx`.
@@ -15,7 +16,9 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification
   des nouvelles releases Rust.
 
-Le bouton **Aperçu 3D**, à côté du nom de la configuration, affiche les modèles OBJ présents dans le pack avec rotation, zoom et déplacement. Les matériaux MTL et leurs textures diffuses sont affichés ; la liste des pièces permet de les masquer ou de les isoler. Les animations et variantes DynamX restent à ajouter. Le catalogue des paramètres n'est pas un validateur exhaustif de tous les addons DynamX.
+Le bouton **Aperçu 3D**, à côté du nom de la configuration, affiche les modèles OBJ présents dans le pack avec rotation, zoom et déplacement. Les matériaux MTL et leurs textures diffuses sont affichés ; la liste des pièces permet de les masquer ou de les isoler. L’aperçu se met à jour après les modifications, assemble les roues et le volant, affiche les boîtes de collision en fil de fer et propose les variantes diffuses DynamX. La sélection 3D rejoint la configuration ; les flèches permettent de déplacer les pièces et redimensionner les boîtes. Les animations restent à ajouter. Le catalogue des paramètres n'est pas un validateur exhaustif de tous les addons DynamX.
+
+Les nouvelles commandes sont regroupées dans **Outils** : **Recherche**, **Modèles**, **Diagnostic**. Voir le [guide des outils d’édition](docs/editor-tools.md).
 
 ## Démarrer
 

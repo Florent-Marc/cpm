@@ -7,6 +7,8 @@ pub enum Selection {
 }
 type ModelIndex = BTreeMap<PathBuf, Vec<(usize, PathBuf)>>;
 pub struct Browser {
+    source: PathBuf,
+    paths: Vec<PathBuf>,
     receiver: Option<mpsc::Receiver<ModelIndex>>,
     models: ModelIndex,
     filter: String,
@@ -14,6 +16,8 @@ pub struct Browser {
 }
 impl Browser {
     pub fn new(pack: Pack, documents: BTreeMap<PathBuf, Document>) -> Self {
+        let source = pack.source().to_owned();
+        let paths = pack.configs().to_vec();
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
             let mut models: BTreeMap<_, Vec<_>> = pack
@@ -47,11 +51,16 @@ impl Browser {
             let _ = tx.send(models);
         });
         Self {
+            source,
+            paths,
             receiver: Some(rx),
             models: BTreeMap::new(),
             filter: String::new(),
             error: None,
         }
+    }
+    pub fn matches(&self, pack: Option<&Pack>) -> bool {
+        pack.is_some_and(|p| p.source() == self.source && p.configs() == self.paths)
     }
     pub fn show(&mut self, ctx: &egui::Context) -> (bool, Option<Selection>) {
         if let Some(rx) = &self.receiver {

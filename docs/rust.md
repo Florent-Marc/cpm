@@ -123,7 +123,7 @@ doit gérer les sauvegardes atomiques et les copies de secours sur disque.
 1. Ajouter des packs réels de référence et vérifier leurs cycles de sauvegarde.
 2. Ajouter la recherche dans les configurations.
 3. Ajouter les vues métier (véhicules, roues, sièges) et leurs validations.
-4. Étendre la prévisualisation 3D aux variantes DynamX, normal maps, animations et autres formats.
+4. Étendre la prévisualisation 3D aux normal maps, animations et autres formats.
 
 ## Nom et icônes de l'application
 
@@ -323,7 +323,7 @@ Les paramètres en erreur affichent leur nom et leur valeur en rouge dans la vue
 
 ## Aperçu 3D des modèles OBJ
 
-Le bouton **Aperçu 3D**, placé à côté du nom du fichier de configuration, ouvre une fenêtre redimensionnable. Il est activé lorsque le champ racine `Model` désigne un OBJ présent dans le pack. S’il est désactivé, le survol explique le problème (modèle absent, format différent ou moteur OpenGL indisponible). Le chemin du modèle est visible dans la fenêtre ; si la configuration change pendant que la fenêtre reste ouverte, elle continue d’afficher ce modèle jusqu’à une nouvelle ouverture.
+Le bouton **Aperçu 3D**, placé à côté du nom du fichier de configuration, ouvre une fenêtre redimensionnable. Il est activé lorsque le champ racine `Model` désigne un OBJ présent dans le pack. S’il est désactivé, le survol explique le problème (modèle absent, format différent ou moteur OpenGL indisponible). Le chemin du modèle est visible dans la fenêtre ; si la configuration change pendant que la fenêtre reste ouverte, elle s’actualise après une pause de saisie si l’actualisation automatique est activée.
 
 - Glisser avec le bouton gauche : tourner autour du modèle.
 - Molette au-dessus de l’aperçu : zoomer.
@@ -332,14 +332,14 @@ Le bouton **Aperçu 3D**, placé à côté du nom du fichier de configuration, o
 
 La géométrie est chargée sur un thread séparé depuis un dossier, un ZIP, un DNXPACK ou un RAR, sans extraction sur disque. Les fichiers `.dynx` ouverts seuls peuvent retrouver les ressources dans leur dossier de pack (premier ancêtre contenant `pack_info.dynx`) ou, à défaut, leur propre dossier. Les chemins relatifs à la racine du pack et au fichier de configuration sont reconnus, ainsi que les ressources de la forme `namespace:models/car.obj` dans `assets/namespace/`. Pour les chemins sans namespace, CPM recherche aussi dans `models/`, `assets/dynamxmod/`, `assets/dynamxmod/models/` et les mêmes dossiers sous `assets/minecraft/`. Les chemins sortant du pack sont refusés.
 
-L’aperçu montre la géométrie complète, centrée automatiquement, avec éclairage simple et tampon de profondeur OpenGL. Il applique les couleurs diffuses `Kd`, l’opacité `d` et les textures `map_Kd` des matériaux MTL, en utilisant les coordonnées UV de l’OBJ. Il assemble les roues externes selon les règles ci-dessous ; les autres pièces ajoutées, animations et variantes de textures DynamX ne sont pas appliquées. Le chargeur accepte les faces triangulées et les polygones convertibles en éventail (notamment les quads), pas les polygones concaves arbitraires. Les fichiers illisibles ou invalides sont signalés dans la fenêtre. Limites : 32 Mio pour l’OBJ et un million de triangles. Le rendu nécessite OpenGL 3.1 ou OpenGL ES 3.
+L’aperçu montre la géométrie complète, centrée automatiquement, avec éclairage simple et tampon de profondeur OpenGL. Il applique les couleurs diffuses `Kd`, l’opacité `d` et les textures `map_Kd` des matériaux MTL, en utilisant les coordonnées UV de l’OBJ. Il assemble les roues externes selon les règles ci-dessous ; les autres pièces ajoutées et animations ne sont pas appliquées. Les variantes diffuses sont décrites dans le guide des outils d’édition. Le chargeur accepte les faces triangulées et les polygones convertibles en éventail (notamment les quads), pas les polygones concaves arbitraires. Les fichiers illisibles ou invalides sont signalés dans la fenêtre. Limites : 32 Mio pour l’OBJ et un million de triangles. Le rendu nécessite OpenGL 3.1 ou OpenGL ES 3.
 
 
 ### Textures et pièces de l’OBJ
 
 Les fichiers déclarés par `mtllib` sont lus relativement à l’OBJ ; les images `map_Kd` sont lues relativement au MTL. Les chemins `../` sont acceptés tant qu’ils restent dans le pack. Les ressources `namespace:chemin` sont également reconnues sous `assets/namespace/`. Aucune ressource située en dehors du pack n’est lue. Les images PNG, JPEG, TGA et BMP sont prises en charge. Plusieurs matériaux qui utilisent la même image partagent une seule texture chargée.
 
-La case **Afficher les textures** permet de comparer le modèle texturé avec ses seules couleurs de matériaux. Les fichiers MTL ou images manquants, les UV absents et les images trop grandes sont signalés dans **Avertissements** ; la géométrie reste disponible avec une couleur de remplacement. Les options `map_Kd` commençant par `-` ne sont pas prises en charge et produisent un avertissement. Les normal maps, textures spéculaires, cartes d’opacité séparées et variantes du champ DynamX `Textures` ne sont pas appliquées. La transparence de la texture diffuse et l’opacité du matériau sont rendues par tri des lots de faces ; les surfaces transparentes qui s’intersectent peuvent présenter des approximations.
+La case **Afficher les textures** permet de comparer le modèle texturé avec ses seules couleurs de matériaux. Les fichiers MTL ou images manquants, les UV absents et les images trop grandes sont signalés dans **Avertissements** ; la géométrie reste disponible avec une couleur de remplacement. Les options `map_Kd` commençant par `-` ne sont pas prises en charge et produisent un avertissement. Les normal maps, textures spéculaires et cartes d’opacité séparées ne sont pas appliquées. Le sélecteur de variantes prend en charge `MaterialVariants` et l’ancien champ `Textures`. La transparence de la texture diffuse et l’opacité du matériau sont rendues par tri des lots de faces ; les surfaces transparentes qui s’intersectent peuvent présenter des approximations.
 
 La section **Pièces** reprend les noms des objets `o` et groupes `g` de l’OBJ. Chaque case permet d’afficher ou masquer une pièce ; **Isoler** affiche seulement cette pièce, **Tout afficher** rétablit le modèle complet et **Tout masquer** vide la vue. Le survol du nom affiche son nombre de triangles et ses matériaux. Un objet utilisant plusieurs matériaux reste une seule pièce avec plusieurs lots de rendu. Les noms identiques sont regroupés ; sans objet ou groupe nommé, la géométrie apparaît sous `unnamed_object`. Cette liste ne modifie pas les fichiers du pack.
 
@@ -369,7 +369,7 @@ Les champs de type entier, décimal, vecteur ou quaternion refusent la saisie et
 
 Pour un véhicule, l’aperçu recherche les configurations `AttachedWheel` du pack courant et ajoute leurs OBJ texturés aux positions des sections `Wheel…`. Il tient compte de `ScaleModifier` du véhicule et de la roue, de `IsRight` et de `SuspensionAxis`. Les positions utilisent le repère de configuration DynamX (`x y z` devient `x z -y`). Le champ `Scale` d’une section de roue concerne sa forme physique et ne redimensionne pas son OBJ.
 
-Les pièces ajoutées apparaissent sous le nom de leur section de roue dans la liste des pièces. Les modifications de configuration en mémoire sont prises en compte à l’ouverture : fermer puis rouvrir l’aperçu pour actualiser. Les roues d’un autre pack, modèles manquants, références ambiguës et articulations non simulées produisent un avertissement sans empêcher l’affichage du véhicule. Une section avec `Rim` désigne une roue intégrée au modèle et ne reçoit pas de doublon externe. Il s’agit d’un assemblage statique, sans simulation de suspension ni animation. Limites : 64 roues, un million de triangles et 256 Mio de textures pour la scène assemblée.
+Les pièces ajoutées apparaissent sous le nom de leur section de roue dans la liste des pièces. Les modifications de configuration en mémoire déclenchent une actualisation après une pause de saisie (case Actualisation automatique). Les roues d’un autre pack, modèles manquants, références ambiguës et articulations non simulées produisent un avertissement sans empêcher l’affichage du véhicule. Une section avec `Rim` désigne une roue intégrée au modèle et ne reçoit pas de doublon externe. Il s’agit d’un assemblage statique, sans simulation de suspension ni animation. Limites : 64 roues, un million de triangles et 256 Mio de textures pour la scène assemblée.
 
 
 ### Volant et boîtes de collision
@@ -378,6 +378,11 @@ L’aperçu place la pièce OBJ désignée par `ObjectName` (par défaut `Steeri
 
 **Afficher les collisions** active les douze arêtes vertes de chaque section racine `Shape…` de type `BOX` (type par défaut). Les lignes restent visibles à travers le modèle ; **Tout masquer** dans les pièces permet aussi d’examiner les boîtes seules. Le survol de la case affiche leurs noms. `Position` et `Scale` utilisent les conventions DynamX : position `x z -y`, demi-dimensions `x z y`, avec application de `ScaleModifier`. Les anciens noms `ShapePosition`, `Size`, `ShapeScale` et `BoxDim` sont acceptés. Le cadrage inclut les boîtes afin qu’elles restent visibles même hors de la carrosserie.
 
-Cet affichage représente les boîtes déclarées dans la configuration, dans le repère du modèle ; il ne reconstruit pas les collisions complexes issues de l’OBJ ou des fichiers `.dc`, ni les volumes automatiques. Les sphères et cylindres ne sont pas remplacés par des boîtes : un avertissement indique qu’ils ne sont pas affichés. Le centre de gravité, les décalages de physique et les articulations ne sont pas simulés. Limite : 1024 boîtes par aperçu. Fermer et rouvrir l’aperçu pour prendre en compte les changements de configuration.
+Cet affichage représente les boîtes déclarées dans la configuration, dans le repère du modèle ; il ne reconstruit pas les collisions complexes issues de l’OBJ ou des fichiers `.dc`, ni les volumes automatiques. Les sphères et cylindres ne sont pas remplacés par des boîtes : un avertissement indique qu’ils ne sont pas affichés. Le centre de gravité, les décalages de physique et les articulations ne sont pas simulés. Limite : 1024 boîtes par aperçu. L’actualisation automatique prend en compte les changements de configuration après une courte pause de saisie.
 
 Les quaternions de configuration DynamX (`Rotation`, `SuspensionAxis`) sont lus dans l’ordre **w x y z** ; l’identité est `1 0 0 0`. Le catalogue fourni utilise cet ordre pour ses descriptions et valeurs par défaut.
+
+
+## Nouveaux outils d’édition
+
+Voir [le guide des outils](editor-tools.md) pour l’historique, la recherche, le diagnostic, l’arbre de modèles, les variantes et les poignées 3D.
