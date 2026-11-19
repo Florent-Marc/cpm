@@ -11,6 +11,7 @@ mod parameter_input;
 mod preview;
 mod properties_editor;
 mod recent;
+mod search;
 mod update;
 
 use cpm_core::Pack;
@@ -50,6 +51,7 @@ fn main() -> eframe::Result {
 struct CpmApp {
     gl: Option<std::sync::Arc<eframe::glow::Context>>,
     preview: Option<preview::Preview>,
+    search: search::Search,
     creation: Option<creation::Creation>,
     manager: Option<creation::Manager>,
     draft_pack: Option<tempfile::TempDir>,
@@ -721,6 +723,7 @@ impl CpmApp {
                         ui.close();
                     }
                 });
+                if ui.button("Recherche").clicked(){self.search.open=true;}
                 ui.menu_button("Édition", |ui| {
                     if let Some(editor)=&mut self.editor {
                         if ui.add_enabled(editor.can_undo(),egui::Button::new("Annuler · Ctrl+Z")).clicked(){editor.undo();ui.close();}
@@ -1027,6 +1030,11 @@ impl CpmApp {
                     self.manager = Some(manager);
                 }
             }
+        }
+        if let Some(hit) = self.search.show(&ctx, self.pack.as_ref(), self.documents()) {
+            self.switch_config(hit.index);
+            self.selected_section = hit.section;
+            self.pending_scroll = Some(hit.section);
         }
         if let Some(mut preview) = self.preview.take() {
             if preview.show(&ctx, self.gl.as_ref()) {
