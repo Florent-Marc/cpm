@@ -169,7 +169,11 @@ pub(crate) fn assemble(request: &ObjRequest) -> Result<ObjMesh, String> {
             let source = if let Some(mesh) = cache.get(path) {
                 mesh.clone()
             } else {
-                Arc::new(ObjRequest::resolve(Some(pack), path, &document)?.load_geometry()?)
+                Arc::new(
+                    ObjRequest::resolve(Some(pack), path, &document)?
+                        .with_variant(request.variant)
+                        .load_geometry()?,
+                )
             };
             let wheel_scale = scale(&document)?;
             let position = vector::<3>(

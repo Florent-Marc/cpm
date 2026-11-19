@@ -1151,18 +1151,26 @@ impl CpmApp {
                 self.preview_due = Some(std::time::Instant::now());
             }
         }
+        if self.preview.as_ref().is_some_and(|p| p.reload_requested) {
+            self.preview_due =
+                Some(std::time::Instant::now() - std::time::Duration::from_millis(350));
+        }
         if self.preview_due.is_some() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
-        if self.preview.as_ref().is_some_and(|p| p.live && !p.busy())
+        if self
+            .preview
+            .as_ref()
+            .is_some_and(|p| (p.live || p.reload_requested) && !p.busy())
             && self
                 .preview_due
                 .is_some_and(|at| at.elapsed() >= std::time::Duration::from_millis(350))
         {
             self.preview_due = None;
-            let request = self
-                .request_for(&self.preview_config)
-                .map(|r| r.with_documents(self.documents()));
+            let request = self.request_for(&self.preview_config).map(|r| {
+                r.with_documents(self.documents())
+                    .with_variant(self.preview.as_ref().map(|p| p.variant).unwrap_or(0))
+            });
             if let Some(preview) = &mut self.preview {
                 match request {
                     Ok(request) => preview.refresh(request, &ctx),

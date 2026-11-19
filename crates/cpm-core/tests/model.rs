@@ -491,3 +491,41 @@ fn automatic_steering_preserves_obj_and_invalid_shapes_keep_model_available() {
     assert!(aliases.warnings.is_empty());
     assert_eq!(aliases.collisions.len(), 1);
 }
+
+#[test]
+fn selects_dynamx_tagged_diffuse_maps_and_material_variants() {
+    let t = tempfile::tempdir().unwrap();
+    fs::write(t.path().join("pack_info.dynx"), "PackName: Demo\n").unwrap();
+    fs::write(t.path().join("car.obj"),"mtllib car.mtl\no body\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nusemtl paint\nf 1/1 2/2 3/3\n").unwrap();
+    fs::write(t.path().join("car.mtl"),"newmtl paint\nKd 1 1 1\nmap_Kd red.png default\nmap_Kd blue.png blue\nnewmtl green\nKd 0 1 0\n").unwrap();
+    for (name, color) in [
+        ("red.png", [255, 0, 0, 255]),
+        ("blue.png", [0, 0, 255, 255]),
+    ] {
+        image::RgbaImage::from_pixel(1, 1, image::Rgba(color))
+            .save(t.path().join(name))
+            .unwrap();
+    }
+    let pack = Pack::open(t.path()).unwrap();
+    let d = Document::parse(
+        "Model: car.obj\nMaterialVariants{\nBaseMaterial: paint\nVariants: blue green\n}\n",
+    )
+    .unwrap();
+    let request = ObjRequest::resolve(Some(&pack), Path::new("vehicle_car.dynx"), &d).unwrap();
+    assert_eq!(request.variant_names(), vec!["paint", "blue", "green"]);
+    let base = request.clone().load().unwrap();
+    assert!(base.warnings.is_empty(), "{:?}", base.warnings);
+    assert_eq!(base.textures[0].rgba, [255, 0, 0, 255]);
+    let blue = request.clone().with_variant(1).load().unwrap();
+    assert_eq!(blue.textures[0].rgba, [0, 0, 255, 255]);
+    let green = request.with_variant(2).load().unwrap();
+    let material = green.parts[0].batches[0].material.unwrap();
+    assert_eq!(green.materials[material].diffuse, [0.0, 1.0, 0.0, 1.0]);
+    let legacy = Document::parse("Model: car.obj\nTextures: blue label, green label\n").unwrap();
+    assert_eq!(
+        ObjRequest::resolve(Some(&pack), Path::new("vehicle_car.dynx"), &legacy)
+            .unwrap()
+            .variant_names(),
+        vec!["Default", "blue", "green"]
+    );
+}

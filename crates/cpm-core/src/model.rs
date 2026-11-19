@@ -10,6 +10,7 @@ const MAX_TRIANGLES: usize = 1_000_000;
 #[derive(Clone)]
 pub struct ObjRequest {
     pub path: PathBuf,
+    pub(crate) variant: usize,
     pub(crate) pack: Option<Pack>,
     pub(crate) document: Document,
     pub(crate) overrides: std::collections::BTreeMap<PathBuf, Document>,
@@ -97,6 +98,7 @@ impl ObjRequest {
             if exists {
                 return Ok(Self {
                     path,
+                    variant: 0,
                     pack: pack.cloned(),
                     document: document.clone(),
                     overrides: Default::default(),
@@ -130,6 +132,50 @@ impl ObjRequest {
         documents: std::collections::BTreeMap<PathBuf, Document>,
     ) -> Self {
         self.overrides = documents;
+        self
+    }
+    pub fn variant_names(&self) -> Vec<String> {
+        let section =
+            self.document.sections().iter().position(|s| {
+                s.parent.is_none() && s.name.eq_ignore_ascii_case("MaterialVariants")
+            });
+        let value = |key: &str, scope: Option<usize>| {
+            self.document
+                .properties()
+                .iter()
+                .find(|p| p.section == scope && p.key.eq_ignore_ascii_case(key))
+                .map(|p| p.value.as_str())
+        };
+        let mut names = vec![section
+            .and_then(|i| value("BaseMaterial", Some(i)))
+            .unwrap_or("Default")
+            .to_owned()];
+        if let Some(section) = section {
+            if let Some(variants) = value("Variants", Some(section)) {
+                names.extend(
+                    variants
+                        .split_whitespace()
+                        .map(|s| s.trim_matches('"').to_owned()),
+                );
+            }
+        } else if let Some(legacy) = value("Textures", None) {
+            names.extend(
+                legacy
+                    .split(',')
+                    .filter_map(|entry| entry.split_whitespace().next())
+                    .map(str::to_owned),
+            );
+        }
+        names.retain(|n| !n.is_empty());
+        names.truncate(128);
+        names
+    }
+    pub fn with_variant(mut self, variant: usize) -> Self {
+        self.variant = if variant < self.variant_names().len() {
+            variant
+        } else {
+            0
+        };
         self
     }
     pub fn load(&self) -> Result<ObjMesh, String> {
@@ -248,6 +294,12 @@ impl ObjMesh {
                         return Err("Limite de matériaux atteinte (16 Mio)".into());
                     }
                     mtl_budget.set(used);
+                    let names = request.variant_names();
+                    let selected = names
+                        .get(request.variant)
+                        .map(String::as_str)
+                        .unwrap_or("Default");
+                    let bytes = variant_mtl(&bytes, selected, &names)?;
                     let (mut materials, map) =
                         tobj::load_mtl_buf(&mut Cursor::new(bytes)).map_err(|e| e.to_string())?;
                     for material in &mut materials {
@@ -338,6 +390,20 @@ impl ObjMesh {
                 diffuse: [color[0], color[1], color[2], alpha],
                 texture,
             });
+        }
+        if let Some(request) = request {
+            let names = request.variant_names();
+            if let (Some(base), Some(selected)) = (names.first(), names.get(request.variant)) {
+                let base_index = converted_materials
+                    .iter()
+                    .position(|m| m.name.eq_ignore_ascii_case(base));
+                let selected_index = converted_materials
+                    .iter()
+                    .position(|m| m.name.eq_ignore_ascii_case(selected));
+                if let (Some(base), Some(selected)) = (base_index, selected_index) {
+                    converted_materials[base] = converted_materials[selected].clone();
+                }
+            }
         }
         let triangles: usize = models.iter().map(|m| m.mesh.indices.len() / 3).sum();
         if triangles == 0 {
@@ -514,4 +580,55 @@ fn decode_texture(path: &Path, bytes: Vec<u8>) -> Result<ObjTexture, String> {
         rgba: image.into_raw(),
         has_alpha,
     })
+}
+
+// DynamX extends map_Kd with a variant tag after the texture filename.
+fn variant_mtl(bytes: &[u8], selected: &str, names: &[String]) -> Result<Vec<u8>, String> {
+    let source = std::str::from_utf8(bytes).map_err(|e| e.to_string())?;
+    let mut output = String::new();
+    let mut defaults = Vec::<String>::new();
+    let mut tagged = None;
+    let flush = |output: &mut String, defaults: &mut Vec<String>, tagged: &mut Option<String>| {
+        if let Some(texture) = tagged.take() {
+            output.push_str(&format!("map_Kd {texture}\n"));
+        } else {
+            for line in defaults.drain(..) {
+                output.push_str(&line);
+                output.push('\n');
+            }
+        }
+        defaults.clear();
+    };
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("newmtl ") {
+            flush(&mut output, &mut defaults, &mut tagged);
+        }
+        if let Some(texture) = trimmed.strip_prefix("map_Kd ") {
+            let fields: Vec<_> = texture.split_whitespace().collect();
+            if fields.len() == 2
+                && (fields[1].eq_ignore_ascii_case("default")
+                    || Path::new(fields[0]).extension().is_some_and(|e| {
+                        ["png", "jpg", "jpeg", "tga", "bmp"]
+                            .iter()
+                            .any(|s| e.eq_ignore_ascii_case(s))
+                    })
+                    || names.iter().any(|n| n.eq_ignore_ascii_case(fields[1])))
+            {
+                if fields[1].eq_ignore_ascii_case(selected) {
+                    tagged = Some(fields[0].to_owned());
+                }
+                if fields[1].eq_ignore_ascii_case("default") {
+                    defaults.push(format!("map_Kd {}", fields[0]));
+                }
+            } else {
+                defaults.push(line.to_owned());
+            }
+        } else {
+            output.push_str(line);
+            output.push('\n');
+        }
+    }
+    flush(&mut output, &mut defaults, &mut tagged);
+    Ok(output.into_bytes())
 }

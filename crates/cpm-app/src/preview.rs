@@ -6,6 +6,9 @@ use std::sync::{mpsc, Arc};
 
 pub struct Preview {
     pub live: bool,
+    pub variant: usize,
+    pub reload_requested: bool,
+    variant_names: Vec<String>,
     pub selected: Option<usize>,
     selection_changed: Option<Option<usize>>,
     geometry: Option<Arc<ObjMesh>>,
@@ -26,6 +29,7 @@ pub struct Preview {
 }
 impl Preview {
     pub fn open(request: ObjRequest, ctx: &egui::Context) -> Self {
+        let variant_names = request.variant_names();
         let path = request.path.display().to_string();
         let (sender, receiver) = mpsc::channel();
         let ctx = ctx.clone();
@@ -35,6 +39,9 @@ impl Preview {
         });
         Self {
             live: true,
+            variant: 0,
+            reload_requested: false,
+            variant_names,
             selected: None,
             selection_changed: None,
             geometry: None,
@@ -61,6 +68,11 @@ impl Preview {
         self.receiver.is_some()
     }
     pub fn refresh(&mut self, request: ObjRequest, ctx: &egui::Context) {
+        self.variant_names = request.variant_names();
+        if self.variant >= self.variant_names.len() {
+            self.variant = 0;
+        }
+        self.reload_requested = false;
         self.path = request.path.display().to_string();
         self.error = None;
         let (tx, rx) = mpsc::channel();
@@ -151,8 +163,15 @@ impl Preview {
                 ui.label(&self.statistics);
             });
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Matériaux, roues et volant — aperçu statique, sans variantes DynamX. Actualisation après une courte pause de saisie.");
+            ui.weak("Matériaux, roues et volant — aperçu statique, variantes diffuses DynamX. Actualisation après une courte pause de saisie.");
             ui.checkbox(&mut self.live,"Actualisation automatique");
+            if self.variant_names.len()>1 {
+                let before=self.variant;
+                egui::ComboBox::from_id_salt("texture-variant").selected_text(&self.variant_names[self.variant]).show_ui(ui,|ui|{
+                    for (index,name) in self.variant_names.iter().enumerate(){ui.selectable_value(&mut self.variant,index,name);}
+                });
+                if before!=self.variant{self.reload_requested=true;ui.ctx().request_repaint();}
+            }
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.use_textures,"Afficher les textures");
                 ui.checkbox(&mut self.show_collisions,format!("Afficher les collisions ({})",self.collision_names.len())).on_hover_text(format!("Boîtes Shape… en fil de fer, visibles à travers le modèle. Les collisions générées automatiquement ne sont pas affichées.\n{}",self.collision_names.join("\n")));
