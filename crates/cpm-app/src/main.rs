@@ -11,6 +11,7 @@ mod parameter_input;
 mod preview;
 mod properties_editor;
 mod recent;
+mod report;
 mod search;
 mod update;
 
@@ -52,6 +53,7 @@ struct CpmApp {
     gl: Option<std::sync::Arc<eframe::glow::Context>>,
     preview: Option<preview::Preview>,
     search: search::Search,
+    report: Option<report::Report>,
     creation: Option<creation::Creation>,
     manager: Option<creation::Manager>,
     draft_pack: Option<tempfile::TempDir>,
@@ -318,6 +320,16 @@ impl CpmApp {
     }
 
     fn prepare_export(&mut self) {
+        if let Some(pack) = &self.pack {
+            self.report = Some(report::Report::new(
+                pack.clone(),
+                self.documents(),
+                self.catalog.clone(),
+                true,
+            ));
+        }
+    }
+    fn prepare_export_options(&mut self) {
         if let Some(pack) = &self.pack {
             let documents = self.documents();
             let metadata = documents
@@ -605,12 +617,14 @@ impl CpmApp {
             || self.properties_editor.is_some()
             || self.creation.is_some()
             || self.manager.is_some()
+            || self.report.is_some()
             || updating
             || self.restarting
         {
             ui.disable();
         }
         if self.export_dialog.is_none()
+            && self.report.is_none()
             && self.properties_editor.is_none()
             && self.creation.is_none()
             && self.manager.is_none()
@@ -1035,6 +1049,24 @@ impl CpmApp {
             self.switch_config(hit.index);
             self.selected_section = hit.section;
             self.pending_scroll = Some(hit.section);
+        }
+        if let Some(mut report) = self.report.take() {
+            match report.show(&ctx) {
+                report::Action::None => self.report = Some(report),
+                report::Action::Close => {}
+                report::Action::Export => self.prepare_export_options(),
+                report::Action::Jump(issue) => {
+                    if let Some(index) = self
+                        .pack
+                        .as_ref()
+                        .and_then(|p| p.configs().iter().position(|p| *p == issue.path))
+                    {
+                        self.switch_config(index);
+                        self.selected_section = issue.section;
+                        self.pending_scroll = Some(issue.section);
+                    }
+                }
+            }
         }
         if let Some(mut preview) = self.preview.take() {
             if preview.show(&ctx, self.gl.as_ref()) {
@@ -1495,7 +1527,7 @@ mod tests {
         assert!(app.dirty());
         assert!(app.draft_pack.is_some());
         assert!(app.recent.paths.is_empty());
-        app.prepare_export();
+        app.prepare_export_options();
         assert_eq!(
             app.export_dialog.as_ref().unwrap().options.output_name,
             "NewPack"
@@ -1763,7 +1795,7 @@ mod tests {
         assert_eq!(editor.values.len(), editor.document.properties().len());
         assert_eq!(editor.values.last().unwrap(), "12.5.0");
         assert!(app.dirty());
-        app.prepare_export();
+        app.prepare_export_options();
         let mut options = app.export_dialog.as_ref().unwrap().options.clone();
         options.output_name = "corrected".into();
         assert!(app
@@ -1801,7 +1833,7 @@ mod tests {
             .document
             .set_value(0, "EditedCar")
             .unwrap();
-        app.prepare_export();
+        app.prepare_export_options();
         let dialog = app.export_dialog.as_mut().unwrap();
         assert_eq!(dialog.options.metadata.name, "EditedPack");
         dialog.options.output_name = "copy".into();
