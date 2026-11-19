@@ -71,6 +71,8 @@ impl Severity {
 pub struct ParameterDefinition {
     pub name: String,
     #[serde(default)]
+    pub description: String,
+    #[serde(default)]
     pub variable_type: VariableType,
     #[serde(default)]
     pub required: bool,
@@ -89,6 +91,7 @@ impl Default for ParameterDefinition {
     fn default() -> Self {
         Self {
             name: "NewParameter".into(),
+            description: String::new(),
             variable_type: VariableType::Text,
             required: false,
             severity: Severity::Error,
@@ -490,6 +493,7 @@ fn definition(spec: ParameterSpec) -> ParameterDefinition {
     };
     ParameterDefinition {
         name: key.into(),
+        description: builtin_description(key).into(),
         variable_type,
         required: spec.required,
         severity: Severity::Error,
@@ -600,9 +604,36 @@ impl CatalogStore {
                 if fs::metadata(&path).map_err(|e| e.to_string())?.len() > 8 * 1024 * 1024 {
                     return Err("Fichier de propriétés trop volumineux".into());
                 }
-                let catalog: CatalogFile =
+                let mut value: serde_json::Value =
                     serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?)
                         .map_err(|e| e.to_string())?;
+                if path.file_name().is_some_and(|n| n == "dynamx.json") {
+                    if let Some(rules) = value
+                        .get_mut("rules")
+                        .and_then(serde_json::Value::as_array_mut)
+                    {
+                        for rule in rules {
+                            if let Some(parameters) = rule
+                                .get_mut("parameters")
+                                .and_then(serde_json::Value::as_array_mut)
+                            {
+                                for parameter in parameters {
+                                    if parameter.get("description").is_none() {
+                                        if let Some(name) = parameter
+                                            .get("name")
+                                            .and_then(serde_json::Value::as_str)
+                                        {
+                                            let description = builtin_description(name).to_owned();
+                                            parameter["description"] = description.into();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let catalog: CatalogFile =
+                    serde_json::from_value(value).map_err(|e| e.to_string())?;
                 validate_catalog_file(&catalog)?;
                 Ok(catalog)
             })();
@@ -646,5 +677,103 @@ impl CatalogStore {
         temp.persist(self.directory.join(filename))
             .map_err(|e| e.to_string())?;
         Ok(())
+    }
+}
+
+pub(crate) fn builtin_description(name: &str) -> &'static str {
+    match name {
+        "Name" => "Nom affiché pour cet objet dans le jeu.",
+        "Description" => "Texte de présentation de l’objet ou du pack.",
+        "PackName" => "Nom interne du pack, utilisé notamment dans les références aux autres configurations.",
+        "PackVersion" => "Version du contenu de ce pack.",
+        "DcFileVersion" => "Version du format de configuration DynamX utilisée par ce pack.",
+        "CompatibleWithLoaderVersions" => "Versions du chargeur DynamX compatibles avec ce pack.",
+        "Id" => "Identifiant de l’addon requis.",
+        "Versions" => "Versions acceptées pour cet addon.",
+        "Model" => "Chemin du modèle 3D de l’objet, relatif au pack ou sous forme namespace:chemin.",
+        "Textures" => "Déclaration des variantes de textures associées au modèle.",
+        "EmptyMass" => "Masse à vide de l’objet physique.",
+        "DragCoefficient" => "Coefficient de traînée utilisé par la physique du véhicule.",
+        "CenterOfGravityOffset" => "Décalage du centre de gravité par rapport au modèle : trois composantes.",
+        "ShapeYOffset" => "Décalage vertical des formes de collision.",
+        "ScaleModifier" => "Facteurs d’échelle globaux du modèle, sur les trois axes.",
+        "Scale" => "Dimensions ou échelle de cette pièce selon son type : trois composantes.",
+        "Position" => "Position de la pièce par rapport au modèle. DynamX convertit les axes du format de configuration.",
+        "Rotation" => "Rotation de la pièce ; le format attendu dépend du type déclaré dans le catalogue.",
+        "RotationPoint" => "Point autour duquel la pièce effectue sa rotation.",
+        "SuspensionAxis" => "Orientation de l’axe de suspension sous forme de quaternion x y z w.",
+        "DefaultEngine" => "Référence à la configuration du moteur utilisé par défaut (Pack.engine_nom).",
+        "DefaultSounds" => "Référence à la configuration des sons utilisés par défaut.",
+        "Power" => "Puissance de base du moteur utilisée dans les calculs physiques.",
+        "MaxRPM" => "Régime maximal du moteur.",
+        "Braking" => "Effet de freinage moteur.",
+        "RPMPower" => "Point de la courbe moteur : régime et facteur de puissance.",
+        "RPMRange" => "Plage de régime du moteur : valeur minimale et maximale.",
+        "SpeedRange" => "Plage de vitesse associée à ce rapport : minimum et maximum.",
+        "Sound" => "Ressource sonore à jouer pour cette section.",
+        "PitchRange" => "Plage de hauteur du son. Ce paramètre est facultatif.",
+        "AttachedWheel" => "Référence à la configuration de roue utilisée par cette pièce (Pack.wheel_nom).",
+        "DrivingWheel" => "Indique si cette roue reçoit la puissance du moteur.",
+        "IsRight" => "Indique si cette roue est placée à droite du véhicule.",
+        "IsSteerable" => "Indique si cette roue peut pivoter pour diriger le véhicule.",
+        "MaxTurn" => "Angle maximal de braquage de cette roue.",
+        "HandBrakingWheel" => "Indique si le frein à main agit sur cette roue.",
+        "DependsOn" => "Pièce dont dépend cette pièce dans la configuration.",
+        "MudGuard" => "Nom de la pièce 3D utilisée comme garde-boue.",
+        "Radius" => "Rayon de la roue.",
+        "RimRadius" => "Rayon de la jante.",
+        "Width" => "Largeur de la roue.",
+        "Friction" => "Coefficient d’adhérence de la roue.",
+        "BrakeForce" => "Force de freinage appliquée à la roue.",
+        "HandBrakeForce" => "Force de freinage du frein à main.",
+        "RollInInfluence" => "Influence de la roue sur le roulis du véhicule.",
+        "SuspensionMaxForce" => "Force maximale de la suspension.",
+        "SuspensionRestLength" => "Longueur de la suspension au repos.",
+        "SuspensionStiffness" => "Raideur de la suspension.",
+        "WheelDampingRelaxation" => "Amortissement de la suspension lorsqu’elle se détend.",
+        "WheelsDampingCompression" => "Amortissement de la suspension lorsqu’elle se comprime.",
+        "SkidParticle" => "Type de particules produites lors du dérapage.",
+        "Driver" => "Indique si ce siège permet de conduire le véhicule.",
+        "PlayerPosition" => "Posture du joueur lorsqu’il occupe ce siège.",
+        "PlayerSize" => "Dimensions associées au joueur assis sur cette pièce.",
+        "LinkedDoorPart" => "Nom de la porte associée à ce siège.",
+        "ShouldLimitFieldOfView" => "Active les limites de rotation de la vue pour ce siège.",
+        "MinYaw" => "Limite minimale de rotation horizontale de la vue.",
+        "MaxYaw" => "Limite maximale de rotation horizontale de la vue.",
+        "MinPitch" => "Limite minimale de rotation verticale de la vue.",
+        "MaxPitch" => "Limite maximale de rotation verticale de la vue.",
+        "CreativeTabName" => "Onglet créatif dans lequel l’objet apparaît.",
+        "IconText" => "Texte associé à l’icône de l’objet.",
+        "Item3DRenderLocation" => "Contextes dans lesquels l’objet utilise son rendu 3D.",
+        "ItemRotate" => "Rotation du modèle lorsqu’il est rendu comme item.",
+        "ItemScale" => "Échelle du modèle lorsqu’il est rendu comme item.",
+        "ItemTranslate" => "Décalage du modèle lorsqu’il est rendu comme item.",
+        "MaxItemStackSize" => "Nombre maximal d’objets dans une pile.",
+        "Durability" => "Durabilité de l’item ou de l’armure.",
+        "Enchantability" => "Valeur utilisée pour l’enchantement de l’item.",
+        "DamageReduction" => "Valeurs de réduction des dégâts de l’armure.",
+        "ArmorArms" => "Pièces du modèle associées aux bras de l’armure.",
+        "ArmorFoot" => "Pièces du modèle associées aux pieds de l’armure.",
+        "ArmorLegs" => "Pièces du modèle associées aux jambes de l’armure.",
+        "EquipSound" => "Son joué lorsque l’armure est équipée.",
+        "Material" => "Matériau Minecraft utilisé par cet objet.",
+        "LightLevel" => "Niveau de lumière émis par le bloc.",
+        "UseComplexCollision" => "Active les collisions complexes du modèle.",
+        "UseComplexCollisions" => "Active les collisions complexes du modèle.",
+        "PlayerStandOnTop" => "Règle indiquant si un joueur peut se tenir sur l’objet.",
+        "RenderDistanceSquared" => "Distance de rendu au carré utilisée pour cet objet.",
+        "DespawnTime" => "Durée utilisée avant la disparition de cet objet selon son type.",
+        "Rotate" => "Rotation du modèle pour ce rendu.",
+        "Translate" => "Décalage du modèle pour ce rendu.",
+        "AngularDamping" => "Amortissement des mouvements de rotation du véhicule.",
+        "LinearDamping" => "Amortissement des déplacements du véhicule.",
+        "MaxVehicleSpeed" => "Vitesse maximale du véhicule ; infinite désactive cette limite.",
+        "TurnSpeed" => "Vitesse de rotation ou de braquage selon le type de véhicule.",
+        "DefaultZoomLevel" => "Niveau de zoom par défaut de la caméra.",
+        "SteeringMethod" => "Méthode de direction utilisée par le véhicule.",
+        "CameraPositionY" => "Position verticale de la caméra.",
+        "CameraRotation" => "Réglage de rotation de la caméra.",
+        "Intensity" => "Vecteur d’intensité de la force appliquée par cette pièce.",
+        _ => "Paramètre DynamX ou addon. Sa description peut être renseignée dans Propriétés.",
     }
 }

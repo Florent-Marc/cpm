@@ -212,7 +212,8 @@ impl Creation {
                 match self.path() {
                     Ok(path)=>{
                         self.refresh(catalog,&path);ui.monospace(path.display().to_string());ui.separator();
-                        for (key,value) in &mut self.fields{ui.horizontal(|ui|{ui.label(key.as_str());ui.add(egui::TextEdit::singleline(value).desired_width(f32::INFINITY));});}
+                        let definitions=catalog.parameters(&path,&Document::parse("").expect("vide"),None);
+                        for (key,value) in &mut self.fields{let definition=definitions.iter().find(|d|d.name==*key);ui.horizontal(|ui|{ui.label(key.as_str()).on_hover_text(definition.map(|d|d.description.as_str()).unwrap_or(""));crate::parameter_input::input(ui,value,definition,None);});}
                         ui.weak("Les paramètres obligatoires peuvent être complétés ensuite ; les erreurs bloqueront l’export.");
                     },Err(error)=>{ui.colored_label(egui::Color32::LIGHT_RED,error);}
                 }

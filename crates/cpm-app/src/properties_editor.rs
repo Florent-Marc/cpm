@@ -135,13 +135,16 @@ impl PropertiesEditor {
                             let ui=&mut columns[1];
                             if let Some(message)=&problem{ui.colored_label(egui::Color32::LIGHT_RED,message);}
                             ui.horizontal(|ui|{ui.label("Paramètre");ui.text_edit_singleline(&mut parameter.name);});
+                            ui.label("Description (affichée au survol)");
+                            ui.add(egui::TextEdit::multiline(&mut parameter.description).desired_rows(3));
                             egui::ComboBox::from_id_salt("properties-type").selected_text(parameter.variable_type.label()).show_ui(ui,|ui|{for kind in VariableType::ALL{ui.selectable_value(&mut parameter.variable_type,kind,kind.label());}});
                             ui.checkbox(&mut parameter.required,"Obligatoire");
                             ui.checkbox(&mut parameter.allow_empty,"Autoriser une valeur vide");
                             egui::ComboBox::from_id_salt("properties-severity").selected_text(parameter.severity.label()).show_ui(ui,|ui|{for severity in [Severity::Ignore,Severity::Warning,Severity::Error]{ui.selectable_value(&mut parameter.severity,severity,severity.label());}});
                             let mut has_default=parameter.default_value.is_some();
                             if ui.checkbox(&mut has_default,"Valeur par défaut").changed(){parameter.default_value=has_default.then(String::new);}
-                            if let Some(value)=&mut parameter.default_value{ui.text_edit_singleline(value);}
+                            let definition=parameter.clone();
+                            if let Some(value)=&mut parameter.default_value{crate::parameter_input::input(ui,value,Some(&definition),None);}
                             let key=(self.file,self.rule,self.parameter);
                             if self.fields_for!=Some(key){self.choices_text=parameter.choices.join(", ");self.aliases_text=parameter.aliases.join(", ");self.fields_for=Some(key);}
                             if parameter.variable_type==VariableType::Enumeration{ui.label("Choix autorisés, séparés par des virgules");if ui.text_edit_singleline(&mut self.choices_text).changed(){parameter.choices=split_list(&self.choices_text);}}

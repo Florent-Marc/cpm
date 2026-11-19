@@ -126,3 +126,48 @@ fn scoped_rules_and_optional_pitch_range() {
         .parameters(Path::new("sounds_demo.dynx"), &doc, Some(1))
         .is_empty());
 }
+
+#[test]
+fn descriptions_are_backward_compatible_editable_and_preserve_explicit_empty_text() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = CatalogStore {
+        directory: temp.path().join("properties"),
+    };
+    let loaded = store.load().unwrap();
+    assert!(loaded.catalog.files[0]
+        .catalog
+        .rules
+        .iter()
+        .flat_map(|r| &r.parameters)
+        .all(|p| !p.description.is_empty()));
+    let path = store.directory.join("dynamx.json");
+    let mut json: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let rules = json["rules"].as_array_mut().unwrap();
+    for rule in rules {
+        for parameter in rule["parameters"].as_array_mut().unwrap() {
+            parameter.as_object_mut().unwrap().remove("description");
+        }
+    }
+    std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+    let mut loaded = store.load().unwrap();
+    assert!(loaded.warnings.is_empty());
+    let parameter = &mut loaded.catalog.files[0].catalog.rules[0].parameters[0];
+    assert!(!parameter.description.is_empty());
+    parameter.description = "Description personnelle\navec détails".into();
+    store.save_file(&loaded.catalog.files[0]).unwrap();
+    assert_eq!(
+        store.load().unwrap().catalog.files[0].catalog.rules[0].parameters[0].description,
+        "Description personnelle\navec détails"
+    );
+    loaded.catalog.files[0].catalog.rules[0].parameters[0].description = String::new();
+    store.save_file(&loaded.catalog.files[0]).unwrap();
+    assert!(
+        store.load().unwrap().catalog.files[0].catalog.rules[0].parameters[0]
+            .description
+            .is_empty()
+    );
+    let legacy: ParameterDefinition =
+        serde_json::from_str(r#"{"name":"CustomNumber","variable_type":"integer"}"#).unwrap();
+    assert!(legacy.description.is_empty());
+}

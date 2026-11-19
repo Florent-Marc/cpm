@@ -1,5 +1,9 @@
 use cpm_core::{Document, ObjMesh, ObjRequest, Pack};
-use std::{fs, io::Write, path::Path};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 const OBJ: &str = "o Quad\nv 0 0 0\nv 2 0 0\nv 2 2 0\nv 0 2 0\nf -4 -3 -2 -1\n";
 fn document(model: &str) -> Document {
     Document::parse(&format!("Model: {model}\n")).unwrap()
@@ -301,4 +305,76 @@ fn texture_dimensions_are_limited_and_missing_uv_is_reported() {
     let mesh = load();
     assert!(mesh.textures.is_empty());
     assert!(!mesh.warnings.is_empty());
+}
+
+#[test]
+fn wheel_models_use_config_positions_scales_right_orientation_and_unsaved_documents() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    fs::write(root.join("pack_info.dynx"), "PackName: Demo\n").unwrap();
+    let triangle = "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n";
+    fs::write(root.join("car.obj"), format!("o body\n{triangle}")).unwrap();
+    fs::write(root.join("wheel.obj"), format!("o tire\n{triangle}")).unwrap();
+    let wheel = "Model: wheel.obj\nScaleModifier: 0.5 0.5 0.5\n";
+    fs::write(root.join("wheel_demo.dynx"), wheel).unwrap();
+    let vehicle=Document::parse("Model: car.obj\nScaleModifier: 2 2 2\nWheel_left{\nAttachedWheel: Demo.wheel_demo\nPosition: 3 4 5\nIsRight: false\n}\nWheel_right{\nAttachedWheel: Demo.wheel_demo\nPosition: -3 4 5\nIsRight: true\n}\n").unwrap();
+    let pack = Pack::open(root).unwrap();
+    let scene = ObjRequest::resolve(Some(&pack), Path::new("vehicle_demo.dynx"), &vehicle)
+        .unwrap()
+        .load()
+        .unwrap();
+    assert!(scene.warnings.is_empty(), "{:?}", scene.warnings);
+    assert_eq!(scene.triangles, 3);
+    let left = scene
+        .parts
+        .iter()
+        .find(|p| p.name == "Wheel_left/tire")
+        .unwrap()
+        .batches[0]
+        .first;
+    let right = scene
+        .parts
+        .iter()
+        .find(|p| p.name == "Wheel_right/tire")
+        .unwrap()
+        .batches[0]
+        .first;
+    let unit = scene.vertices[1][0] - scene.vertices[0][0];
+    for (axis, expected) in [3.0, 5.0, -4.0].into_iter().enumerate() {
+        assert!(
+            ((scene.vertices[left][axis] - scene.vertices[0][axis]) / unit - expected).abs()
+                < 0.001
+        );
+    }
+    assert!(((scene.vertices[left + 1][0] - scene.vertices[left][0]) / unit - 0.5).abs() < 0.001);
+    assert!(((scene.vertices[right + 1][0] - scene.vertices[right][0]) / unit + 0.5).abs() < 0.001);
+    let mut documents = std::collections::BTreeMap::new();
+    documents.insert(
+        PathBuf::from("wheel_demo.dynx"),
+        Document::parse("Model: wheel.obj\nScaleModifier: 2 2 2\n").unwrap(),
+    );
+    let edited = ObjRequest::resolve(Some(&pack), Path::new("vehicle_demo.dynx"), &vehicle)
+        .unwrap()
+        .with_documents(documents)
+        .load()
+        .unwrap();
+    let unit = edited.vertices[1][0] - edited.vertices[0][0];
+    assert!(((edited.vertices[left + 1][0] - edited.vertices[left][0]) / unit - 2.0).abs() < 0.001);
+    let mut deleted = pack.clone();
+    deleted
+        .remove_configuration(Path::new("wheel_demo.dynx"))
+        .unwrap();
+    let missing = ObjRequest::resolve(Some(&deleted), Path::new("vehicle_demo.dynx"), &vehicle)
+        .unwrap()
+        .load()
+        .unwrap();
+    assert_eq!(missing.triangles, 1);
+    assert!(missing
+        .warnings
+        .iter()
+        .any(|w| w.contains("référence de roue absente")));
+    assert_eq!(
+        fs::read_to_string(root.join("wheel_demo.dynx")).unwrap(),
+        wheel
+    );
 }

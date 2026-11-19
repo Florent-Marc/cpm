@@ -10,8 +10,10 @@ const MAX_TRIANGLES: usize = 1_000_000;
 #[derive(Clone)]
 pub struct ObjRequest {
     pub path: PathBuf,
-    pack: Option<Pack>,
-    directory: PathBuf,
+    pub(crate) pack: Option<Pack>,
+    pub(crate) document: Document,
+    pub(crate) overrides: std::collections::BTreeMap<PathBuf, Document>,
+    pub(crate) directory: PathBuf,
 }
 impl ObjRequest {
     /// Résout le Model racine, jamais un modèle arbitraire dans un autre pack.
@@ -96,6 +98,8 @@ impl ObjRequest {
                 return Ok(Self {
                     path,
                     pack: pack.cloned(),
+                    document: document.clone(),
+                    overrides: Default::default(),
                     directory,
                 });
             }
@@ -121,7 +125,17 @@ impl ObjRequest {
         }
         Ok(bytes)
     }
+    pub fn with_documents(
+        mut self,
+        documents: std::collections::BTreeMap<PathBuf, Document>,
+    ) -> Self {
+        self.overrides = documents;
+        self
+    }
     pub fn load(&self) -> Result<ObjMesh, String> {
+        crate::scene::assemble(self)
+    }
+    pub(crate) fn load_geometry(&self) -> Result<ObjMesh, String> {
         ObjMesh::parse_with(&self.read(&self.path, MAX_OBJ_BYTES)?, Some(self))
     }
 }
@@ -168,11 +182,13 @@ pub struct ObjPart {
     pub name: String,
     pub batches: Vec<ObjBatch>,
 }
+#[derive(Clone)]
 pub struct ObjMaterial {
     pub name: String,
     pub diffuse: [f32; 4],
     pub texture: Option<usize>,
 }
+#[derive(Clone)]
 pub struct ObjTexture {
     pub path: PathBuf,
     pub width: u32,
@@ -181,7 +197,10 @@ pub struct ObjTexture {
     pub has_alpha: bool,
 }
 
+#[derive(Clone)]
 pub struct ObjMesh {
+    pub(crate) center: [f64; 3],
+    pub(crate) radius: f64,
     /// Triangles non indexés : position centrée/normalisée, normale de face puis UV.
     pub vertices: Vec<[f32; 8]>,
     pub parts: Vec<ObjPart>,
@@ -451,6 +470,8 @@ impl ObjMesh {
         warnings.sort();
         warnings.dedup();
         Ok(Self {
+            center,
+            radius,
             objects: parts.len(),
             parts,
             materials: converted_materials,

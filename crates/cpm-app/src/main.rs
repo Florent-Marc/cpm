@@ -7,6 +7,7 @@ mod creation;
 mod editor;
 mod export_dialog;
 mod navigation;
+mod parameter_input;
 mod preview;
 mod properties_editor;
 mod recent;
@@ -884,6 +885,7 @@ impl CpmApp {
                         }
                     });
             });
+        let mut requested_preview = None;
         egui::CentralPanel::default().show(ui, |ui| {
             let Some(editor) = &mut self.editor else {
                 ui.heading("Ouvrir un pack DynamX");
@@ -897,7 +899,7 @@ impl CpmApp {
                 let request=cpm_core::ObjRequest::resolve(self.pack.as_ref(),&path,&editor.document);
                 let hint=if self.gl.is_none(){"Le moteur OpenGL de l’aperçu n’est pas disponible".to_owned()}else{request.as_ref().map(|r|format!("Ouvrir {}",r.path.display())).unwrap_or_else(|e|e.clone())};
                 if ui.add_enabled(request.is_ok() && self.gl.is_some(),egui::Button::new("Aperçu 3D")).on_hover_text(hint).clicked() {
-                    if let Ok(request)=request { self.preview=Some(preview::Preview::open(request,&ctx)); }
+                    if let Ok(request)=request { requested_preview=Some(request); }
                 }
             });
             ui.label("Propriétés");
@@ -917,6 +919,12 @@ impl CpmApp {
                 });
             });
         });
+        if let Some(request) = requested_preview {
+            self.preview = Some(preview::Preview::open(
+                request.with_documents(self.documents()),
+                &ctx,
+            ));
+        }
         if let Some(editor) = &mut self.editor {
             custom_parameter_window(&ctx, editor, &mut self.error);
         }
@@ -1238,13 +1246,15 @@ fn show_properties(
                     .collect();
                 if ui
                     .button(diagnostic_text(label, &problems))
-                    .on_hover_text(
+                    .on_hover_text(format!(
+                        "{}\n{}",
+                        spec.description,
                         problems
                             .iter()
                             .map(ToString::to_string)
                             .collect::<Vec<_>>()
-                            .join("\n"),
-                    )
+                            .join("\n")
+                    ))
                     .clicked()
                 {
                     editor.pending_add = Some((
@@ -1313,7 +1323,8 @@ fn show_properties(
                 let hint = definition
                     .map(|p| {
                         format!(
-                            "Ligne {} · {} · {} · {}\nDéfaut : {}",
+                            "{}\n\nLigne {} · {} · {} · {}\nDéfaut : {}",
+                            p.description,
                             property.line,
                             p.variable_type.label(),
                             if p.required {
@@ -1340,17 +1351,20 @@ fn show_properties(
                 };
                 ui.label(diagnostic_text(&property.key, &problems))
                     .on_hover_text(&hint);
-                let mut input = egui::TextEdit::singleline(&mut editor.values[index])
-                    .desired_width(f32::INFINITY);
-                if problems
+                let color = if problems
                     .iter()
                     .any(|d| d.severity == cpm_core::Severity::Error)
                 {
-                    input = input.text_color(egui::Color32::LIGHT_RED);
+                    Some(egui::Color32::LIGHT_RED)
                 } else if !problems.is_empty() {
-                    input = input.text_color(egui::Color32::YELLOW);
-                }
-                if ui.add(input).on_hover_text(hint).changed() {
+                    Some(egui::Color32::YELLOW)
+                } else {
+                    None
+                };
+                if parameter_input::input(ui, &mut editor.values[index], definition, color)
+                    .on_hover_text(hint)
+                    .changed()
+                {
                     if let Err(edit_error) = editor.document.set_value(index, &editor.values[index])
                     {
                         *error = Some(edit_error.to_string());

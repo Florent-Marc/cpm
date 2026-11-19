@@ -106,7 +106,7 @@ impl Preview {
                 ui.label(&self.statistics);
             });
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Matériaux OBJ/MTL — sans animations ni variantes de textures DynamX.");
+            ui.weak("Matériaux OBJ/MTL et roues externes — sans animation ni variantes DynamX. Rouvre cet aperçu après modification.");
             ui.checkbox(&mut self.use_textures,"Afficher les textures");
             if !self.parts.is_empty() {
                 egui::CollapsingHeader::new(format!("Pièces ({})",self.parts.len())).default_open(true).show(ui,|ui| {
