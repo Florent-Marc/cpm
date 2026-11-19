@@ -7,6 +7,84 @@ pub fn input(
     definition: Option<&ParameterDefinition>,
     color: Option<egui::Color32>,
 ) -> egui::Response {
+    if let Some(definition) = definition {
+        match definition.variable_type {
+            VariableType::Boolean
+                if value.is_empty()
+                    || value.eq_ignore_ascii_case("true")
+                    || value.eq_ignore_ascii_case("false") =>
+            {
+                let mut checked = value.eq_ignore_ascii_case("true");
+                let response = ui.checkbox(&mut checked, "");
+                if response.changed() {
+                    *value = checked.to_string();
+                }
+                return response;
+            }
+            VariableType::Enumeration if !definition.choices.is_empty() => {
+                let old = value.clone();
+                let mut response = egui::ComboBox::from_id_salt("enum-value")
+                    .selected_text(value.as_str())
+                    .show_ui(ui, |ui| {
+                        for choice in &definition.choices {
+                            ui.selectable_value(value, choice.clone(), choice);
+                        }
+                    })
+                    .response;
+                if *value != old {
+                    response.mark_changed();
+                }
+                return response;
+            }
+            VariableType::Vector2 | VariableType::Vector3 | VariableType::Quaternion => {
+                let labels: &[&str] = match definition.variable_type {
+                    VariableType::Vector2 => &["X", "Y"],
+                    VariableType::Vector3 => &["X", "Y", "Z"],
+                    _ => &["W", "X", "Y", "Z"],
+                };
+                let mut parts: Vec<String> = if value.is_empty() {
+                    vec![String::new(); labels.len()]
+                } else {
+                    value.split(' ').map(str::to_owned).collect()
+                };
+                if parts.len() == labels.len() {
+                    let mut changed = false;
+                    let decimal = ParameterDefinition {
+                        variable_type: VariableType::Decimal,
+                        ..Default::default()
+                    };
+                    let mut response = ui
+                        .horizontal(|ui| {
+                            for (i, (label, part)) in labels.iter().zip(&mut parts).enumerate() {
+                                ui.label(*label);
+                                ui.push_id(i, |ui| {
+                                    ui.scope(|ui| {
+                                        ui.set_max_width(85.0);
+                                        changed |=
+                                            text_input(ui, part, Some(&decimal), color).changed();
+                                    });
+                                });
+                            }
+                        })
+                        .response;
+                    if changed {
+                        *value = parts.join(" ");
+                        response.mark_changed();
+                    }
+                    return response;
+                }
+            }
+            _ => {}
+        }
+    }
+    text_input(ui, value, definition, color)
+}
+fn text_input(
+    ui: &mut egui::Ui,
+    value: &mut String,
+    definition: Option<&ParameterDefinition>,
+    color: Option<egui::Color32>,
+) -> egui::Response {
     let old = value.clone();
     let mut buffer = FilteredBuffer {
         value,
@@ -170,5 +248,34 @@ mod tests {
         assert!(allowed("1 -2.5 3", &vector));
         assert!(!allowed("1 2 three", &vector));
         assert!(!allowed("1 2 3 4", &vector));
+    }
+}
+
+#[cfg(test)]
+mod widget_tests {
+    use super::*;
+    #[test]
+    fn typed_widgets_preserve_imported_values_until_user_changes_them() {
+        let ctx = egui::Context::default();
+        for (kind, text) in [
+            (VariableType::Vector3, "1 2 3"),
+            (VariableType::Quaternion, "1 0 0 0"),
+            (VariableType::Vector3, "1  2   3"),
+            (VariableType::Boolean, "INVALID"),
+            (VariableType::Boolean, ""),
+            (VariableType::Enumeration, "unknown"),
+        ] {
+            let mut value = text.to_owned();
+            let definition = ParameterDefinition {
+                variable_type: kind,
+                choices: vec!["first".into(), "second".into()],
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                input(ui, &mut value, Some(&definition), None);
+            });
+            output.textures_delta.clear();
+            assert_eq!(value, text);
+        }
     }
 }
