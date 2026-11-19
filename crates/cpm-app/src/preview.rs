@@ -1,11 +1,16 @@
+mod gizmo;
 mod picking;
 use cpm_core::{ObjMesh, ObjRequest};
 use eframe::{egui, egui_glow, glow};
+pub use gizmo::Edit as GizmoEdit;
 use glow::HasContext as _;
 use std::sync::{mpsc, Arc};
 
 pub struct Preview {
     pub live: bool,
+    document: cpm_core::Document,
+    gizmo: gizmo::Gizmo,
+    edits: Vec<GizmoEdit>,
     pub variant: usize,
     pub reload_requested: bool,
     variant_names: Vec<String>,
@@ -29,6 +34,7 @@ pub struct Preview {
 }
 impl Preview {
     pub fn open(request: ObjRequest, ctx: &egui::Context) -> Self {
+        let document = request.document().clone();
         let variant_names = request.variant_names();
         let path = request.path.display().to_string();
         let (sender, receiver) = mpsc::channel();
@@ -39,6 +45,9 @@ impl Preview {
         });
         Self {
             live: true,
+            document,
+            gizmo: gizmo::Gizmo::default(),
+            edits: Vec::new(),
             variant: 0,
             reload_requested: false,
             variant_names,
@@ -61,6 +70,9 @@ impl Preview {
             pan: egui::Vec2::ZERO,
         }
     }
+    pub fn take_edits(&mut self) -> Vec<GizmoEdit> {
+        std::mem::take(&mut self.edits)
+    }
     pub fn take_selection(&mut self) -> Option<Option<usize>> {
         self.selection_changed.take()
     }
@@ -68,6 +80,7 @@ impl Preview {
         self.receiver.is_some()
     }
     pub fn refresh(&mut self, request: ObjRequest, ctx: &egui::Context) {
+        self.document = request.document().clone();
         self.variant_names = request.variant_names();
         if self.variant >= self.variant_names.len() {
             self.variant = 0;
@@ -162,6 +175,7 @@ impl Preview {
                 if ui.button("Dessus").clicked() { self.yaw=0.0; self.pitch=std::f32::consts::FRAC_PI_2; }
                 ui.label(&self.statistics);
             });
+            self.gizmo.toolbar(ui);
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
             ui.weak("Matériaux, roues et volant — aperçu statique, variantes diffuses DynamX. Actualisation après une courte pause de saisie.");
             ui.checkbox(&mut self.live,"Actualisation automatique");
@@ -212,7 +226,7 @@ impl Preview {
             let size=egui::vec2(ui.available_width().max(1.0), ui.available_height().max(180.0));
             let (rect,response)=ui.allocate_exact_size(size,egui::Sense::click_and_drag());
             ui.painter().rect_filled(rect,4.0,egui::Color32::from_rgb(24,28,35));
-            if response.dragged_by(egui::PointerButton::Primary) {
+            if self.gizmo.tool==gizmo::Tool::Orbit && !self.gizmo.active() && response.dragged_by(egui::PointerButton::Primary) {
                 let delta=response.drag_motion(); self.yaw+=delta.x*0.01; self.pitch=(self.pitch+delta.y*0.01).clamp(-1.55,1.55);
             }
             if response.dragged_by(egui::PointerButton::Secondary) {
@@ -222,7 +236,7 @@ impl Preview {
                 let scroll=ui.input(|i|i.smooth_scroll_delta.y);
                 self.zoom=(self.zoom*(scroll*0.002).exp()).clamp(0.1,8.0);
             }
-            if response.clicked() {
+            if response.clicked() && self.gizmo.tool==gizmo::Tool::Orbit {
                 if let (Some(geometry),Some(pos))=(&self.geometry,response.interact_pointer_pos()) {
                     let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();
                     if let Some(section)=picking::pick(geometry,&visible,self.show_collisions,View{yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan},rect,pos) {
@@ -234,8 +248,11 @@ impl Preview {
                 let mesh=mesh.clone(); let view=View {yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan};
                 let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;let collisions=self.show_collisions;let selected=self.selected;
                 let aspect=rect.width()/rect.height();
-                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures,collisions,selected); });
+                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,DrawOptions{use_textures:textures,show_collisions:collisions,selected}); });
                 ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
+                if let Some(geometry)=&self.geometry {
+                    if let Some(edit)=self.gizmo.draw(ui,geometry,&self.document,self.selected,view,rect){self.edits.push(edit);}
+                }
             }
         });
         open
@@ -254,6 +271,12 @@ struct View {
     pitch: f32,
     zoom: f32,
     pan: egui::Vec2,
+}
+#[derive(Clone, Copy)]
+struct DrawOptions {
+    use_textures: bool,
+    show_collisions: bool,
+    selected: Option<usize>,
 }
 struct DrawBatch {
     section: Option<usize>,
@@ -451,10 +474,13 @@ impl GpuMesh {
         view: View,
         aspect: f32,
         visible: &[bool],
-        use_textures: bool,
-        show_collisions: bool,
-        selected: Option<usize>,
+        options: DrawOptions,
     ) {
+        let DrawOptions {
+            use_textures,
+            show_collisions,
+            selected,
+        } = options;
         unsafe {
             gl.enable(glow::DEPTH_TEST);
             gl.depth_func(glow::LESS);

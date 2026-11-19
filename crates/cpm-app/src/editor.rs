@@ -136,6 +136,35 @@ impl Editor {
         self.pending_add = None;
         self.pending_delete = None;
     }
+    pub fn apply_gizmo(&mut self, edit: &crate::preview::GizmoEdit) -> Result<(), String> {
+        if self.document.source() != edit.expected_source {
+            return Err("Configuration modifiée pendant le déplacement ; attendre l’actualisation puis réessayer".into());
+        }
+        if self.document.sections().get(edit.section).is_none() {
+            return Err("Section supprimée".into());
+        }
+        self.checkpoint();
+        if let Some(index) = self
+            .document
+            .properties()
+            .iter()
+            .position(|p| p.section == Some(edit.section) && p.key == edit.key)
+        {
+            self.document
+                .set_value(index, &edit.value)
+                .map_err(|e| e.to_string())?;
+            self.values = self
+                .document
+                .properties()
+                .iter()
+                .map(|p| p.value.clone())
+                .collect();
+        } else {
+            self.add_parameter(Some(edit.section), &edit.key, &edit.value)?;
+        }
+        self.checkpoint();
+        Ok(())
+    }
     pub fn issues(&self) -> Vec<String> {
         self.catalog.errors(&self.path, &self.document)
     }
@@ -231,5 +260,30 @@ mod history_tests {
         e.checkpoint();
         assert!(!e.can_redo());
         assert!(e.document.source().starts_with("// comment\r\n"));
+    }
+}
+
+#[cfg(test)]
+mod gizmo_tests {
+    use super::*;
+    #[test]
+    fn gizmo_applies_once_and_rejects_stale_document() {
+        let mut e = Editor::from_document(
+            Document::parse("Shape_body{\nPosition: 0 0 0\nScale: 1 2 3\n}\n").unwrap(),
+            Path::new("vehicle_car.dynx"),
+        );
+        let edit = crate::preview::GizmoEdit {
+            section: 0,
+            key: "Position".into(),
+            value: "2 0 0".into(),
+            expected_source: e.document.source().into(),
+        };
+        e.apply_gizmo(&edit).unwrap();
+        assert_eq!(e.values[0], "2 0 0");
+        assert!(e.apply_gizmo(&edit).is_err());
+        assert!(e.undo());
+        assert_eq!(e.values[0], "0 0 0");
+        assert!(e.redo());
+        assert_eq!(e.values[0], "2 0 0");
     }
 }

@@ -47,7 +47,7 @@ pub(super) fn pick(
         let mut closest = 6.0;
         let mut section = None;
         for wire in &mesh.collisions {
-            for edge in wire.vertices.chunks_exact(2) {
+            for edge in wire.vertices.as_chunks::<2>().0 {
                 let distance = segment_distance(
                     point,
                     project(edge[0], view, rect).0,
@@ -73,7 +73,10 @@ pub(super) fn pick(
     {
         let _ = index;
         for batch in &part.batches {
-            for vertices in mesh.vertices[batch.first..batch.first + batch.count].chunks_exact(3) {
+            for vertices in mesh.vertices[batch.first..batch.first + batch.count]
+                .as_chunks::<3>()
+                .0
+            {
                 let projected: Vec<_> = vertices
                     .iter()
                     .map(|v| project([v[0], v[1], v[2]], view, rect))

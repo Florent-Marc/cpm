@@ -134,6 +134,9 @@ impl ObjRequest {
         self.overrides = documents;
         self
     }
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
     pub fn variant_names(&self) -> Vec<String> {
         let section =
             self.document.sections().iter().position(|s| {
@@ -266,6 +269,9 @@ pub struct ObjMesh {
     pub objects: usize,
 }
 impl ObjMesh {
+    pub fn normalize_point(&self, world: [f64; 3]) -> [f32; 3] {
+        std::array::from_fn(|i| ((world[i] - self.center[i]) / self.radius) as f32)
+    }
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         Self::parse_with(bytes, None)
     }

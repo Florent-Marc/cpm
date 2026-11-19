@@ -5,9 +5,10 @@ pub enum Selection {
     Config(usize),
     Asset(PathBuf),
 }
+type ModelIndex = BTreeMap<PathBuf, Vec<(usize, PathBuf)>>;
 pub struct Browser {
-    receiver: Option<mpsc::Receiver<BTreeMap<PathBuf, Vec<(usize, PathBuf)>>>>,
-    models: BTreeMap<PathBuf, Vec<(usize, PathBuf)>>,
+    receiver: Option<mpsc::Receiver<ModelIndex>>,
+    models: ModelIndex,
     filter: String,
     error: Option<String>,
 }

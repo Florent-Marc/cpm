@@ -763,7 +763,11 @@ impl CpmApp {
                         ui.close();
                     }
                 });
-                if ui.button("Recherche").clicked(){self.search.open=true;}
+                ui.menu_button("Outils",|ui|{
+                    if ui.button("Recherche").clicked(){self.search.open=true;ui.close();}
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Modèles")).clicked(){self.model_browser=self.pack.as_ref().map(|p|model_browser::Browser::new(p.clone(),self.documents()));ui.close();}
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Diagnostic")).clicked(){self.report=self.pack.as_ref().map(|p|report::Report::new(p.clone(),self.documents(),self.catalog.clone(),false));ui.close();}
+                });
                 ui.menu_button("Édition", |ui| {
                     if let Some(editor)=&mut self.editor {
                         if ui.add_enabled(editor.can_undo(),egui::Button::new("Annuler · Ctrl+Z")).clicked(){editor.undo();ui.close();}
@@ -1187,6 +1191,36 @@ impl CpmApp {
                 preview.selected = self.selected_section;
             }
             if preview.show(&ctx, self.gl.as_ref()) {
+                for edit in preview.take_edits() {
+                    if self.report.is_some()
+                        || self.export_dialog.is_some()
+                        || self.properties_editor.is_some()
+                    {
+                        self.error =
+                            Some("Terminer la fenêtre active avant de modifier l’aperçu".into());
+                        continue;
+                    }
+                    if let Some(index) = self
+                        .pack
+                        .as_ref()
+                        .and_then(|p| p.configs().iter().position(|p| *p == self.preview_config))
+                    {
+                        self.switch_config(index);
+                    }
+                    if let Some(editor) = self
+                        .editor
+                        .as_mut()
+                        .filter(|e| e.path == self.preview_config)
+                    {
+                        match editor.apply_gizmo(&edit) {
+                            Ok(()) => {
+                                preview.reload_requested = true;
+                                self.status = "Placement 3D appliqué · Ctrl+Z pour annuler".into();
+                            }
+                            Err(error) => self.error = Some(error),
+                        }
+                    }
+                }
                 if let Some(section) = preview.take_selection() {
                     if let Some(index) = self
                         .pack
