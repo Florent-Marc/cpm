@@ -15,6 +15,9 @@ pub struct Editor {
     pub pending_delete: Option<usize>,
     pub pending_add: Option<(Option<usize>, String, String)>,
     saved_source: String,
+    recorded: String,
+    undo: Vec<String>,
+    redo: Vec<String>,
 }
 
 impl Editor {
@@ -34,6 +37,9 @@ impl Editor {
         Self {
             document,
             values,
+            recorded: saved_source.clone(),
+            undo: Vec::new(),
+            redo: Vec::new(),
             saved_source,
             path: path.to_owned(),
             catalog: std::sync::Arc::default(),
@@ -75,6 +81,60 @@ impl Editor {
             .map(|p| p.value.clone())
             .collect();
         Ok(())
+    }
+    pub fn checkpoint(&mut self) {
+        if self.recorded != self.document.source() {
+            self.undo.push(std::mem::replace(
+                &mut self.recorded,
+                self.document.source().into(),
+            ));
+            self.redo.clear();
+            while self.undo.len() > 100
+                || self.undo.iter().map(String::len).sum::<usize>() > 16 * 1024 * 1024
+            {
+                self.undo.remove(0);
+            }
+        }
+    }
+    pub fn can_undo(&self) -> bool {
+        !self.undo.is_empty() || self.recorded != self.document.source()
+    }
+    pub fn can_redo(&self) -> bool {
+        !self.redo.is_empty()
+    }
+    pub fn undo(&mut self) -> bool {
+        self.checkpoint();
+        let Some(source) = self.undo.pop() else {
+            return false;
+        };
+        self.redo.push(self.recorded.clone());
+        self.restore(source);
+        true
+    }
+    pub fn redo(&mut self) -> bool {
+        if self.recorded != self.document.source() {
+            self.checkpoint();
+            return false;
+        }
+        let Some(source) = self.redo.pop() else {
+            return false;
+        };
+        self.undo.push(self.recorded.clone());
+        self.restore(source);
+        true
+    }
+    fn restore(&mut self, source: String) {
+        self.document = Document::parse(&source).expect("historique valide");
+        self.recorded = source;
+        self.values = self
+            .document
+            .properties()
+            .iter()
+            .map(|p| p.value.clone())
+            .collect();
+        self.custom_parameter = None;
+        self.pending_add = None;
+        self.pending_delete = None;
     }
     pub fn issues(&self) -> Vec<String> {
         self.catalog.errors(&self.path, &self.document)
@@ -145,5 +205,31 @@ mod tests {
         editor.revert();
         assert_eq!(editor.document.properties()[0].value, "Changed");
         std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+    #[test]
+    fn history_restores_structure_values_and_saved_state() {
+        let mut e = Editor::from_document(
+            Document::parse("// comment\r\nName: A\r\n").unwrap(),
+            Path::new("vehicle_a.dynx"),
+        );
+        e.document.set_value(0, "B").unwrap();
+        e.checkpoint();
+        e.add_parameter(None, "Mass", "2").unwrap();
+        e.checkpoint();
+        assert!(e.undo());
+        assert_eq!(e.values, vec!["B"]);
+        assert!(e.undo());
+        assert!(!e.is_dirty());
+        assert!(e.redo());
+        assert_eq!(e.values, vec!["B"]);
+        e.document.set_value(0, "C").unwrap();
+        e.checkpoint();
+        assert!(!e.can_redo());
+        assert!(e.document.source().starts_with("// comment\r\n"));
     }
 }

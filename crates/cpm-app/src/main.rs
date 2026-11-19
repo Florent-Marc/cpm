@@ -538,7 +538,8 @@ impl CpmApp {
                 }
             }
         };
-        if let (Some(previous), Some(editor)) = (self.selected_config, self.editor.take()) {
+        if let (Some(previous), Some(mut editor)) = (self.selected_config, self.editor.take()) {
+            editor.checkpoint();
             self.cached.insert(previous, editor);
         }
         next.catalog = self.catalog.clone();
@@ -606,6 +607,28 @@ impl CpmApp {
             || self.restarting
         {
             ui.disable();
+        }
+        if self.export_dialog.is_none()
+            && self.properties_editor.is_none()
+            && self.creation.is_none()
+            && self.manager.is_none()
+        {
+            let redo = ctx.input_mut(|i| {
+                i.consume_key(egui::Modifiers::CTRL | egui::Modifiers::SHIFT, egui::Key::Z)
+                    || i.consume_key(egui::Modifiers::CTRL, egui::Key::Y)
+            });
+            let undo = ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::Z));
+            if let Some(editor) = &mut self.editor {
+                if undo {
+                    editor.undo();
+                } else if redo {
+                    editor.redo();
+                }
+                if undo || redo {
+                    self.pending_scroll = None;
+                    self.selected_section = None;
+                }
+            }
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -696,6 +719,12 @@ impl CpmApp {
                     {
                         self.updater.check();
                         ui.close();
+                    }
+                });
+                ui.menu_button("Édition", |ui| {
+                    if let Some(editor)=&mut self.editor {
+                        if ui.add_enabled(editor.can_undo(),egui::Button::new("Annuler · Ctrl+Z")).clicked(){editor.undo();ui.close();}
+                        if ui.add_enabled(editor.can_redo(),egui::Button::new("Rétablir · Ctrl+Y")).clicked(){editor.redo();ui.close();}
                     }
                 });
                 if ui.button("Propriétés").clicked() {
@@ -927,6 +956,7 @@ impl CpmApp {
         }
         if let Some(editor) = &mut self.editor {
             custom_parameter_window(&ctx, editor, &mut self.error);
+            editor.checkpoint();
         }
         if let Some(mut dialog) = self.export_dialog.take() {
             let mut keep = true;
