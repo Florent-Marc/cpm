@@ -78,7 +78,14 @@ pub fn parameter_catalog(
         }
         if ["vehicle", "trailer", "boat", "helicopter"].contains(&kind) {
             if s.starts_with("Shape") {
-                return vec![r("Position"), r("Scale")];
+                return vec![r("Position"), r("Scale"), o("Type", "BOX")];
+            }
+            if s.starts_with("SteeringWheel") {
+                return vec![
+                    o("ObjectName", "SteeringWheel"),
+                    o("Position", ""),
+                    o("Rotation", "1 0 0 0"),
+                ];
             }
             if s.starts_with("ForcePoint") {
                 return vec![r("Position"), r("Intensity")];
@@ -99,7 +106,7 @@ pub fn parameter_catalog(
                     o("MudGuard", ""),
                     o("RotationPoint", "0 0 0"),
                     o("Scale", "1 1 1"),
-                    o("SuspensionAxis", "0 0 0 1"),
+                    o("SuspensionAxis", "1 0 0 0"),
                 ];
             }
             if s.starts_with("Seat") || s.ends_with("Seat") {

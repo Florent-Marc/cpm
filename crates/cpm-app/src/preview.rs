@@ -12,6 +12,8 @@ pub struct Preview {
     parts: Vec<PartVisibility>,
     warnings: Vec<String>,
     use_textures: bool,
+    show_collisions: bool,
+    collision_names: Vec<String>,
     yaw: f32,
     pitch: f32,
     zoom: f32,
@@ -35,6 +37,8 @@ impl Preview {
             parts: Vec::new(),
             warnings: Vec::new(),
             use_textures: true,
+            show_collisions: false,
+            collision_names: Vec::new(),
             yaw: -0.6,
             pitch: 0.25,
             zoom: 0.9,
@@ -77,6 +81,8 @@ impl Preview {
                                 }
                             })
                             .collect();
+                        self.collision_names =
+                            mesh.collisions.iter().map(|c| c.name.clone()).collect();
                         self.warnings = mesh.warnings.clone();
                         let gl = gl.ok_or("Le moteur OpenGL de l’aperçu n’est pas disponible")?;
                         GpuMesh::new(gl.clone(), &mesh)
@@ -106,8 +112,11 @@ impl Preview {
                 ui.label(&self.statistics);
             });
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Matériaux OBJ/MTL et roues externes — sans animation ni variantes DynamX. Rouvre cet aperçu après modification.");
-            ui.checkbox(&mut self.use_textures,"Afficher les textures");
+            ui.weak("Matériaux, roues et volant — aperçu statique, sans variantes DynamX. Rouvre cet aperçu après modification.");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.use_textures,"Afficher les textures");
+                ui.checkbox(&mut self.show_collisions,format!("Afficher les collisions ({})",self.collision_names.len())).on_hover_text(format!("Boîtes Shape… en fil de fer, visibles à travers le modèle. Les collisions générées automatiquement ne sont pas affichées.\n{}",self.collision_names.join("\n")));
+            });
             if !self.parts.is_empty() {
                 egui::CollapsingHeader::new(format!("Pièces ({})",self.parts.len())).default_open(true).show(ui,|ui| {
                     ui.horizontal(|ui| {
@@ -148,9 +157,9 @@ impl Preview {
             }
             if let Some(mesh) = &self.mesh {
                 let mesh=mesh.clone(); let view=View {yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan};
-                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;
+                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;let collisions=self.show_collisions;
                 let aspect=rect.width()/rect.height();
-                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures); });
+                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures,collisions); });
                 ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
             }
         });
@@ -186,6 +195,7 @@ struct GpuMesh {
     buffer: glow::Buffer,
     batches: Vec<DrawBatch>,
     textures: Vec<glow::Texture>,
+    collision_batches: Vec<DrawBatch>,
 }
 impl GpuMesh {
     fn new(gl: Arc<glow::Context>, mesh: &ObjMesh) -> Result<Self, String> {
@@ -253,13 +263,32 @@ impl GpuMesh {
                 buffer,
                 batches: Vec::new(),
                 textures: Vec::new(),
+                collision_batches: Vec::new(),
             };
-            let bytes: Vec<u8> = mesh
+            let mut bytes: Vec<u8> = mesh
                 .vertices
                 .iter()
                 .flatten()
                 .flat_map(|v| v.to_ne_bytes())
                 .collect();
+            let mut first = mesh.vertices.len();
+            for wire in &mesh.collisions {
+                for p in &wire.vertices {
+                    for v in [p[0], p[1], p[2], 0.0, 0.0, 1.0, 0.0, 0.0] {
+                        bytes.extend(v.to_ne_bytes());
+                    }
+                }
+                gpu.collision_batches.push(DrawBatch {
+                    part: 0,
+                    first: first as i32,
+                    count: wire.vertices.len() as i32,
+                    color: [0.25, 1.0, 0.35, 1.0],
+                    texture: None,
+                    transparent: false,
+                    center: [0.0; 3],
+                });
+                first += wire.vertices.len();
+            }
             gl.bind_vertex_array(Some(vertex_array));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
             gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &bytes, glow::STATIC_DRAW);
@@ -344,6 +373,7 @@ impl GpuMesh {
         aspect: f32,
         visible: &[bool],
         use_textures: bool,
+        show_collisions: bool,
     ) {
         unsafe {
             gl.enable(glow::DEPTH_TEST);
@@ -373,6 +403,7 @@ impl GpuMesh {
                 gl.get_uniform_location(self.program, "u_texture").as_ref(),
                 0,
             );
+            gl.uniform_1_i32(gl.get_uniform_location(self.program, "u_unlit").as_ref(), 0);
             gl.active_texture(glow::TEXTURE0);
             gl.bind_vertex_array(Some(self.vertex_array));
             let mut transparent = Vec::new();
@@ -397,6 +428,26 @@ impl GpuMesh {
             gl.depth_mask(false);
             for batch in transparent {
                 self.draw(gl, batch, use_textures);
+            }
+            if show_collisions {
+                gl.disable(glow::DEPTH_TEST);
+                gl.disable(glow::BLEND);
+                gl.uniform_1_i32(gl.get_uniform_location(self.program, "u_unlit").as_ref(), 1);
+                gl.uniform_1_i32(
+                    gl.get_uniform_location(self.program, "u_textured").as_ref(),
+                    0,
+                );
+                gl.uniform_4_f32(
+                    gl.get_uniform_location(self.program, "u_color").as_ref(),
+                    0.25,
+                    1.0,
+                    0.35,
+                    1.0,
+                );
+                gl.line_width(1.0);
+                for batch in &self.collision_batches {
+                    gl.draw_arrays(glow::LINES, batch.first, batch.count);
+                }
             }
             gl.depth_mask(true);
             gl.bind_texture(glow::TEXTURE_2D, None);
@@ -473,6 +524,7 @@ in vec3 v_normal;
 in vec2 v_uv;
 uniform sampler2D u_texture;
 uniform bool u_textured;
+uniform bool u_unlit;
 uniform vec4 u_color;
 out vec4 out_color;
 void main() {
@@ -481,6 +533,6 @@ void main() {
     vec4 color=u_color;
     if(u_textured){color*=texture(u_texture,v_uv);}
     if(color.a<0.01){discard;}
-    out_color=vec4(color.rgb*light,color.a);
+    out_color=vec4(color.rgb*(u_unlit?1.0:light),color.a);
 }
 "#;

@@ -27,6 +27,6 @@ pub use catalog::{
 };
 
 mod model;
-pub use model::{ObjBatch, ObjMaterial, ObjMesh, ObjPart, ObjRequest, ObjTexture};
+pub use model::{CollisionWire, ObjBatch, ObjMaterial, ObjMesh, ObjPart, ObjRequest, ObjTexture};
 
 mod scene;

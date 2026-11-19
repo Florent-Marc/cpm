@@ -348,6 +348,22 @@ fn wheel_models_use_config_positions_scales_right_orientation_and_unsaved_docume
     }
     assert!(((scene.vertices[left + 1][0] - scene.vertices[left][0]) / unit - 0.5).abs() < 0.001);
     assert!(((scene.vertices[right + 1][0] - scene.vertices[right][0]) / unit + 0.5).abs() < 0.001);
+    let rotated = Document::parse(&vehicle.source().replace(
+        "IsRight: false",
+        "IsRight: false\nSuspensionAxis: 0.707106781 0 0 0.707106781",
+    ))
+    .unwrap();
+    let rotated = ObjRequest::resolve(Some(&pack), Path::new("vehicle_demo.dynx"), &rotated)
+        .unwrap()
+        .load()
+        .unwrap();
+    assert!(rotated.warnings.is_empty());
+    let rotated_unit = rotated.vertices[1][0] - rotated.vertices[0][0];
+    assert!(
+        ((rotated.vertices[left + 1][1] - rotated.vertices[left][1]) / rotated_unit - 0.5).abs()
+            < 0.001
+    );
+    assert!((rotated.vertices[left + 1][0] - rotated.vertices[left][0]).abs() < 0.001);
     let mut documents = std::collections::BTreeMap::new();
     documents.insert(
         PathBuf::from("wheel_demo.dynx"),
@@ -377,4 +393,101 @@ fn wheel_models_use_config_positions_scales_right_orientation_and_unsaved_docume
         fs::read_to_string(root.join("wheel_demo.dynx")).unwrap(),
         wheel
     );
+}
+
+#[test]
+fn steering_and_box_wires_follow_configuration_in_folders_and_archives() {
+    let temp = tempfile::tempdir().unwrap();
+    let obj = "o body\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\no SteeringWheel\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 4 5 6\n";
+    let text = "Model: car.obj\nScaleModifier: 2 3 4\nSteeringWheel{\nPosition: 3 4 5\nRotation: 0.707106781 0 0 0.707106781\n}\nShape_body{\nPosition: 1 2 3\nScale: 0.5 1 2\n}\n";
+    let files = [
+        ("pack_info.dynx", "PackName: Demo\n"),
+        ("vehicle_car.dynx", text),
+        ("car.obj", obj),
+    ];
+    let folder = temp.path().join("folder");
+    fs::create_dir(&folder).unwrap();
+    for (path, content) in &files {
+        fs::write(folder.join(path), content).unwrap();
+    }
+    for extension in ["zip", "dnxpack"] {
+        let mut zip = zip::ZipWriter::new(
+            fs::File::create(temp.path().join(format!("pack.{extension}"))).unwrap(),
+        );
+        for (path, content) in &files {
+            zip.start_file(*path, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(content.as_bytes()).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+    for source in [
+        folder,
+        temp.path().join("pack.zip"),
+        temp.path().join("pack.dnxpack"),
+    ] {
+        let pack = Pack::open(&source).unwrap();
+        let doc = Document::parse(text).unwrap();
+        let mesh = ObjRequest::resolve(Some(&pack), Path::new("vehicle_car.dynx"), &doc)
+            .unwrap()
+            .load()
+            .unwrap();
+        assert!(mesh.warnings.is_empty(), "{:?}", mesh.warnings);
+        assert_eq!(mesh.triangles, 2); // The steering wheel is moved, never duplicated.
+        let unit = mesh.vertices[1][0] - mesh.vertices[0][0];
+        let delta = |index: usize, axis: usize| {
+            (mesh.vertices[index][axis] - mesh.vertices[0][axis]) / unit
+        };
+        for (a, expected) in [3.0, 7.5, -8.0].into_iter().enumerate() {
+            assert!((delta(3, a) - expected).abs() < 0.001);
+        }
+        assert!((delta(4, 0) - 3.0).abs() < 0.001);
+        assert!((delta(4, 1) - 8.5).abs() < 0.001); // Quaternion rotates scaled x into y.
+        assert_eq!(mesh.collisions.len(), 1);
+        assert_eq!(mesh.collisions[0].name, "Shape_body");
+        let vertices = &mesh.collisions[0].vertices;
+        assert_eq!(vertices.len(), 24); // Twelve edges, not triangulated faces.
+        for axis in 0..3 {
+            let min = vertices
+                .iter()
+                .map(|v| (v[axis] - mesh.vertices[0][axis]) / unit)
+                .fold(f32::INFINITY, f32::min);
+            let max = vertices
+                .iter()
+                .map(|v| (v[axis] - mesh.vertices[0][axis]) / unit)
+                .fold(f32::NEG_INFINITY, f32::max);
+            let expected = [(0.5, 1.5), (1.5, 7.5), (-6.0, -2.0)][axis];
+            assert!((min - expected.0).abs() < 0.001, "axis {axis}: {min}");
+            assert!((max - expected.1).abs() < 0.001, "axis {axis}: {max}");
+        }
+        assert_eq!(doc.source(), text);
+    }
+}
+
+#[test]
+fn automatic_steering_preserves_obj_and_invalid_shapes_keep_model_available() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(
+        temp.path().join("car.obj"),
+        "o SteeringWheel\nv 5 0 0\nv 6 0 0\nv 5 1 0\nf 1 2 3\n",
+    )
+    .unwrap();
+    let load = |tail: &str| {
+        let doc = Document::parse(&format!("Model: car.obj\n{tail}")).unwrap();
+        ObjRequest::resolve(None, &temp.path().join("vehicle_car.dynx"), &doc)
+            .unwrap()
+            .load()
+            .unwrap()
+    };
+    let plain = load("");
+    let automatic = load("SteeringWheel{\n}\n");
+    assert_eq!(plain.vertices, automatic.vertices);
+    assert!(automatic.warnings.is_empty());
+    let invalid=load("SteeringWheel{\nObjectName: missing\n}\nShape_bad{\nType: SPHERE\nPosition: 0 0 0\n}\nShape_negative{\nPosition: 0 0 0\nScale: -1 1 1\n}\n");
+    assert_eq!(invalid.triangles, 1);
+    assert!(invalid.collisions.is_empty());
+    assert_eq!(invalid.warnings.len(), 3);
+    let aliases=load("SteeringWheel{\nPartName: SteeringWheel\nShapePosition: 0 0 0\nBaseRotationQuat: 1 0 0 0\n}\nShape_old{\nShapePosition: 0 0 0\nBoxDim: 1 2 3\n}\n");
+    assert!(aliases.warnings.is_empty());
+    assert_eq!(aliases.collisions.len(), 1);
 }

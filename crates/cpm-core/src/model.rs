@@ -197,12 +197,19 @@ pub struct ObjTexture {
     pub has_alpha: bool,
 }
 
+/// Arêtes normalisées d’une boîte explicitement définie dans la configuration.
+#[derive(Clone)]
+pub struct CollisionWire {
+    pub name: String,
+    pub vertices: Vec<[f32; 3]>,
+}
 #[derive(Clone)]
 pub struct ObjMesh {
     pub(crate) center: [f64; 3],
     pub(crate) radius: f64,
     /// Triangles non indexés : position centrée/normalisée, normale de face puis UV.
     pub vertices: Vec<[f32; 8]>,
+    pub collisions: Vec<CollisionWire>,
     pub parts: Vec<ObjPart>,
     pub materials: Vec<ObjMaterial>,
     pub textures: Vec<ObjTexture>,
@@ -472,6 +479,7 @@ impl ObjMesh {
         Ok(Self {
             center,
             radius,
+            collisions: Vec::new(),
             objects: parts.len(),
             parts,
             materials: converted_materials,

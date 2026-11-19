@@ -340,6 +340,7 @@ impl ParameterCatalog {
         for kind in ["vehicle", "trailer", "boat", "helicopter"] {
             for (pattern, name) in [
                 ("Shape*", "Shape_demo"),
+                ("SteeringWheel*", "SteeringWheel"),
                 ("ForcePoint*", "ForcePoint_demo"),
                 ("Wheel*", "Wheel_demo"),
                 ("Seat*", "Seat_demo"),
@@ -699,9 +700,10 @@ pub(crate) fn builtin_description(name: &str) -> &'static str {
         "ScaleModifier" => "Facteurs d’échelle globaux du modèle, sur les trois axes.",
         "Scale" => "Dimensions ou échelle de cette pièce selon son type : trois composantes.",
         "Position" => "Position de la pièce par rapport au modèle. DynamX convertit les axes du format de configuration.",
-        "Rotation" => "Rotation de la pièce ; le format attendu dépend du type déclaré dans le catalogue.",
         "RotationPoint" => "Point autour duquel la pièce effectue sa rotation.",
-        "SuspensionAxis" => "Orientation de l’axe de suspension sous forme de quaternion x y z w.",
+        "ObjectName" => "Nom de la pièce du modèle OBJ utilisée, par exemple SteeringWheel pour le volant.",
+        "Rotation" => "Rotation de base en quaternion DynamX w x y z ; 1 0 0 0 représente l’identité.",
+        "SuspensionAxis" => "Orientation de l’axe de suspension sous forme de quaternion w x y z.",
         "DefaultEngine" => "Référence à la configuration du moteur utilisé par défaut (Pack.engine_nom).",
         "DefaultSounds" => "Référence à la configuration des sons utilisés par défaut.",
         "Power" => "Puissance de base du moteur utilisée dans les calculs physiques.",
