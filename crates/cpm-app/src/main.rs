@@ -52,6 +52,10 @@ fn main() -> eframe::Result {
 struct CpmApp {
     gl: Option<std::sync::Arc<eframe::glow::Context>>,
     preview: Option<preview::Preview>,
+    preview_config: std::path::PathBuf,
+    preview_source: String,
+    preview_signature: u64,
+    preview_due: Option<std::time::Instant>,
     search: search::Search,
     report: Option<report::Report>,
     creation: Option<creation::Creation>,
@@ -531,6 +535,26 @@ impl CpmApp {
         self.status = "Brouillon abandonné".into();
     }
 
+    fn scene_revision(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.open_path.hash(&mut hash);
+        for editor in self.cached.values().chain(self.editor.iter()) {
+            editor.path.hash(&mut hash);
+            editor.document.source().hash(&mut hash);
+        }
+        self.pack.as_ref().map(|p| p.configs()).hash(&mut hash);
+        hash.finish()
+    }
+    fn request_for(&self, path: &std::path::Path) -> Result<cpm_core::ObjRequest, String> {
+        let editor = self
+            .editor
+            .iter()
+            .chain(self.cached.values())
+            .find(|e| e.path == path)
+            .ok_or("Configuration de l’aperçu fermée ou supprimée")?;
+        cpm_core::ObjRequest::resolve(self.pack.as_ref(), path, &editor.document)
+    }
     fn switch_config(&mut self, index: usize) {
         if self.selected_config == Some(index) {
             return;
@@ -945,7 +969,7 @@ impl CpmApp {
                 let request=cpm_core::ObjRequest::resolve(self.pack.as_ref(),&path,&editor.document);
                 let hint=if self.gl.is_none(){"Le moteur OpenGL de l’aperçu n’est pas disponible".to_owned()}else{request.as_ref().map(|r|format!("Ouvrir {}",r.path.display())).unwrap_or_else(|e|e.clone())};
                 if ui.add_enabled(request.is_ok() && self.gl.is_some(),egui::Button::new("Aperçu 3D")).on_hover_text(hint).clicked() {
-                    if let Ok(request)=request { requested_preview=Some(request); }
+                    if let Ok(request)=request { requested_preview=Some((request,path.clone())); }
                 }
             });
             ui.label("Propriétés");
@@ -965,7 +989,11 @@ impl CpmApp {
                 });
             });
         });
-        if let Some(request) = requested_preview {
+        if let Some((request, path)) = requested_preview {
+            self.preview_config = path;
+            self.preview_source = self.open_path.clone();
+            self.preview_signature = self.scene_revision();
+            self.preview_due = None;
             self.preview = Some(preview::Preview::open(
                 request.with_documents(self.documents()),
                 &ctx,
@@ -1065,6 +1093,35 @@ impl CpmApp {
                         self.selected_section = issue.section;
                         self.pending_scroll = Some(issue.section);
                     }
+                }
+            }
+        }
+        if self.preview_source != self.open_path {
+            self.preview = None;
+        }
+        let revision = self.scene_revision();
+        if let Some(preview) = &self.preview {
+            if preview.live && revision != self.preview_signature {
+                self.preview_signature = revision;
+                self.preview_due = Some(std::time::Instant::now());
+            }
+        }
+        if self.preview_due.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+        if self.preview.as_ref().is_some_and(|p| p.live && !p.busy())
+            && self
+                .preview_due
+                .is_some_and(|at| at.elapsed() >= std::time::Duration::from_millis(350))
+        {
+            self.preview_due = None;
+            let request = self
+                .request_for(&self.preview_config)
+                .map(|r| r.with_documents(self.documents()));
+            if let Some(preview) = &mut self.preview {
+                match request {
+                    Ok(request) => preview.refresh(request, &ctx),
+                    Err(error) => preview.fail(error),
                 }
             }
         }

@@ -4,6 +4,7 @@ use glow::HasContext as _;
 use std::sync::{mpsc, Arc};
 
 pub struct Preview {
+    pub live: bool,
     path: String,
     receiver: Option<mpsc::Receiver<Result<ObjMesh, String>>>,
     mesh: Option<Arc<GpuMesh>>,
@@ -29,6 +30,7 @@ impl Preview {
             ctx.request_repaint();
         });
         Self {
+            live: true,
             path,
             receiver: Some(receiver),
             mesh: None,
@@ -45,6 +47,24 @@ impl Preview {
             pan: egui::Vec2::ZERO,
         }
     }
+    pub fn busy(&self) -> bool {
+        self.receiver.is_some()
+    }
+    pub fn refresh(&mut self, request: ObjRequest, ctx: &egui::Context) {
+        self.path = request.path.display().to_string();
+        self.error = None;
+        let (tx, rx) = mpsc::channel();
+        self.receiver = Some(rx);
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(request.load());
+            ctx.request_repaint();
+        });
+    }
+    pub fn fail(&mut self, error: String) {
+        self.error = Some(error);
+        self.mesh = None;
+    }
     pub fn show(&mut self, ctx: &egui::Context, gl: Option<&Arc<glow::Context>>) -> bool {
         if let Some(receiver) = &self.receiver {
             match receiver.try_recv() {
@@ -57,6 +77,11 @@ impl Preview {
                             mesh.objects,
                             mesh.textures.len()
                         );
+                        let previous: std::collections::BTreeMap<_, _> = self
+                            .parts
+                            .iter()
+                            .map(|p| (p.name.clone(), p.visible))
+                            .collect();
                         self.parts = mesh
                             .parts
                             .iter()
@@ -72,7 +97,7 @@ impl Preview {
                                     .collect();
                                 PartVisibility {
                                     name: p.name.clone(),
-                                    visible: true,
+                                    visible: previous.get(&p.name).copied().unwrap_or(true),
                                     details: format!(
                                         "{} triangles · Matériaux : {}",
                                         p.batches.iter().map(|b| b.count / 3).sum::<usize>(),
@@ -89,7 +114,7 @@ impl Preview {
                     });
                     match result {
                         Ok(mesh) => self.mesh = Some(Arc::new(mesh)),
-                        Err(error) => self.error = Some(error),
+                        Err(error) => self.fail(error),
                     }
                 }
                 Err(mpsc::TryRecvError::Empty) => {
@@ -112,7 +137,8 @@ impl Preview {
                 ui.label(&self.statistics);
             });
             ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Matériaux, roues et volant — aperçu statique, sans variantes DynamX. Rouvre cet aperçu après modification.");
+            ui.weak("Matériaux, roues et volant — aperçu statique, sans variantes DynamX. Actualisation après une courte pause de saisie.");
+            ui.checkbox(&mut self.live,"Actualisation automatique");
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.use_textures,"Afficher les textures");
                 ui.checkbox(&mut self.show_collisions,format!("Afficher les collisions ({})",self.collision_names.len())).on_hover_text(format!("Boîtes Shape… en fil de fer, visibles à travers le modèle. Les collisions générées automatiquement ne sont pas affichées.\n{}",self.collision_names.join("\n")));
