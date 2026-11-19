@@ -1,3 +1,4 @@
+mod picking;
 use cpm_core::{ObjMesh, ObjRequest};
 use eframe::{egui, egui_glow, glow};
 use glow::HasContext as _;
@@ -5,6 +6,9 @@ use std::sync::{mpsc, Arc};
 
 pub struct Preview {
     pub live: bool,
+    pub selected: Option<usize>,
+    selection_changed: Option<Option<usize>>,
+    geometry: Option<Arc<ObjMesh>>,
     path: String,
     receiver: Option<mpsc::Receiver<Result<ObjMesh, String>>>,
     mesh: Option<Arc<GpuMesh>>,
@@ -31,6 +35,9 @@ impl Preview {
         });
         Self {
             live: true,
+            selected: None,
+            selection_changed: None,
+            geometry: None,
             path,
             receiver: Some(receiver),
             mesh: None,
@@ -46,6 +53,9 @@ impl Preview {
             zoom: 0.9,
             pan: egui::Vec2::ZERO,
         }
+    }
+    pub fn take_selection(&mut self) -> Option<Option<usize>> {
+        self.selection_changed.take()
     }
     pub fn busy(&self) -> bool {
         self.receiver.is_some()
@@ -64,6 +74,7 @@ impl Preview {
     pub fn fail(&mut self, error: String) {
         self.error = Some(error);
         self.mesh = None;
+        self.geometry = None;
     }
     pub fn show(&mut self, ctx: &egui::Context, gl: Option<&Arc<glow::Context>>) -> bool {
         if let Some(receiver) = &self.receiver {
@@ -110,7 +121,9 @@ impl Preview {
                             mesh.collisions.iter().map(|c| c.name.clone()).collect();
                         self.warnings = mesh.warnings.clone();
                         let gl = gl.ok_or("Le moteur OpenGL de l’aperçu n’est pas disponible")?;
-                        GpuMesh::new(gl.clone(), &mesh)
+                        let gpu = GpuMesh::new(gl.clone(), &mesh)?;
+                        self.geometry = Some(Arc::new(mesh));
+                        Ok(gpu)
                     });
                     match result {
                         Ok(mesh) => self.mesh = Some(Arc::new(mesh)),
@@ -169,7 +182,7 @@ impl Preview {
             if self.receiver.is_some() { ui.spinner(); ui.label("Chargement du modèle…"); }
             if let Some(error) = &self.error { ui.colored_label(egui::Color32::LIGHT_RED,error); }
             let size=egui::vec2(ui.available_width().max(1.0), ui.available_height().max(180.0));
-            let (rect,response)=ui.allocate_exact_size(size,egui::Sense::drag());
+            let (rect,response)=ui.allocate_exact_size(size,egui::Sense::click_and_drag());
             ui.painter().rect_filled(rect,4.0,egui::Color32::from_rgb(24,28,35));
             if response.dragged_by(egui::PointerButton::Primary) {
                 let delta=response.drag_motion(); self.yaw+=delta.x*0.01; self.pitch=(self.pitch+delta.y*0.01).clamp(-1.55,1.55);
@@ -181,11 +194,19 @@ impl Preview {
                 let scroll=ui.input(|i|i.smooth_scroll_delta.y);
                 self.zoom=(self.zoom*(scroll*0.002).exp()).clamp(0.1,8.0);
             }
+            if response.clicked() {
+                if let (Some(geometry),Some(pos))=(&self.geometry,response.interact_pointer_pos()) {
+                    let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();
+                    if let Some(section)=picking::pick(geometry,&visible,self.show_collisions,View{yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan},rect,pos) {
+                        self.selected=section;self.selection_changed=Some(section);
+                    }
+                }
+            }
             if let Some(mesh) = &self.mesh {
                 let mesh=mesh.clone(); let view=View {yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan};
-                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;let collisions=self.show_collisions;
+                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;let collisions=self.show_collisions;let selected=self.selected;
                 let aspect=rect.width()/rect.height();
-                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures,collisions); });
+                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,textures,collisions,selected); });
                 ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
             }
         });
@@ -206,6 +227,7 @@ struct View {
     pan: egui::Vec2,
 }
 struct DrawBatch {
+    section: Option<usize>,
     part: usize,
     first: i32,
     count: i32,
@@ -305,6 +327,7 @@ impl GpuMesh {
                     }
                 }
                 gpu.collision_batches.push(DrawBatch {
+                    section: Some(wire.section),
                     part: 0,
                     first: first as i32,
                     count: wire.vertices.len() as i32,
@@ -379,6 +402,7 @@ impl GpuMesh {
                         }
                     }
                     gpu.batches.push(DrawBatch {
+                        section: part.section,
                         part: part_index,
                         first: batch.first as i32,
                         count: batch.count as i32,
@@ -400,6 +424,7 @@ impl GpuMesh {
         visible: &[bool],
         use_textures: bool,
         show_collisions: bool,
+        selected: Option<usize>,
     ) {
         unsafe {
             gl.enable(glow::DEPTH_TEST);
@@ -440,7 +465,12 @@ impl GpuMesh {
                 if batch.color[3] < 0.999 || (use_textures && batch.transparent) {
                     transparent.push(batch);
                 } else {
-                    self.draw(gl, batch, use_textures);
+                    self.draw(
+                        gl,
+                        batch,
+                        use_textures,
+                        selected.is_some() && batch.section == selected,
+                    );
                 }
             }
             transparent.sort_by(|a, b| depth(a.center, view).total_cmp(&depth(b.center, view)));
@@ -453,7 +483,12 @@ impl GpuMesh {
             );
             gl.depth_mask(false);
             for batch in transparent {
-                self.draw(gl, batch, use_textures);
+                self.draw(
+                    gl,
+                    batch,
+                    use_textures,
+                    selected.is_some() && batch.section == selected,
+                );
             }
             if show_collisions {
                 gl.disable(glow::DEPTH_TEST);
@@ -472,6 +507,18 @@ impl GpuMesh {
                 );
                 gl.line_width(1.0);
                 for batch in &self.collision_batches {
+                    let c = if selected.is_some() && batch.section == selected {
+                        [1.0, 0.65, 0.1]
+                    } else {
+                        [0.25, 1.0, 0.35]
+                    };
+                    gl.uniform_4_f32(
+                        gl.get_uniform_location(self.program, "u_color").as_ref(),
+                        c[0],
+                        c[1],
+                        c[2],
+                        1.0,
+                    );
                     gl.draw_arrays(glow::LINES, batch.first, batch.count);
                 }
             }
@@ -482,7 +529,7 @@ impl GpuMesh {
             gl.disable(glow::DEPTH_TEST);
         }
     }
-    fn draw(&self, gl: &glow::Context, batch: &DrawBatch, use_textures: bool) {
+    fn draw(&self, gl: &glow::Context, batch: &DrawBatch, use_textures: bool, selected: bool) {
         unsafe {
             let texture = batch
                 .texture
@@ -495,9 +542,9 @@ impl GpuMesh {
             );
             gl.uniform_4_f32(
                 gl.get_uniform_location(self.program, "u_color").as_ref(),
-                batch.color[0],
-                batch.color[1],
-                batch.color[2],
+                if selected { 1.0 } else { batch.color[0] },
+                if selected { 0.65 } else { batch.color[1] },
+                if selected { 0.1 } else { batch.color[2] },
                 batch.color[3],
             );
             gl.draw_arrays(glow::TRIANGLES, batch.first, batch.count);

@@ -179,6 +179,7 @@ pub struct ObjBatch {
 }
 #[derive(Clone)]
 pub struct ObjPart {
+    pub section: Option<usize>,
     pub name: String,
     pub batches: Vec<ObjBatch>,
 }
@@ -200,6 +201,7 @@ pub struct ObjTexture {
 /// Arêtes normalisées d’une boîte explicitement définie dans la configuration.
 #[derive(Clone)]
 pub struct CollisionWire {
+    pub section: usize,
     pub name: String,
     pub vertices: Vec<[f32; 3]>,
 }
@@ -424,6 +426,7 @@ impl ObjMesh {
             let model = &models[attrs[0].0];
             let part_index = *part_indices.entry(model.name.clone()).or_insert_with(|| {
                 parts.push(ObjPart {
+                    section: None,
                     name: model.name.clone(),
                     batches: Vec::new(),
                 });

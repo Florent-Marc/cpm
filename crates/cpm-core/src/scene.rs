@@ -253,6 +253,7 @@ pub(crate) fn assemble(request: &ObjRequest) -> Result<ObjMesh, String> {
             scene.vertices.extend(vertices);
             for part in &source.parts {
                 scene.parts.push(ObjPart {
+                    section: Some(*section),
                     name: format!("{name}/{}", part.name),
                     batches: part
                         .batches
@@ -446,6 +447,7 @@ fn steering(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
                     changes.push((index, v));
                 }
             }
+            scene.parts[part].section = Some(section);
             for (index, v) in changes {
                 scene.vertices[index] = v;
             }
@@ -514,6 +516,7 @@ fn collision_boxes(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
                 }
             }
             Ok(crate::CollisionWire {
+                section,
                 name: info.name.clone(),
                 vertices,
             })

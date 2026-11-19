@@ -1126,7 +1126,25 @@ impl CpmApp {
             }
         }
         if let Some(mut preview) = self.preview.take() {
+            if self
+                .editor
+                .as_ref()
+                .is_some_and(|e| e.path == self.preview_config)
+            {
+                preview.selected = self.selected_section;
+            }
             if preview.show(&ctx, self.gl.as_ref()) {
+                if let Some(section) = preview.take_selection() {
+                    if let Some(index) = self
+                        .pack
+                        .as_ref()
+                        .and_then(|p| p.configs().iter().position(|p| *p == self.preview_config))
+                    {
+                        self.switch_config(index);
+                    }
+                    self.selected_section = section;
+                    self.pending_scroll = Some(section);
+                }
                 self.preview = Some(preview);
             }
         }
