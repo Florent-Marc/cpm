@@ -24,6 +24,10 @@ pub struct Capabilities {
     pub mps_version: String,
     pub max_upload_bytes: u64,
     pub immutable_versions: bool,
+    #[serde(default)]
+    pub editable_download: bool,
+    #[serde(default)]
+    pub recovery_allowed: bool,
 }
 #[derive(Clone, Deserialize)]
 pub struct Version {
@@ -204,6 +208,71 @@ impl Client {
             return Err("Le reçu OpenMPS ne correspond pas à la publication demandée ; vérifier les versions sur le serveur avant de réessayer".into());
         }
         Ok(publication)
+    }
+    pub fn recover(
+        &self,
+        version: &Version,
+        parent: &Path,
+        progress: Arc<AtomicU64>,
+    ) -> Result<std::path::PathBuf, String> {
+        cpm_core::validate_mps_key(&version.pack_key)?;
+        cpm_core::validate_mps_version(&version.pack_version)?;
+        let mut url = self.url("source");
+        url.query_pairs_mut()
+            .append_pair("pack_key", &version.pack_key)
+            .append_pair("pack_version", &version.pack_version);
+        let mut response = self
+            .agent
+            .get(url.as_str())
+            .header("Authorization", format!("Bearer {}", self.token))
+            .call()
+            .map_err(|e| self.redacted(e))?;
+        if !response.status().is_success() {
+            self.json(response)?;
+            return Err("Récupération refusée".into());
+        }
+        for (name, expected) in [
+            ("X-OpenMPS-Pack-Key", version.pack_key.as_str()),
+            ("X-OpenMPS-Pack-Version", version.pack_version.as_str()),
+        ] {
+            if response.headers().get(name).and_then(|h| h.to_str().ok()) != Some(expected) {
+                return Err("La copie distante ne correspond pas au pack demandé".into());
+            }
+        }
+        let expected = response
+            .headers()
+            .get("X-OpenMPS-SHA256")
+            .and_then(|h| h.to_str().ok())
+            .filter(|h| valid_sha(h))
+            .ok_or("Empreinte de récupération absente")?
+            .to_owned();
+        let mut temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
+        let mut reader = response.body_mut().as_reader().take(512 * 1024 * 1024 + 1);
+        let mut bytes = [0u8; 65536];
+        let mut total = 0u64;
+        loop {
+            let n = reader.read(&mut bytes).map_err(|e| self.redacted(e))?;
+            if n == 0 {
+                break;
+            }
+            total += n as u64;
+            if total > 512 * 1024 * 1024 {
+                return Err("Copie éditable supérieure à 512 Mio".into());
+            }
+            temp.write_all(&bytes[..n]).map_err(|e| e.to_string())?;
+            progress.store(total, Ordering::Relaxed);
+        }
+        temp.flush().map_err(|e| e.to_string())?;
+        temp.as_file().sync_all().map_err(|e| e.to_string())?;
+        if sha256(temp.path())? != expected {
+            return Err("L’empreinte de la copie éditable ne correspond pas au serveur".into());
+        }
+        cpm_core::recover_pack_archive(
+            temp.path(),
+            parent,
+            &version.pack_key,
+            &version.pack_version,
+        )
     }
     pub fn download(
         &self,
@@ -426,6 +495,16 @@ mod contract_tests {
         assert!(client
             .download(version, &path, Arc::new(AtomicU64::new(0)))
             .is_err());
+        assert!(caps.editable_download && caps.recovery_allowed);
+        let recovered = client
+            .recover(version, destination.path(), Arc::new(AtomicU64::new(0)))
+            .unwrap();
+        let restored = cpm_core::Pack::open(&recovered).unwrap();
+        assert!(restored.contains_resource(std::path::Path::new("assets/cpm_contract/car.obj")));
+        let second = client
+            .recover(version, destination.path(), Arc::new(AtomicU64::new(0)))
+            .unwrap();
+        assert_ne!(recovered, second);
         assert!(!source.path().join("assets").exists());
     }
 }

@@ -1433,14 +1433,21 @@ impl CpmApp {
             }
         }
         if self.openmps.open || self.openmps.busy() {
+            let can_open = !self.dirty();
             self.openmps.show(
                 &ctx,
                 self.pack.as_ref(),
                 self.documents(),
                 self.catalog.clone(),
                 self.scene_revision(),
+                can_open,
             );
-
+            if let Some(path) = self.openmps.take_open_request() {
+                if !self.dirty() {
+                    self.openmps.open = false;
+                    self.open_selection(&path);
+                }
+            }
         }
         if self.confirm_close {
             egui::Window::new("Modifications non enregistrées")

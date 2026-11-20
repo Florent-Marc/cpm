@@ -1,7 +1,7 @@
 From de49bbf0b95cfc270dd815f5c8412097b9dac946 Mon Sep 17 00:00:00 2001
 From: CPM contributor <noreply@users.noreply.github.com>
 Date: Fri, 20 Nov 2026 12:08:54 +0100
-Subject: [PATCH 1/2] Add authenticated immutable publication API for CPM
+Subject: [PATCH 1/3] Add authenticated immutable publication API for CPM
 
 ---
  .gitignore          |   4 +
@@ -455,7 +455,7 @@ index 0000000..324b4ac
 From 4fe2848194e7384b6839df1c3f408ee5fc0d66be Mon Sep 17 00:00:00 2001
 From: CPM contributor <noreply@users.noreply.github.com>
 Date: Fri, 20 Nov 2026 12:08:54 +0100
-Subject: [PATCH 2/2] Document and exercise the OpenMPS administration API
+Subject: [PATCH 2/3] Document and exercise the OpenMPS administration API
 
 ---
  API.md            |  63 +++++++++++++++++++++++++++++
@@ -640,6 +640,187 @@ index 0000000..935c68a
 +        client=subprocess.check_output([PHP,*PHP_ARGS,'-r',code,str(self.site/'pack_manager.php'),str(folder)],env=self.env,text=True)
 +        with zipfile.ZipFile(client) as z:self.assertNotIn('model.obj',z.namelist());self.assertNotIn('texture.png',z.namelist());self.assertIn('vehicle_car.dynx',z.namelist())
 +if __name__=='__main__':unittest.main()
+-- 
+2.56.1
+
+
+From 4e4e4514007984a167bd2833f88ff100a912f04c Mon Sep 17 00:00:00 2001
+From: CPM contributor <noreply@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 16:44:30 +0100
+Subject: [PATCH 3/3] Add scoped recovery of editable packs and complete
+ original assets
+
+---
+ API.md              |  9 +++++++-
+ api/lib.php         | 55 +++++++++++++++++++++++++++++++++++++++++++--
+ tests/test_api.py   | 16 ++++++++++++-
+ tools/api_token.php |  4 ++--
+ 4 files changed, 78 insertions(+), 6 deletions(-)
+
+diff --git a/API.md b/API.md
+index 5152abb..2afc9c9 100644
+--- a/API.md
++++ b/API.md
+@@ -14,7 +14,7 @@ php tools/api_token.php list
+ php tools/api_token.php revoke TOKEN_ID
+ ```
+ 
+-The token is displayed once. The store contains a SHA-256 digest, label, scopes and revocation state. Default scopes are `read,publish`; a download-only token can use `create Players read`. `OPENMPS_API_TOKEN_FILE` optionally places the PHP token store outside the web root. Ensure CLI and web PHP use the same location, and that the web user can read it. Never commit the token store or put tokens into URLs. CLI token rotation and revocation do not change the game-facing access key.
++The token is displayed once. The store contains a SHA-256 digest, label, scopes and revocation state. Default scopes are `read,publish`; `recover` must be granted explicitly for editable originals. Create an editor token with `php tools/api_token.php create CPM read,publish,recover`. Existing tokens are not expanded automatically. a download-only token can use `create Players read`. `OPENMPS_API_TOKEN_FILE` optionally places the PHP token store outside the web root. Ensure CLI and web PHP use the same location, and that the web user can read it. Never commit the token store or put tokens into URLs. CLI token rotation and revocation do not change the game-facing access key.
+ 
+ In CPM choose **Outils → OpenMPS…**, enter the site URL and token, and test the connection. Profiles persist the name and URL only; paste the token again after restarting CPM. Publish requires an explicit button press after the compatibility report. A new version is required for different content or publication options.
+ 
+@@ -39,6 +39,7 @@ Endpoint: `<site-root>/api/v1.php`. All requests require `Authorization: Bearer
+ | GET `?action=packs` | read | `packs` array of pack keys, versions, ZIP sizes, file counts and available SHA-256 hashes |
+ | POST `?action=publish` | publish | Raw ZIP body; publication receipt under `publication` |
+ | GET `?action=client&pack_key=demo&pack_version=1.0` | read | Players ZIP, `X-OpenMPS-SHA256` and Content-Length |
++| GET `?action=source&pack_key=demo&pack_version=1.0` | recover | Editable configurations and original resources, SHA-256 and pack identity headers |
+ 
+ Publish headers:
+ 
+@@ -61,3 +62,9 @@ python3 tests/test_api.py
+ ```
+ 
+ Uses a temporary copy, temporary CLI-issued tokens and a real loopback PHP server, with no real account. Set `OPENMPS_TEST_PHP` and the JSON array `OPENMPS_TEST_PHP_ARGS` for an alternate PHP binary/extensions. Validated with PHP 8.4 plus OpenSSL/ZipArchive. Game loading itself requires a separate Minecraft/DynamX test.
++
++## Recovering editable originals
++
++Capabilities advertise `editable_download` and `recovery_allowed` for the authenticated token. The new `recover` scope is independent of game access keys and read-only players-ZIP downloads. The source endpoint prepares a private temporary ZIP from available original configurations/models/materials/textures/sounds, excluding generated MPS archives, descriptions and repository connection files. It validates portable paths, rejects links/special files and enforces 10,000 files, 128 MiB per file, 1 GiB uncompressed and 512 MiB ZIP limits. Temporary archives are removed after the request, including shutdown cleanup. It is never cached in a public pack directory.
++
++Only administrators explicitly granted recovery should receive a recover token: this endpoint returns complete original OBJ and other resources. If only encrypted `.part` models remain, it returns 422 `encrypted_originals`; missing original files cannot be reconstructed. The endpoint does not decrypt protected models. Minecraft/DynamX compatibility still requires an in-game check.
+diff --git a/api/lib.php b/api/lib.php
+index 9131a2e..dda7a7d 100644
+--- a/api/lib.php
++++ b/api/lib.php
+@@ -147,11 +147,43 @@ function mps_api_json(array $data, int $status = 200): void {
+     http_response_code($status); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store'); header('X-Content-Type-Options: nosniff');
+     echo json_encode($data, JSON_UNESCAPED_SLASHES); exit;
+ }
++// Editable copies contain available original resources, never credentials or generated MPS archives.
++function mps_api_build_source(string $key, string $version, string $archive): void {
++    $root = MPS_PACKS_DIR . '/' . $key . '/' . $version;
++    if (!is_dir($root) || is_link($root) || is_link(dirname($root))) mps_api_fail(404, 'not_found', 'Pack originals not found.');
++    if (!is_file($root . '/pack_info.dynx')) mps_api_fail(422, 'originals_missing', 'The server does not contain an editable pack_info.dynx.');
++    $zip = new ZipArchive();
++    if ($zip->open($archive, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) mps_api_fail(500, 'source_archive', 'Cannot prepare editable archive.');
++    try {
++        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
++        $seen = []; $total = 0; $count = 0;
++        foreach ($iterator as $file) {
++            $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($root) + 1));
++            if ($file->isLink() || !$file->isFile()) mps_api_fail(422, 'unsafe_source', 'Pack originals contain a link or special file.');
++            if (preg_match('#(?:^|/)\.[^/]+#', $relative)) continue;
++            if (preg_match('/\.part$/i', $relative)) mps_api_fail(422, 'encrypted_originals', 'Only encrypted model files remain; an editable copy cannot be reconstructed.');
++            if (preg_match('/\.(zip|dnxpack|desc)$/i', $relative) || in_array($relative, ['MpsRepositories.json', 'MpsRepositories.json.example', 'README_INSTALLATION.txt'], true)) continue;
++            $name = mps_api_safe_path($relative);
++            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
++            if (!in_array($ext, ['dynx','obj','mtl','png','jpg','jpeg','tga','bmp','gif','webp','gltf','glb','bin','ogg','wav','dc','json','lang','txt','properties','md'], true) && !in_array(strtolower(basename($name)), ['license','readme'], true)) mps_api_fail(422, 'unsupported_original', 'Unsupported original file: ' . $name);
++            if (isset($seen[strtolower($name)])) mps_api_fail(422, 'duplicate_path', 'Pack originals contain duplicate paths.');
++            $seen[strtolower($name)] = true;
++            $size = $file->getSize(); $total += $size; $count++;
++            if ($size > 134217728 || $total > 1073741824 || $count > 10000) mps_api_fail(422, 'source_limit', 'Pack originals exceed recovery limits.');
++            if (!$zip->addFile($file->getPathname(), $name)) mps_api_fail(500, 'source_archive', 'Cannot archive an original file.');
++        }
++        if (!$zip->close()) mps_api_fail(500, 'source_archive', 'Cannot finish editable archive.');
++        $zip = null;
++        clearstatcache(true, $archive);
++        if (filesize($archive) > 536870912) mps_api_fail(413, 'source_limit', 'Editable ZIP exceeds 512 MiB.');
++    } finally { if ($zip !== null) $zip->close(); }
++}
++
+ function mps_api_run(): void {
+     $temp = null;
+     try {
+         $action = $_GET['action'] ?? 'capabilities'; $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+-        mps_api_auth($action === 'publish' ? 'publish' : 'read');
++        $auth = mps_api_auth($action === 'publish' ? 'publish' : ($action === 'source' ? 'recover' : 'read'));
+         if ($action === 'publish' && $method === 'POST') {
+             $length = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+             if ($length <= 0 || $length > mps_api_max_upload()) mps_api_fail(413, 'upload_limit', 'Missing length or upload exceeds the server limit.');
+@@ -163,11 +195,30 @@ function mps_api_run(): void {
+             unlink($temp); $temp=null; mps_api_json(['success'=>true,'publication'=>$result]);
+         }
+         if ($method !== 'GET') mps_api_fail(405,'method','Use GET for reading or POST for publishing.');
+-        if ($action === 'capabilities') mps_api_json(['success'=>true,'api_version'=>1,'protocol'=>'openmps-admin/1','mps_version'=>'1.3.0','public_url'=>mps_api_public_url(),'max_upload_bytes'=>mps_api_max_upload(),'immutable_versions'=>true]);
++        if ($action === 'capabilities') mps_api_json(['success'=>true,'api_version'=>1,'protocol'=>'openmps-admin/1','mps_version'=>'1.3.0','public_url'=>mps_api_public_url(),'max_upload_bytes'=>mps_api_max_upload(),'immutable_versions'=>true,'editable_download'=>true,'recovery_allowed'=>in_array('recover',$auth['scopes'],true)]);
+         if ($action === 'packs') {
+             $packs=[];foreach(mps_get_all_packs() as $pack){$meta=mps_api_metadata($pack['key'],$pack['version']);$packs[]=['pack_key'=>$pack['key'],'pack_version'=>$pack['version'],'client_size'=>$pack['client_zip_size'],'client_sha256'=>$meta['client_sha256']??null,'files_count'=>$pack['files_count']];}
+             mps_api_json(['success'=>true,'packs'=>$packs]);
+         }
++        if ($action === 'source') {
++            $key = mps_api_key($_GET['pack_key'] ?? '');
++            $version = mps_api_version($_GET['pack_version'] ?? '');
++            $temp = tempnam(sys_get_temp_dir(), 'openmps-source-');
++            $cleanupSource = $temp;
++            register_shutdown_function(function () use ($cleanupSource) { if (is_file($cleanupSource)) unlink($cleanupSource); });
++            mps_api_build_source($key, $version, $temp);
++            header('Content-Type: application/zip');
++            header('Cache-Control: no-store');
++            header('X-Content-Type-Options: nosniff');
++            header('Content-Disposition: attachment; filename="source-' . $key . '-' . $version . '.zip"');
++            header('Content-Length: ' . filesize($temp));
++            header('X-OpenMPS-SHA256: ' . hash_file('sha256', $temp));
++            header('X-OpenMPS-Pack-Key: ' . $key);
++            header('X-OpenMPS-Pack-Version: ' . $version);
++            readfile($temp);
++            unlink($temp);
++            exit;
++        }
+         if ($action === 'client') {
+             $key=mps_api_key($_GET['pack_key']??'');$version=mps_api_version($_GET['pack_version']??'');$file=MPS_PACKS_DIR.'/'.$key.'/'.$version.'/client-'.$key.'-'.$version.'.zip';
+             if (!is_file($file)||is_link($file)) mps_api_fail(404,'not_found','Client archive not found.');
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 935c68a..dab91c5 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -11,7 +11,7 @@ class ApiTests(unittest.TestCase):
+         def token(label,scopes):
+             output=subprocess.check_output([PHP,*PHP_ARGS,str(cls.site/'tools/api_token.php'),'create',label,scopes],env=cls.env,text=True)
+             return re.search(r'Token ID: (\w+)',output)[1],re.search(r'Token \(shown once\): (omps_\S+)',output)[1]
+-        cls.id,cls.token=token('integration','read,publish');cls.read_id,cls.read_token=token('reader','read')
++        cls.id,cls.token=token('integration','read,publish,recover');cls.read_id,cls.read_token=token('reader','read')
+         with socket.socket() as s:s.bind(('127.0.0.1',0));cls.port=s.getsockname()[1]
+         cls.url=f'http://127.0.0.1:{cls.port}/';cls.log=open(pathlib.Path(cls.temp.name)/'server.log','w+')
+         cls.process=subprocess.Popen([PHP,*PHP_ARGS,'-S',f'127.0.0.1:{cls.port}','-t',str(cls.site),str(cls.site/'index.php')],env=cls.env,stdout=cls.log,stderr=cls.log)
+@@ -83,6 +83,20 @@ class ApiTests(unittest.TestCase):
+         with urllib.request.urlopen(self.url+f'get/1.3.0/paths/{version}/assets/paths/sub/../model.obj') as response:self.assertIn(b'v 1 0 0',response.read())
+         with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(self.url+f'get/1.3.0/paths/{version}/../../../config.php')
+         self.assertEqual(caught.exception.code,400)
++    def test_editable_recovery_requires_its_scope_and_contains_original_resources(self):
++        code,result,_=self.publish('recoverable','1.0');self.assertEqual(code,200,result)
++        params='&pack_key=recoverable&pack_version=1.0'
++        self.assertEqual(self.request('source',params=params,auth=False)[0],401)
++        self.assertEqual(self.request('source',params=params,token=self.read_token)[0],403)
++        code,body,_=self.request('capabilities',token=self.read_token);self.assertFalse(json.loads(body)['recovery_allowed'])
++        code,body,headers=self.request('source',params=params);self.assertEqual(code,200,body);self.assertEqual(hashlib.sha256(body).hexdigest(),headers['X-OpenMPS-SHA256'])
++        self.assertEqual(headers['X-OpenMPS-Pack-Key'],'recoverable')
++        with zipfile.ZipFile(io.BytesIO(body)) as z:
++            self.assertIn('assets/recoverable/model.obj',z.namelist());self.assertIn('pack_info.dynx',z.namelist())
++            self.assertNotIn('MpsRepositories.json',z.namelist());self.assertFalse(any(n.endswith('.zip') or n.endswith('.desc') for n in z.namelist()))
++        root=self.site/'packs/recoverable/1.0';(root/'encrypted.part').write_bytes(b'encrypted')
++        self.assertEqual(self.request('source',params=params)[0],422);(root/'encrypted.part').unlink()
++        (root/'escape.obj').symlink_to(self.site/'config.php');self.assertEqual(self.request('source',params=params)[0],422)
+     def test_token_revocation_and_private_state(self):
+         output=subprocess.check_output([PHP,*PHP_ARGS,str(self.site/'tools/api_token.php'),'create','revocable','read'],env=self.env,text=True)
+         token=re.search(r'Token \(shown once\): (omps_\S+)',output)[1];id=re.search(r'Token ID: (\w+)',output)[1]
+diff --git a/tools/api_token.php b/tools/api_token.php
+index 324b4ac..3db4bfa 100644
+--- a/tools/api_token.php
++++ b/tools/api_token.php
+@@ -8,11 +8,11 @@ try {
+     if($action==='list'){foreach($tokens as $id=>$token)echo $id."\t".$token['label']."\t".(!empty($token['revoked'])?'revoked':implode(',',$token['scopes'])).PHP_EOL;exit;}
+     if($action==='create'){
+         $label=trim($argv[2]??'CPM');if($label===''||strlen($label)>80||preg_match('/[\x00-\x1f\x7f]/',$label))throw new RuntimeException('Invalid label');
+-        $scopes=explode(',',$argv[3]??'read,publish');if(array_diff($scopes,['read','publish'])||!$scopes)throw new RuntimeException('Scopes: read,publish');
++        $scopes=explode(',',$argv[3]??'read,publish');if(array_diff($scopes,['read','publish','recover'])||!$scopes)throw new RuntimeException('Scopes: read,publish,recover');
+         $raw='omps_'.rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');$id=bin2hex(random_bytes(8));
+         $tokens[$id]=['label'=>$label,'hash'=>hash('sha256',$raw),'scopes'=>array_values(array_unique($scopes)),'created_at'=>gmdate('c'),'revoked'=>false];
+     }elseif($action==='revoke'){$id=$argv[2]??'';if(!isset($tokens[$id]))throw new RuntimeException('Unknown token ID');$tokens[$id]['revoked']=true;
+-    }else{echo "Usage: php tools/api_token.php create LABEL [read,publish]\n       php tools/api_token.php list\n       php tools/api_token.php revoke ID\n";exit;}
++    }else{echo "Usage: php tools/api_token.php create LABEL [read,publish,recover]\n       php tools/api_token.php list\n       php tools/api_token.php revoke ID\n";exit;}
+     $temp=tempnam(dirname($path),'.api-token-');chmod($temp,0600);file_put_contents($temp,"<?php\nreturn ".var_export($tokens,true).";\n",LOCK_EX);
+     if(!rename($temp,$path)){unlink($temp);throw new RuntimeException('Cannot save tokens');}chmod($path,0600);
+     if(isset($raw))echo "Token ID: $id\nToken (shown once): $raw\n";else echo "Revoked: $id\n";
 -- 
 2.56.1
 

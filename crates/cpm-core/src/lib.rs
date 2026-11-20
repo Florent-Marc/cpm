@@ -50,3 +50,6 @@ pub use changes::{parameter_changes, ChangeKind, ExportReview, FileChange, Value
 
 mod bulk;
 pub use bulk::{BulkDocument, BulkOperation, BulkPlan, BulkRequest};
+
+mod recovery;
+pub use recovery::recover_pack_archive;

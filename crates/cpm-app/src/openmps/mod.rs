@@ -15,6 +15,7 @@ enum Completed {
     Prepared(Arc<PreparedOpenMps>, u64),
     Published(Publication),
     Downloaded(PathBuf),
+    Recovered(PathBuf),
 }
 #[derive(Default)]
 pub struct OpenMps {
@@ -35,6 +36,9 @@ pub struct OpenMps {
     total: u64,
     status: String,
     error: Option<String>,
+    recovery_parent: String,
+    recovered: Option<PathBuf>,
+    open_request: Option<PathBuf>,
 }
 impl OpenMps {
     fn profiles_path() -> Result<PathBuf, String> {
@@ -82,6 +86,9 @@ impl OpenMps {
             }
         }
         self.open = true;
+    }
+    pub fn take_open_request(&mut self) -> Option<PathBuf> {
+        self.open_request.take()
     }
     pub fn busy(&self) -> bool {
         self.receiver.is_some()
@@ -146,6 +153,10 @@ impl OpenMps {
                 };
                 self.publication = Some(publication);
             }
+            Ok(Completed::Recovered(path)) => {
+                self.status = format!("Copie éditable récupérée : {}", path.display());
+                self.recovered = Some(path);
+            }
             Ok(Completed::Downloaded(path)) => {
                 self.status = format!("ZIP joueurs enregistré : {}", path.display())
             }
@@ -158,6 +169,7 @@ impl OpenMps {
         documents: BTreeMap<PathBuf, Document>,
         catalog: Arc<ParameterCatalog>,
         revision: u64,
+        can_open: bool,
     ) {
         self.poll();
         if !self.open {
@@ -173,6 +185,7 @@ impl OpenMps {
         let mut prepare = false;
         let mut publish = false;
         let mut download = None;
+        let mut recover = None;
         egui::Window::new("OpenMPS — publier et récupérer le pack joueurs").open(&mut open).default_size([780.0,680.0]).min_size([560.0,440.0]).collapsible(false).show(ctx,|ui|{
             ui.label("Cette fenêtre est facultative. File → Exporter fonctionne toujours sans serveur ni connexion.");
             egui::ScrollArea::vertical().id_salt("openmps-window").max_height((ui.available_height()-95.0).max(200.0)).show(ui,|ui|{
@@ -221,7 +234,13 @@ impl OpenMps {
                     if let Some(receipt)=&self.publication{ui.label(format!("Version publiée : {} {} · {} fichiers · {} domaine(s)",receipt.pack_key,receipt.pack_version,receipt.files_count,receipt.domains.len()));ui.label(format!("URL joueurs : {}",receipt.public_url));}
                     ui.separator();ui.heading("4. Récupérer le ZIP joueurs");
                     ui.weak("Le téléchargement vérifie l’empreinte et le contenu du ZIP. Le fichier est enregistré localement ; CPM n’installe rien automatiquement dans Minecraft.");
-                    for (i,row) in self.versions.iter().enumerate(){ui.push_id(i,|ui|{ui.horizontal(|ui|{ui.label(format!("{} · {} · {} fichiers",row.pack_key,row.pack_version,row.files_count));if ui.add_enabled(row.client_size>0,egui::Button::new("Télécharger le ZIP joueurs…")).clicked(){download=Some(row.clone());}});});}
+                    ui.separator();ui.heading("Récupérer une copie éditable");
+                    ui.weak("Récupère les configurations et les ressources originales encore présentes sur le serveur. Nécessite un jeton avec le droit recover. Chaque copie est créée dans un nouveau dossier ; aucun pack local n’est remplacé.");
+                    ui.horizontal(|ui|{ui.label("Dossier de destination");ui.text_edit_singleline(&mut self.recovery_parent);if ui.button("Choisir un dossier…").clicked(){if let Some(path)=rfd::FileDialog::new().pick_folder(){self.recovery_parent=path.display().to_string();}}});
+                    if self.caps.as_ref().is_some_and(|c|!c.editable_download||!c.recovery_allowed){ui.colored_label(egui::Color32::YELLOW,"Mettre à jour l’API et utiliser un jeton avec read,recover pour récupérer les originaux.");}
+                    if let Some(path)=&self.recovered {ui.monospace(path.display().to_string());if ui.add_enabled(can_open,egui::Button::new("Ouvrir la copie récupérée")).on_hover_text("Exporter ou annuler les changements du pack actuel avant d’ouvrir la copie").clicked(){self.open_request=Some(path.clone());}}
+                    for (i,row) in self.versions.iter().enumerate(){ui.push_id(i,|ui|{ui.horizontal(|ui|{ui.label(format!("{} · {} · {} fichiers",row.pack_key,row.pack_version,row.files_count));if ui.add_enabled(row.client_size>0,egui::Button::new("Télécharger le ZIP joueurs…")).clicked(){download=Some(row.clone());}
+                if ui.add_enabled(!self.recovery_parent.trim().is_empty()&&self.caps.as_ref().is_some_and(|c|c.editable_download&&c.recovery_allowed),egui::Button::new("Récupérer pour modifier…")).clicked(){recover=Some(row.clone());}});});}
                 });
             });
             if busy {
@@ -285,6 +304,26 @@ impl OpenMps {
                 }
                 (Err(e), _) => self.error = Some(e),
                 _ => {}
+            }
+        }
+        if let Some(row) = recover {
+            match self.client() {
+                Ok(client) => {
+                    let parent = PathBuf::from(self.recovery_parent.trim());
+                    let progress = Arc::new(AtomicU64::new(0));
+                    self.progress = progress.clone();
+                    self.total = 0;
+                    self.start(
+                        ctx,
+                        "Récupération et vérification du pack éditable…",
+                        move || {
+                            client
+                                .recover(&row, &parent, progress)
+                                .map(Completed::Recovered)
+                        },
+                    );
+                }
+                Err(e) => self.error = Some(e),
             }
         }
         if let Some(row) = download {

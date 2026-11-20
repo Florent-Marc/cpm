@@ -17,6 +17,8 @@ Le [wiki CPM](https://github.com/Florent-Marc/cpm/wiki) accompagne les utilisate
 - Assistant de création par étapes : import OBJ/MTL/textures, propriétés expliquées, roues existantes ou nouvelles, moteur de départ, siège et collision ; bouton crayon pour gérer les fichiers `.dynx`.
 - Import et aperçu statique glTF 2.0, avec confirmation DynamX bêta obligatoire dans l’assistant ([guide](docs/gltf.md)).
 - Diagnostic avant export : corriger les configurations ou forcer explicitement l’export malgré leurs erreurs.
+- [Comparaison avant export](docs/export-review.md) et [édition groupée](docs/bulk-edit.md) avec récapitulatif avant application.
+- Récupération d’une copie éditable depuis OpenMPS avec le droit d’administration `recover`.
 - Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
   explicite d'une sortie existante.
 - Publication facultative sur OpenMPS : profils, diagnostic sur copie, versions distantes et ZIP joueurs vérifié. Voir le [guide OpenMPS](docs/openmps.md).

@@ -4,10 +4,10 @@ OpenMPS est une option de publication. **File → Exporter** continue à produir
 
 ## Une première fois côté serveur
 
-Le serveur doit disposer de l’API d’administration v1 fournie dans le [patch compagnon](../integrations/openmps/README.md). L’OpenMPS d’origine ne fournit pas cette API. Définir son URL publique, puis créer un jeton sur le serveur :
+Le serveur doit disposer de l’API d’administration v1 fournie dans le [patch compagnon](../integrations/openmps/README.md) et proposée dans la [PR OpenMPS #1](https://github.com/gabidut/OpenMPS/pull/1). La récupération des originaux nécessite sa version avec le droit `recover`. L’OpenMPS d’origine ne fournit pas cette API. Définir son URL publique, puis créer un jeton sur le serveur :
 
 ```sh
-php tools/api_token.php create CPM
+php tools/api_token.php create CPM read,publish,recover
 ```
 
 Le jeton d’administration et la clé MPS du jeu ont des rôles différents. Le premier autorise CPM à publier ; la seconde figure dans le pack distribué aux joueurs, suivant le protocole MPS. Ne jamais mettre le jeton d’administration dans un pack.
@@ -39,3 +39,11 @@ OPENMPS_SOURCE=/chemin/vers/OpenMPS python3 integrations/openmps/test_roundtrip.
 ```
 
 Le dernier test utilise le serveur PHP réel avec des jetons et fichiers temporaires : préparation Rust, connexion, publication, répétition idempotente, liste, téléchargement vérifié et refus d’écraser un fichier local. Il nécessite PHP avec OpenSSL et ZipArchive et le patch compagnon appliqué.
+
+## Récupérer les originaux pour modifier un pack
+
+Un jeton disposant de `read,recover` (et éventuellement `publish`) permet de récupérer les configurations et les ressources originales encore présentes sur le serveur : OBJ complets, MTL, textures, sons, glTF et buffers. Le droit de lecture du ZIP joueurs ou la clé MPS du jeu ne donne pas ce droit. Les anciens jetons ne reçoivent pas automatiquement `recover` : créer un jeton approprié sur le serveur.
+
+Dans la fenêtre OpenMPS, choisir le **Dossier de destination** de récupération ; le chemin reste affiché et modifiable. Dans la ligne de la version distante, cliquer sur **Récupérer pour modifier…**. Après vérification du SHA-256, des chemins, des limites et des configurations, une copie est créée dans un nouveau sous-dossier unique, dont le chemin apparaît dans la fenêtre. Aucun pack local existant n’est remplacé. **Ouvrir la copie récupérée** ouvre cette copie dans CPM ; enregistrer ou annuler les changements du pack actuel pour activer ce bouton.
+
+Les archives générées par OpenMPS, descriptions chiffrées et fichiers de connexion ne sont pas inclus. Si les originaux ont disparu ou que seuls des modèles `.part` chiffrés subsistent, l’API refuse la récupération : elle ne retire pas un chiffrement et ne reconstruit pas des fichiers absents. Une copie récupérée peut nécessiter un diagnostic et un test en jeu.
