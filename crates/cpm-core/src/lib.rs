@@ -33,3 +33,6 @@ mod scene;
 
 mod audit;
 pub use audit::PackIssue;
+
+mod model_import;
+pub use model_import::{ModelFiles, PreparedModel};

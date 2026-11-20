@@ -17,6 +17,7 @@ pub struct Pack {
     resources: std::sync::Arc<BTreeMap<PathBuf, usize>>,
     added: BTreeMap<PathBuf, Document>,
     removed: std::collections::BTreeSet<PathBuf>,
+    imported: BTreeMap<PathBuf, std::sync::Arc<[u8]>>,
 }
 
 impl Pack {
@@ -130,6 +131,7 @@ impl Pack {
             resources: std::sync::Arc::new(resources),
             added: BTreeMap::new(),
             removed: Default::default(),
+            imported: BTreeMap::new(),
         })
     }
 
@@ -142,7 +144,7 @@ impl Pack {
     }
 
     pub fn has_structure_changes(&self) -> bool {
-        !self.added.is_empty() || !self.removed.is_empty()
+        !self.added.is_empty() || !self.removed.is_empty() || !self.imported.is_empty()
     }
     pub fn add_configuration(&mut self, path: &Path, document: Document) -> Result<usize, String> {
         let path = configuration_path(path)?;
@@ -153,6 +155,7 @@ impl Pack {
             || self
                 .resources
                 .keys()
+                .chain(self.imported.keys())
                 .any(|p| same_configuration_path(p, &path) && !self.removed.contains(p))
         {
             return Err("Un fichier portant ce nom existe déjà dans le pack".into());
@@ -165,6 +168,7 @@ impl Pack {
             .resources
             .keys()
             .chain(self.added.keys())
+            .chain(self.imported.keys())
             .any(|p| p.starts_with(&path) && p != &path)
         {
             return Err("Ce nom est déjà utilisé comme dossier".into());
@@ -179,6 +183,7 @@ impl Pack {
                 .resources
                 .keys()
                 .chain(self.added.keys())
+                .chain(self.imported.keys())
                 .any(|p| same_configuration_path(p, parent))
             {
                 return Err("Un dossier parent est déjà utilisé comme fichier".into());
@@ -215,6 +220,12 @@ impl Pack {
                 Err(error) => return Err(error.to_string()),
             }
         }
+        for (path, bytes) in &self.imported {
+            let target = destination.join(path);
+            fs::create_dir_all(target.parent().ok_or("Dossier invalide")?)
+                .map_err(|e| e.to_string())?;
+            fs::write(target, bytes).map_err(|e| e.to_string())?;
+        }
         for (path, document) in &self.added {
             let target = destination.join(path);
             std::fs::create_dir_all(target.parent().ok_or("Dossier invalide")?)
@@ -224,20 +235,89 @@ impl Pack {
         Ok(())
     }
 
+    /// Adds all resources and configurations atomically; source packs remain untouched.
+    pub fn add_bundle(
+        &mut self,
+        configurations: Vec<(PathBuf, Document)>,
+        assets: BTreeMap<PathBuf, Vec<u8>>,
+    ) -> Result<(), String> {
+        if assets.len() > 1024
+            || self.imported.values().map(|b| b.len()).sum::<usize>()
+                + assets.values().map(Vec::len).sum::<usize>()
+                > 256 * 1024 * 1024
+        {
+            return Err(
+                "Import limité à 1024 ressources et 256 Mio de ressources préparées".into(),
+            );
+        }
+        let mut candidate = self.clone();
+        for (path, bytes) in assets {
+            let path = safe_archive_path(&path.to_string_lossy())?;
+            for component in path.components() {
+                crate::export::validate_filename(&component.as_os_str().to_string_lossy())?;
+            }
+            if is_config(&path) {
+                return Err(
+                    "Les configurations doivent être ajoutées séparément des ressources".into(),
+                );
+            }
+            for existing in candidate
+                .resources
+                .keys()
+                .chain(candidate.imported.keys())
+                .chain(candidate.added.keys())
+            {
+                if same_configuration_path(existing, &path)
+                    || path
+                        .ancestors()
+                        .skip(1)
+                        .any(|p| same_configuration_path(existing, p))
+                    || existing
+                        .ancestors()
+                        .skip(1)
+                        .any(|p| same_configuration_path(&path, p))
+                {
+                    return Err(format!(
+                        "Chemin de ressource déjà utilisé : {}",
+                        path.display()
+                    ));
+                }
+            }
+            if candidate.source.is_dir() && candidate.source.join(&path).exists() {
+                return Err(format!("Ressource déjà présente : {}", path.display()));
+            }
+            candidate.imported.insert(path, bytes.into());
+        }
+        for (path, document) in configurations {
+            candidate.add_configuration(&path, document)?;
+        }
+        *self = candidate;
+        Ok(())
+    }
+    pub fn staged_resource_count(&self) -> usize {
+        self.imported.len()
+    }
     pub fn obj_resources(&self) -> Vec<PathBuf> {
         self.resources
             .keys()
+            .chain(self.imported.keys())
             .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("obj")))
             .cloned()
             .collect()
     }
     pub fn contains_resource(&self, path: &Path) -> bool {
-        self.resources.contains_key(path)
+        self.resources.contains_key(path) || self.imported.contains_key(path)
     }
 
     /// Lit une ressource du pack avec une limite, sans extraction sur disque.
     pub fn read_resource(&self, path: &Path, maximum: u64) -> Result<Vec<u8>, String> {
         let path = safe_archive_path(&path.to_string_lossy())?;
+        if let Some(bytes) = self.imported.get(&path) {
+            if bytes.len() as u64 > maximum {
+                return Err("Ressource préparée trop volumineuse".into());
+            }
+            return Ok(bytes.to_vec());
+        }
         let index = *self
             .resources
             .get(&path)
