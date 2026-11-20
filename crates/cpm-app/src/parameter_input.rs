@@ -91,16 +91,35 @@ fn text_input(
         definition,
         rejected: false,
     };
-    let mut edit = egui::TextEdit::singleline(&mut buffer).desired_width(f32::INFINITY);
+    let hint = definition
+        .map(input_hint)
+        .unwrap_or_else(|| "Valeur du paramètre".into());
+    let mut edit = egui::TextEdit::singleline(&mut buffer)
+        .hint_text(hint)
+        .desired_width(f32::INFINITY);
     if let Some(color) = color {
         edit = edit.text_color(color);
     }
     let response = ui.add(edit);
+    if definition.is_some_and(|d| d.name == "MaxRPM" || d.name == "RPMRange") { ui.small("Unité : tr/min"); }
     if buffer.rejected {
         *buffer.value = old;
         ui.ctx().request_repaint();
     }
     response
+}
+fn input_hint(definition: &ParameterDefinition) -> String {
+    if let Some(value) = &definition.default_value {
+        return format!("Défaut : {value}");
+    }
+    match definition.variable_type {
+        VariableType::Integer => "Nombre entier, ex. 100".into(),
+        VariableType::Decimal => "Nombre décimal, ex. 0.5".into(),
+        VariableType::Vector2 => "Deux nombres : X Y".into(),
+        VariableType::Vector3 => "Trois nombres : X Y Z".into(),
+        VariableType::Quaternion => "Quatre nombres : W X Y Z".into(),
+        _ => "Valeur du paramètre".into(),
+    }
 }
 struct FilteredBuffer<'a> {
     value: &'a mut String,

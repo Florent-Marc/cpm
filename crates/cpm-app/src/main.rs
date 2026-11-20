@@ -16,6 +16,7 @@ mod properties_editor;
 mod recent;
 mod report;
 mod search;
+mod theme;
 mod update;
 
 use cpm_core::Pack;
@@ -39,6 +40,7 @@ fn main() -> eframe::Result {
         "CPM — Éditeur de configuration",
         options,
         Box::new(|cc| {
+            theme::apply(&cc.egui_ctx);
             let mut app = CpmApp {
                 gl: cc.gl.clone(),
                 ..Default::default()
@@ -860,7 +862,7 @@ impl CpmApp {
                     if ui
                         .add_enabled(
                             self.pack.is_some() || self.editor.is_some(),
-                            egui::Button::new("Exporter"),
+                            theme::primary("Exporter"),
                         )
                         .clicked()
                     {
@@ -963,7 +965,7 @@ impl CpmApp {
                 ui.horizontal(|ui| {
                     ui.heading("Configurations");
                     if ui
-                        .add_enabled(self.pack.is_some(), egui::Button::new("✎"))
+                        .add_enabled(self.pack.is_some(), egui::Button::new("Gérer…"))
                         .on_hover_text("Ajouter ou supprimer des configurations du pack")
                         .clicked()
                     {
@@ -999,7 +1001,11 @@ impl CpmApp {
                                 let mut category_label =
                                     egui::RichText::new(format!("{category} ({})", indices.len()));
                                 if invalid {
-                                    category_label = category_label.color(egui::Color32::LIGHT_RED);
+                                    category_label = egui::RichText::new(format!(
+                                        "! {category} ({})",
+                                        indices.len()
+                                    ))
+                                    .color(theme::ERROR);
                                 }
                                 egui::CollapsingHeader::new(category_label)
                                     .id_salt(("config-category", &self.open_path, category))
@@ -1020,9 +1026,14 @@ impl CpmApp {
                                                 navigation::config_label(path)
                                             );
                                             let issues = self.issues_for(index);
-                                            let mut text = egui::RichText::new(label);
+                                            let mut text =
+                                                egui::RichText::new(if issues.is_empty() {
+                                                    label
+                                                } else {
+                                                    format!("! {label} · {}", issues.len())
+                                                });
                                             if !issues.is_empty() {
-                                                text = text.color(egui::Color32::LIGHT_RED);
+                                                text = text.color(theme::ERROR);
                                             }
                                             if ui
                                                 .selectable_label(
@@ -1124,12 +1135,12 @@ impl CpmApp {
             ui.label("Propriétés");
             let issues = editor.issues();
             if !issues.is_empty() {
-                ui.colored_label(egui::Color32::LIGHT_RED, format!("{} erreur(s) de paramètres", issues.len()))
+                ui.colored_label(egui::Color32::LIGHT_RED, format!("! {} erreur(s) de paramètres", issues.len()))
                     .on_hover_text(issues.join("\n"));
             }
             if editor.is_pack_info { ui.label(format!("Pack : {}", cpm_core::PackMetadata::from_document(&editor.document).name)); }
             let warnings = editor.warnings();
-            if !warnings.is_empty() { ui.colored_label(egui::Color32::YELLOW, format!("{} avertissement(s)", warnings.len())).on_hover_text(warnings.join("\n")); }
+            if !warnings.is_empty() { ui.colored_label(egui::Color32::YELLOW, format!("! {} avertissement(s)", warnings.len())).on_hover_text(warnings.join("\n")); }
             let document_id = (&self.open_path, self.selected_config);
             let jump = self.pending_scroll.take();
             ui.push_id(document_id, |ui| {
@@ -1558,7 +1569,7 @@ fn show_document(
     show_properties(ui, editor, &properties, None, error);
     headers.resize(sections.len(), egui::Id::NULL);
     for (group, indices) in navigation::section_groups(&sections) {
-        ui.separator();
+        ui.add_space(12.0);
         let grouped = indices.len() > 1 || sections[indices[0]].name != group;
         let target = jump.flatten().is_some_and(|index| indices.contains(&index));
         let mut children = |ui: &mut egui::Ui| {
@@ -1635,7 +1646,13 @@ fn diagnostic_text(
     text: impl Into<String>,
     diagnostics: &[cpm_core::Diagnostic],
 ) -> egui::RichText {
-    let label = egui::RichText::new(text.into());
+    let text = text.into();
+    let count = diagnostics.len();
+    let label = egui::RichText::new(if count > 0 {
+        format!("! {text} · {count}")
+    } else {
+        text
+    });
     if diagnostics
         .iter()
         .any(|d| d.severity == cpm_core::Severity::Error)
@@ -1668,7 +1685,7 @@ fn show_properties(
         .filter(|d| d.section == section)
         .collect();
     ui.push_id(("add-parameter", section), |ui| {
-        ui.menu_button("+", |ui| {
+        ui.menu_button("+ Ajouter un paramètre", |ui| {
             ui.label("Ajouter un paramètre");
             let mut specs = editor
                 .catalog
@@ -1752,7 +1769,7 @@ fn show_properties(
         ui.push_id(("property", index), |ui| {
             ui.horizontal(|ui| {
                 if ui
-                    .small_button("−")
+                    .small_button("Retirer")
                     .on_hover_text("Supprimer ce paramètre")
                     .clicked()
                 {
@@ -1795,8 +1812,12 @@ fn show_properties(
                             .join("\n")
                     )
                 };
-                ui.label(diagnostic_text(&property.key, &problems))
-                    .on_hover_text(&hint);
+                let width = (ui.available_width() * 0.30).clamp(105.0, 210.0);
+                ui.add_sized(
+                    [width, 30.0],
+                    egui::Label::new(diagnostic_text(&property.key, &problems)).wrap(),
+                )
+                .on_hover_text(&hint);
                 let color = if problems
                     .iter()
                     .any(|d| d.severity == cpm_core::Severity::Error)
@@ -1807,21 +1828,34 @@ fn show_properties(
                 } else {
                     None
                 };
-                let response =
-                    parameter_input::input(ui, &mut editor.values[index], definition, color)
-                        .on_hover_text(hint);
-                if editor.focus_key.as_ref().is_some_and(|key| {
-                    *key == property.key || definition.is_some_and(|d| d.name == *key)
-                }) {
-                    response.scroll_to_me(Some(egui::Align::Center));
-                    editor.focus_key = None;
-                }
-                if response.changed() {
-                    if let Err(edit_error) = editor.document.set_value(index, &editor.values[index])
-                    {
-                        *error = Some(edit_error.to_string());
+                ui.vertical(|ui| {
+                    let response =
+                        parameter_input::input(ui, &mut editor.values[index], definition, color)
+                            .on_hover_text(hint);
+                    if editor.focus_key.as_ref().is_some_and(|key| {
+                        *key == property.key || definition.is_some_and(|d| d.name == *key)
+                    }) {
+                        response.scroll_to_me(Some(egui::Align::Center));
+                        editor.focus_key = None;
                     }
-                }
+                    for problem in &problems {
+                        ui.colored_label(
+                            if problem.severity == cpm_core::Severity::Error {
+                                theme::ERROR
+                            } else {
+                                theme::WARNING
+                            },
+                            format!("! {problem}"),
+                        );
+                    }
+                    if response.changed() {
+                        if let Err(edit_error) =
+                            editor.document.set_value(index, &editor.values[index])
+                        {
+                            *error = Some(edit_error.to_string());
+                        }
+                    }
+                });
             });
         });
     }
