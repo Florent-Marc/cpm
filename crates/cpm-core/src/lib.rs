@@ -36,3 +36,9 @@ pub use audit::PackIssue;
 
 mod model_import;
 pub use model_import::{ModelFiles, PreparedModel};
+
+mod openmps;
+pub use openmps::{
+    validate_mps_client_archive, validate_mps_key, validate_mps_version, PreparedOpenMps,
+    PublicationReport,
+};

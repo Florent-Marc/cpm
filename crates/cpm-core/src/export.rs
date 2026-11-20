@@ -312,7 +312,7 @@ fn rename_known_references(
     Ok(())
 }
 
-fn write_zip(content: &Path, destination: &Path) -> Result<(), String> {
+pub(crate) fn write_zip(content: &Path, destination: &Path) -> Result<(), String> {
     let file = File::create(destination).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default()
