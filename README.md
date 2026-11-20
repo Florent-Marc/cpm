@@ -7,6 +7,8 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 
 Le [wiki CPM](https://github.com/Florent-Marc/cpm/wiki) accompagne les utilisateurs : premiers pas, création de packs, aperçu 3D et collisions, propriétés et addons, exports et OpenMPS. Dans l’application, **Aide CPM** ouvre ces guides et **Wiki** ouvre la documentation DynamX.
 
+Le [guide de l’interface](docs/interface.md) présente les menus, l’accueil et les onglets OpenMPS.
+
 ## Fonctionnalités
 
 - Import de dossiers de packs et d'archives ZIP, DNXPACK ou RAR non chiffrées.

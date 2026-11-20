@@ -219,13 +219,8 @@ impl OpenMps {
             self.endpoint.trim()
         )
     }
-    pub(super) fn manager(&mut self, ctx: &egui::Context) {
-        if !self.manager_open {
-            return;
-        }
-        let mut open = true;
-        egui::Window::new("Serveurs OpenMPS").id(egui::Id::unique("mps-server-manager")).open(&mut open).default_width(600.0).max_height(680.0).vscroll(true).collapsible(false).show(ctx, |ui| {
-            ui.add_enabled_ui(!self.busy(), |ui| {
+    pub(super) fn server_controls(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        ui.add_enabled_ui(!self.busy(), |ui| {
                 let mut selected = None;
                 for profile in &self.profiles { ui.horizontal(|ui| {
                     if ui.selectable_label(Some(&profile.id) == self.selected.as_ref(), &profile.name).clicked() { selected = Some(profile.id.clone()); }
@@ -254,10 +249,6 @@ impl OpenMps {
                     });
                 }
             });
-            ui.label(&self.status);
-            if let Some(error) = &self.error { ui.colored_label(egui::Color32::LIGHT_RED, error); }
-        });
-        self.manager_open = open;
     }
     pub(super) fn persist_selection(&mut self) {
         if let Err(e) =
