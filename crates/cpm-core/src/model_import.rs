@@ -184,8 +184,8 @@ impl ModelFiles {
             }
         }
         let mut output = String::new();
-        if !material_targets.is_empty() {
-            output.push_str(&format!("mtllib {}\n", material_targets.join(" ")));
+        for target in &material_targets {
+            output.push_str(&format!("mtllib {target}\n"));
         }
         for line in source.lines() {
             let trimmed = line.trim();

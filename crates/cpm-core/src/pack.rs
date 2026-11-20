@@ -289,7 +289,9 @@ impl Pack {
             candidate.imported.insert(path, bytes.into());
         }
         for (path, document) in configurations {
-            candidate.add_configuration(&path, document)?;
+            candidate
+                .add_configuration(&path, document)
+                .map_err(|e| format!("{} : {e}", path.display()))?;
         }
         *self = candidate;
         Ok(())

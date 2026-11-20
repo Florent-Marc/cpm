@@ -394,6 +394,60 @@ impl CpmApp {
 
     fn create_document(&mut self, created: creation::Created) -> Result<(), String> {
         match created {
+            creation::Created::Bundle {
+                primary,
+                configurations,
+                assets,
+                new_pack,
+            } => {
+                if new_pack.is_some() && self.dirty() {
+                    return Err(
+                        "Enregistrer ou annuler les changements avant de créer un nouveau pack"
+                            .into(),
+                    );
+                }
+                let mut temporary = None;
+                let mut candidate = if let Some((info, _)) = &new_pack {
+                    let directory = tempfile::Builder::new()
+                        .prefix("cpm-guided-pack-")
+                        .tempdir()
+                        .map_err(|e| e.to_string())?;
+                    std::fs::write(directory.path().join("pack_info.dynx"), info.source())
+                        .map_err(|e| e.to_string())?;
+                    let pack = Pack::open(directory.path())?;
+                    temporary = Some(directory);
+                    pack
+                } else {
+                    self.pack
+                        .clone()
+                        .ok_or("Ouvrir un pack pour importer des ressources")?
+                };
+                candidate.add_bundle(configurations, assets)?;
+                let index = candidate
+                    .configs()
+                    .iter()
+                    .position(|p| *p == primary)
+                    .ok_or("Configuration principale absente du lot préparé")?;
+                if let Some((_, name)) = new_pack {
+                    self.cached.clear();
+                    self.editor = None;
+                    self.selected_config = None;
+                    self.standalone_path = None;
+                    self.draft_name = name.clone();
+                    self.open_path = format!("Nouveau pack : {name}");
+                    self.draft_pack = temporary;
+                    self.draft_file = false;
+                }
+                self.pack = Some(candidate);
+                self.preview = None;
+                self.model_browser = None;
+                self.search = search::Search::default();
+                self.start_validation();
+                self.switch_config(index);
+                self.status =
+                    "Objet et ressources ajoutés — vérifier l’aperçu 3D, puis File → Exporter"
+                        .into();
+            }
             creation::Created::Pack { document, name } => {
                 if self.dirty() {
                     return Err(
@@ -518,7 +572,7 @@ impl CpmApp {
         let selected = self.selected_config.and_then(|i| old_paths.get(i)).cloned();
         self.pack = Some(replacement);
         self.reindex_editors(old_paths, selected);
-        self.status = "Ajouts et suppressions de configurations annulés".into();
+        self.status = "Ajouts, suppressions et ressources importées annulés".into();
         Ok(())
     }
     fn discard_draft(&mut self) {
@@ -760,7 +814,7 @@ impl CpmApp {
                         self.status = "Modifications annulées".into();
                         ui.close();
                     }
-                    if ui.add_enabled(self.pack.as_ref().is_some_and(Pack::has_structure_changes),egui::Button::new("Annuler les ajouts et suppressions")).on_hover_text("Rétablit la liste d’origine ; les modifications des configurations existantes sont conservées").clicked(){
+                    if ui.add_enabled(self.pack.as_ref().is_some_and(Pack::has_structure_changes),egui::Button::new("Annuler les ajouts et suppressions")).on_hover_text("Rétablit la liste d’origine et retire aussi les modèles et textures importés ; les modifications des configurations existantes sont conservées").clicked(){
                         if let Err(error)=self.undo_structure(){self.error=Some(error);}ui.close();
                     }
                     if (self.draft_pack.is_some() || self.draft_file) && ui.button("Abandonner le brouillon").on_hover_text("Ferme le nouveau pack ou fichier et abandonne ses changements en mémoire").clicked(){self.discard_draft();ui.close();}
@@ -1060,7 +1114,13 @@ impl CpmApp {
             }
         }
         if let Some(mut creation) = self.creation.take() {
-            match creation.show(&ctx, &self.catalog, self.pack.is_some(), !self.dirty()) {
+            match creation.show(
+                &ctx,
+                &self.catalog,
+                self.pack.as_ref(),
+                self.documents(),
+                !self.dirty(),
+            ) {
                 creation::Action::None => self.creation = Some(creation),
                 creation::Action::Close => {}
                 creation::Action::Create(created) => {
