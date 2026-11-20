@@ -21,7 +21,7 @@ Le [wiki CPM](https://github.com/Florent-Marc/cpm/wiki) accompagne les utilisate
 - Récupération d’une copie éditable depuis OpenMPS avec le droit d’administration `recover`.
 - Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
   explicite d'une sortie existante.
-- Publication facultative sur OpenMPS : profils, diagnostic sur copie, versions distantes et ZIP joueurs vérifié. Voir le [guide OpenMPS](docs/openmps.md).
+- Publication facultative sur OpenMPS : gestion de plusieurs serveurs, jetons séparés avec mémorisation dans le coffre système, diagnostic sur copie, versions distantes et ZIP joueurs vérifié. Voir le [guide OpenMPS](docs/openmps.md).
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification
   des nouvelles releases Rust.
 

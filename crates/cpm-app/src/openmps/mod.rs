@@ -1,4 +1,5 @@
 pub mod client;
+mod servers;
 use client::{Capabilities, Client, Profile, Publication, Version};
 use cpm_core::{Document, Pack, PackMetadata, ParameterCatalog, PreparedOpenMps};
 use eframe::egui;
@@ -21,6 +22,12 @@ enum Completed {
 pub struct OpenMps {
     pub open: bool,
     profiles: Vec<Profile>,
+    selected: Option<String>,
+    sessions: BTreeMap<String, String>,
+    remember_token: bool,
+    manager_open: bool,
+    confirm_delete: bool,
+    confirm_publish: bool,
     profile_name: String,
     endpoint: String,
     token: String,
@@ -50,7 +57,18 @@ impl OpenMps {
     }
     pub fn load_profiles(&mut self) {
         match Self::profiles_path().and_then(|p| client::load_profiles(&p)) {
-            Ok(profiles) => self.profiles = profiles,
+            Ok(profiles) => {
+                self.profiles = profiles;
+                if let Some(id) = self
+                    .profiles
+                    .iter()
+                    .find(|p| p.active)
+                    .or_else(|| self.profiles.first())
+                    .map(|p| p.id.clone())
+                {
+                    self.select_server(&id, &servers::SystemVault);
+                }
+            }
             Err(e) => self.error = Some(format!("Profils OpenMPS : {e}")),
         }
     }
@@ -177,6 +195,7 @@ impl OpenMps {
         }
         if self.prepared.as_ref().is_some_and(|(_, r)| *r != revision) {
             self.prepared = None;
+            self.confirm_publish = false;
             self.status = "Le pack a changé ; préparer à nouveau la copie avant publication".into();
         }
         let busy = self.busy();
@@ -186,34 +205,29 @@ impl OpenMps {
         let mut publish = false;
         let mut download = None;
         let mut recover = None;
-        egui::Window::new("OpenMPS — publier et récupérer le pack joueurs").open(&mut open).default_size([780.0,680.0]).min_size([560.0,440.0]).collapsible(false).show(ctx,|ui|{
+        egui::Window::new("OpenMPS — publier et récupérer des packs").open(&mut open).default_size([780.0,680.0]).min_size([560.0,440.0]).collapsible(false).show(ctx,|ui|{
             ui.label("Cette fenêtre est facultative. File → Exporter fonctionne toujours sans serveur ni connexion.");
             egui::ScrollArea::vertical().id_salt("openmps-window").max_height((ui.available_height()-95.0).max(200.0)).show(ui,|ui|{
-                ui.add_enabled_ui(!busy,|ui|{
+                ui.add_enabled_ui(!busy && !self.manager_open,|ui|{
                     ui.heading("1. Connexion au serveur");
                     let mut selected=None;
-                    egui::ComboBox::from_id_salt("openmps-profiles").selected_text("Profils enregistrés…").show_ui(ui,|ui|{for (i,profile) in self.profiles.iter().enumerate(){if ui.selectable_label(false,&profile.name).clicked(){selected=Some(i);}}});
-                    if let Some(i)=selected {self.profile_name=self.profiles[i].name.clone();self.endpoint=self.profiles[i].url.clone();self.token.clear();self.caps=None;self.versions.clear();}
-                    ui.horizontal(|ui|{ui.label("Nom du profil");ui.text_edit_singleline(&mut self.profile_name);});
-                    ui.horizontal(|ui|{ui.label("URL du serveur");if ui.add(egui::TextEdit::singleline(&mut self.endpoint).hint_text("https://mps.exemple.fr/").desired_width(f32::INFINITY)).changed(){self.caps=None;self.versions.clear();}});
-                    ui.horizontal(|ui|{ui.label("Jeton d’administration");if ui.add(egui::TextEdit::singleline(&mut self.token).password(true).desired_width(f32::INFINITY)).changed(){self.caps=None;self.versions.clear();}});
-                    ui.weak("Le jeton reste en mémoire pour cette session et n’est pas enregistré dans le profil. Il est différent de la clé MPS du jeu.");
+                    let selected_name=self.profiles.iter().find(|p|Some(&p.id)==self.selected.as_ref()).map(|p|p.name.as_str()).unwrap_or("Choisir un serveur…");
                     ui.horizontal(|ui|{
-                        if ui.button("Tester la connexion / actualiser").clicked(){connect=true;}
-                        if ui.button("Enregistrer le profil").clicked(){
-                            let placeholder=format!("omps_{}","x".repeat(43));
-                            match Client::new(&self.endpoint,&placeholder).and_then(|_|Self::profiles_path()) {
-                                Ok(path) if !self.profile_name.trim().is_empty()=>{self.profiles.retain(|p|p.name!=self.profile_name);self.profiles.push(Profile{name:self.profile_name.clone(),url:self.endpoint.clone()});if let Err(e)=client::save_profiles(&path,&self.profiles){self.error=Some(e);}else{self.status="Profil enregistré sans jeton".into();}}
-                                Ok(_)=>self.error=Some("Donner un nom au profil".into()),Err(e)=>self.error=Some(e),
-                            }
-                        }
+                        egui::ComboBox::from_id_salt("openmps-profiles").selected_text(selected_name).show_ui(ui,|ui|{for profile in &self.profiles{if ui.selectable_label(Some(&profile.id)==self.selected.as_ref(),&profile.name).clicked(){selected=Some(profile.id.clone());}}});
+                        if ui.button("Gérer les serveurs…").clicked(){self.manager_open=true;}
+                        if ui.button("Actualiser / connecter").clicked(){connect=true;}
                     });
+                    if let Some(id)=selected{self.select_server(&id,&servers::SystemVault);self.persist_selection();}
+                    ui.strong(self.destination());
+                    ui.label(if self.busy(){"Connexion en cours"}else if self.caps.is_some(){"Connecté"}else{"Non connecté"});
+                    if self.token.is_empty(){ui.weak("Ouvrir Gérer les serveurs pour ajouter une connexion ou saisir son jeton.");}
                     ui.collapsing("Configurer OpenMPS une première fois",|ui|{ui.label("Installer l’API d’administration v1 sur votre serveur, définir SERVER_PUBLIC_URL pour les joueurs, puis créer un jeton en ligne de commande :");ui.monospace("php tools/api_token.php create CPM");ui.label("Coller ici le jeton affiché. Ne pas utiliser le mot de passe du tableau de bord ni la clé MPS du jeu.");});
-                    if let Some(caps)=&self.caps{ui.label(format!("API v{} · MPS {} · limite {:.0} Mio",caps.api_version,caps.mps_version,caps.max_upload_bytes as f64/1048576.0));ui.label(format!("URL utilisée par les joueurs : {}",caps.public_url));}
+                    if let Some(caps)=&self.caps{ui.label(format!("API v{} · MPS {} · limite {:.0} Mio",caps.api_version,caps.mps_version,caps.max_upload_bytes as f64/1048576.0));ui.label(format!("URL utilisée par les joueurs : {}",caps.public_url));
+                        if let Some(scopes)=&caps.scopes{ui.label(format!("Droits : {}",scopes.join(", ")));}else{ui.weak("Cette API ne détaille pas les droits du jeton. Le serveur vérifiera chaque opération.");}}
                     ui.separator();ui.heading("2. Préparer une copie compatible");
                     ui.label("Le diagnostic contrôle le pack et prépare une copie avec les ressources sous assets/. Le pack de travail et ses exports classiques ne sont pas modifiés.");
-                    ui.horizontal(|ui|{ui.label("Identifiant OpenMPS / PackName publié");if ui.text_edit_singleline(&mut self.key).changed(){self.prepared=None;self.publication=None;}});
-                    ui.horizontal(|ui|{ui.label("Version à publier");if ui.text_edit_singleline(&mut self.version).changed(){self.prepared=None;self.publication=None;}});
+                    ui.horizontal(|ui|{ui.label("Identifiant OpenMPS / PackName publié");if ui.text_edit_singleline(&mut self.key).changed(){self.prepared=None;self.publication=None;self.confirm_publish=false;}});
+                    ui.horizontal(|ui|{ui.label("Version à publier");if ui.text_edit_singleline(&mut self.version).changed(){self.prepared=None;self.publication=None;self.confirm_publish=false;}});
                     ui.weak("L’identifiant et les références internes sont adaptés dans la copie. Une version déjà présente sur le serveur ne sera pas écrasée.");
                     if ui.add_enabled(pack.is_some(),egui::Button::new("Vérifier et préparer la publication")).clicked(){prepare=true;}
                     if pack.is_none(){ui.weak("Ouvrir un pack pour publier. La liste distante reste consultable sans pack local.");}
@@ -226,15 +240,24 @@ impl OpenMps {
                         if self.caps.as_ref().is_some_and(|caps|size>caps.max_upload_bytes){ui.colored_label(egui::Color32::LIGHT_RED,"L’archive dépasse la limite annoncée par le serveur.");}
                     }
                     ui.separator();ui.heading("3. Publier la version");
+                    ui.strong(format!("Serveur de destination : {}",self.destination()));
                     ui.horizontal(|ui|{ui.label("Clé MPS du jeu");ui.add(egui::TextEdit::singleline(&mut self.access_key).password(true));});ui.weak("Cette clé sera incluse dans MpsRepositories.json, conformément au protocole MPS. Le jeton d’administration n’y figure jamais.");
                     let known=self.versions.iter().any(|v|v.pack_key==self.key&&v.pack_version==self.version);
                     if known{ui.colored_label(egui::Color32::YELLOW,"Cette version existe déjà. Choisir une nouvelle version, ou récupérer son ZIP joueurs ci-dessous.");}
                     let size_ok=self.prepared.as_ref().is_some_and(|(p,_)|self.caps.as_ref().is_some_and(|c|std::fs::metadata(&p.archive).is_ok_and(|m|m.len()<=c.max_upload_bytes)));
-                    if ui.add_enabled(self.caps.is_some()&&size_ok&&!known,egui::Button::new("Publier cette version sur OpenMPS")).clicked(){publish=true;}
+                    let publish_allowed=self.caps.as_ref().is_some_and(|c|c.scopes.as_ref().is_none_or(|s|s.iter().any(|x|x=="publish")));
+                    if ui.add_enabled(publish_allowed&&size_ok&&!known,egui::Button::new("Publier cette version sur OpenMPS…")).clicked(){self.confirm_publish=true;}
+                    if self.confirm_publish {
+                        ui.strong(format!("Destination : {}",self.destination()));
+                        ui.label(format!("Pack : {} · version : {}",self.key,self.version));
+                        ui.horizontal(|ui|{if ui.button("Confirmer la publication").clicked(){publish=true;self.confirm_publish=false;}
+                        if ui.button("Annuler").clicked(){self.confirm_publish=false;}});
+                    }
                     if let Some(receipt)=&self.publication{ui.label(format!("Version publiée : {} {} · {} fichiers · {} domaine(s)",receipt.pack_key,receipt.pack_version,receipt.files_count,receipt.domains.len()));ui.label(format!("URL joueurs : {}",receipt.public_url));}
                     ui.separator();ui.heading("4. Récupérer le ZIP joueurs");
                     ui.weak("Le téléchargement vérifie l’empreinte et le contenu du ZIP. Le fichier est enregistré localement ; CPM n’installe rien automatiquement dans Minecraft.");
                     ui.separator();ui.heading("Récupérer une copie éditable");
+                    ui.strong(format!("Serveur source : {}",self.destination()));
                     ui.weak("Récupère les configurations et les ressources originales encore présentes sur le serveur. Nécessite un jeton avec le droit recover. Chaque copie est créée dans un nouveau dossier ; aucun pack local n’est remplacé.");
                     ui.horizontal(|ui|{ui.label("Dossier de destination");ui.text_edit_singleline(&mut self.recovery_parent);if ui.button("Choisir un dossier…").clicked(){if let Some(path)=rfd::FileDialog::new().pick_folder(){self.recovery_parent=path.display().to_string();}}});
                     if self.caps.as_ref().is_some_and(|c|!c.editable_download||!c.recovery_allowed){ui.colored_label(egui::Color32::YELLOW,"Mettre à jour l’API et utiliser un jeton avec read,recover pour récupérer les originaux.");}
@@ -256,15 +279,9 @@ impl OpenMps {
         } else {
             self.open = open;
         }
+        self.manager(ctx);
         if connect {
-            self.total = 0;
-            match self.client() {
-                Ok(client) => self.start(ctx, "Connexion et lecture des versions…", move || {
-                    let (caps, rows) = client.connect()?;
-                    Ok(Completed::Connected(caps, rows))
-                }),
-                Err(e) => self.error = Some(e),
-            }
+            self.connect_server(ctx);
         }
         if prepare {
             self.total = 0;

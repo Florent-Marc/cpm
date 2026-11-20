@@ -13,8 +13,14 @@ use std::{
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     pub url: String,
+    #[serde(default)]
+    pub remember_token: bool,
+    #[serde(default)]
+    pub active: bool,
 }
 #[derive(Clone, Deserialize)]
 pub struct Capabilities {
@@ -28,6 +34,8 @@ pub struct Capabilities {
     pub editable_download: bool,
     #[serde(default)]
     pub recovery_allowed: bool,
+    #[serde(default)]
+    pub scopes: Option<Vec<String>>,
 }
 #[derive(Clone, Deserialize)]
 pub struct Version {
@@ -51,7 +59,7 @@ pub struct Publication {
 }
 #[derive(Clone)]
 pub struct Client {
-    endpoint: url::Url,
+    pub(super) endpoint: url::Url,
     token: String,
     agent: ureq::Agent,
 }
@@ -385,13 +393,24 @@ pub fn load_profiles(path: &Path) -> Result<Vec<Profile>, String> {
             if bytes.len() > 1024 * 1024 {
                 return Err("Fichier de profils OpenMPS trop volumineux".into());
             }
-            serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+            let mut profiles: Vec<Profile> =
+                serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+            for profile in &mut profiles {
+                if profile.id.is_empty() {
+                    profile.id = format!(
+                        "{:x}",
+                        Sha256::digest(format!("{}\n{}", profile.name, profile.url))
+                    );
+                }
+            }
+            validate_profiles(&profiles)?;
+            Ok(profiles)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(e) => Err(e.to_string()),
     }
 }
-pub fn save_profiles(path: &Path, profiles: &[Profile]) -> Result<(), String> {
+pub(super) fn validate_profiles(profiles: &[Profile]) -> Result<(), String> {
     if profiles.len() > 64 {
         return Err("Maximum 64 profils OpenMPS".into());
     }
@@ -402,6 +421,19 @@ pub fn save_profiles(path: &Path, profiles: &[Profile]) -> Result<(), String> {
         }
         Client::new(&profile.url, &placeholder)?;
     }
+    let mut ids = std::collections::BTreeSet::new();
+    for profile in profiles {
+        if profile.id.is_empty() || profile.id.len() > 128 || !ids.insert(&profile.id) {
+            return Err("Identifiants de serveurs invalides ou dupliqués".into());
+        }
+    }
+    if profiles.iter().filter(|p| p.active).count() > 1 {
+        return Err("Un seul serveur actif est autorisé".into());
+    }
+    Ok(())
+}
+pub fn save_profiles(path: &Path, profiles: &[Profile]) -> Result<(), String> {
+    validate_profiles(profiles)?;
     let parent = path.parent().ok_or("Dossier de profils absent")?;
     let mut tmp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
     serde_json::to_writer_pretty(&mut tmp, profiles).map_err(|e| e.to_string())?;
@@ -426,6 +458,9 @@ mod tests {
         save_profiles(
             &path,
             &[Profile {
+                id: "test".into(),
+                remember_token: false,
+                active: true,
                 name: "Test".into(),
                 url: "https://example.com/".into(),
             }],

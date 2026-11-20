@@ -16,6 +16,7 @@ semver = "1"
 sha2 = "0.10"
 tempfile = "3"
 url = "2"
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "vendored", "crypto-rust"] }
 
 [[bin]]
 name = "cpm"

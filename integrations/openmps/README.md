@@ -1,10 +1,11 @@
 # API compagnon pour OpenMPS
 
-Cette intégration contient trois commits serveur dans [`openmps-api-v1.patch`](openmps-api-v1.patch), préparés pour [gabidut/OpenMPS](https://github.com/gabidut/OpenMPS) à partir du commit `d475044df956cc0d3a818d92f993dcef39fdb192` :
+Cette intégration contient quatre commits serveur dans [`openmps-api-v1.patch`](openmps-api-v1.patch), préparés pour [gabidut/OpenMPS](https://github.com/gabidut/OpenMPS) à partir du commit `d475044df956cc0d3a818d92f993dcef39fdb192` :
 
 1. API d’administration avec jetons révocables, publication de versions immuables, génération des archives et routes de ressources.
 2. Documentation `API.md` et tests HTTP avec un serveur PHP réel.
 3. Récupération des packs éditables et de leurs ressources originales, réservée aux jetons disposant du droit `recover`. La suite comprend sept tests HTTP.
+4. Exposition des droits du jeton dans les capacités pour les clients multi-serveurs.
 
 Les changements sont proposés dans la [PR OpenMPS nº 1](https://github.com/gabidut/OpenMPS/pull/1), depuis la branche `Florent-Marc/OpenMPS:cpm-api-v1`. Aucun serveur n’a été déployé. Les exports locaux de CPM restent indépendants de cette API.
 
