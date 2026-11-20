@@ -228,7 +228,7 @@ impl Pack {
     }
 }
 
-fn check_existing(target: &Path, options: &ExportOptions) -> Result<(), String> {
+pub(crate) fn check_existing(target: &Path, options: &ExportOptions) -> Result<(), String> {
     let metadata = match fs::symlink_metadata(target) {
         Ok(metadata) => metadata,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),

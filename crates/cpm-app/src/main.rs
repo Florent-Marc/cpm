@@ -1112,6 +1112,15 @@ impl CpmApp {
             }
             if keep {
                 match dialog.show(&ctx) {
+                    export_dialog::Action::Review => {
+                        if let Some(pack) = &self.pack {
+                            dialog.prepare_review(
+                                pack.clone(),
+                                self.documents(),
+                                self.catalog.clone(),
+                            );
+                        }
+                    }
                     export_dialog::Action::Start => {
                         if let Some(pack) = &self.pack {
                             dialog.start(pack.clone(), self.documents(), self.catalog.clone());
