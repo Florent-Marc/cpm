@@ -8,6 +8,7 @@ mod editor;
 mod export_dialog;
 mod model_browser;
 mod navigation;
+mod openmps;
 mod parameter_input;
 mod preview;
 mod properties_editor;
@@ -43,6 +44,7 @@ fn main() -> eframe::Result {
             };
             app.load_properties();
             app.load_recent();
+            app.openmps.load_profiles();
             app.updater.check();
             Ok(Box::new(app))
         }),
@@ -52,6 +54,7 @@ fn main() -> eframe::Result {
 #[derive(Default)]
 struct CpmApp {
     gl: Option<std::sync::Arc<eframe::glow::Context>>,
+    openmps: openmps::OpenMps,
     preview: Option<preview::Preview>,
     preview_config: std::path::PathBuf,
     preview_source: String,
@@ -595,6 +598,9 @@ impl CpmApp {
     }
 
     fn modal(&self) -> bool {
+        if self.openmps.open || self.openmps.busy() {
+            return true;
+        }
         self.report.is_some()
             || self.export_dialog.is_some()
             || self.properties_editor.is_some()
@@ -689,6 +695,12 @@ impl CpmApp {
         } else {
             ctx.request_repaint_after(std::time::Duration::from_secs(60));
         }
+        if self.openmps.busy() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            if ctx.input(|i| i.viewport().close_requested()) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            }
+        }
         self.poll_validation();
         if self.validation_worker.is_some() {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
@@ -715,6 +727,8 @@ impl CpmApp {
             || self.creation.is_some()
             || self.manager.is_some()
             || self.report.is_some()
+            || self.openmps.open
+            || self.openmps.busy()
             || updating
             || self.restarting
         {
@@ -741,6 +755,11 @@ impl CpmApp {
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Publier sur OpenMPS…")).clicked(){
+                        let info=self.documents().get(std::path::Path::new("pack_info.dynx")).cloned().or_else(||self.pack.as_ref().and_then(|p|p.read_config(0).ok()));
+                        self.openmps.begin(info.as_ref().map(cpm_core::PackMetadata::from_document));ui.close();
+                    }
+
                     if ui.button("Créer").clicked(){self.creation=Some(creation::Creation::new(self.pack.is_some()));ui.close();}
                     ui.add_enabled_ui(!self.dirty(), |ui| {
                         ui.menu_button("Ouvrir récent", |ui| {
@@ -830,6 +849,8 @@ impl CpmApp {
                     }
                 });
                 ui.menu_button("Outils",|ui|{
+                    if ui.button("OpenMPS…").clicked(){self.openmps.begin(None);ui.close();}
+
                     if ui.button("Recherche").clicked(){self.search.open=true;ui.close();}
                     if ui.add_enabled(self.pack.is_some(),egui::Button::new("Modèles")).clicked(){self.model_browser=self.pack.as_ref().map(|p|model_browser::Browser::new(p.clone(),self.documents()));ui.close();}
                     if ui.add_enabled(self.pack.is_some(),egui::Button::new("Diagnostic")).clicked(){self.report=self.pack.as_ref().map(|p|report::Report::new(p.clone(),self.documents(),self.catalog.clone(),false));ui.close();}
@@ -1323,6 +1344,15 @@ impl CpmApp {
                 }
                 self.preview = Some(preview);
             }
+        }
+        if self.openmps.open || self.openmps.busy() {
+            self.openmps.show(
+                &ctx,
+                self.pack.as_ref(),
+                self.documents(),
+                self.catalog.clone(),
+                self.scene_revision(),
+            );
         }
         if self.confirm_close {
             egui::Window::new("Modifications non enregistrées")
@@ -2334,7 +2364,7 @@ mod tools_menu_tests {
     }
     #[test]
     fn tools_menu_opens_models_search_and_diagnostics() {
-        for tool in ["Modèles", "Recherche", "Diagnostic"] {
+        for tool in ["Modèles", "Recherche", "Diagnostic", "OpenMPS…"] {
             let t = tempfile::tempdir().unwrap();
             std::fs::write(
                 t.path().join("pack_info.dynx"),
@@ -2353,6 +2383,7 @@ mod tools_menu_tests {
             match tool {
                 "Modèles" => assert!(app.model_browser.is_some()),
                 "Recherche" => assert!(app.search.open),
+                "OpenMPS…" => assert!(app.openmps.open),
                 _ => assert!(app.report.is_some()),
             }
         }
