@@ -98,6 +98,17 @@ impl Editor {
             }
         }
     }
+    pub fn replace_document(&mut self, document: Document) {
+        self.checkpoint();
+        self.document = document;
+        self.values = self
+            .document
+            .properties()
+            .iter()
+            .map(|p| p.value.clone())
+            .collect();
+        self.checkpoint();
+    }
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty() || self.recorded != self.document.source()
     }

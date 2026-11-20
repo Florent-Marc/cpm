@@ -109,6 +109,9 @@ impl ParameterDefinition {
             .iter()
             .any(|p| p.section == section && (p.key == self.name || self.aliases.contains(&p.key)))
     }
+    pub fn accepts_value(&self, value: &str) -> bool {
+        self.valid_value(value)
+    }
     fn valid_value(&self, value: &str) -> bool {
         let value = value.trim();
         if value.is_empty() {

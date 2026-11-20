@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+mod bulk;
 mod creation;
 mod editor;
 mod export_dialog;
@@ -62,6 +63,7 @@ struct CpmApp {
     preview_due: Option<std::time::Instant>,
     search: search::Search,
     report: Option<report::Report>,
+    bulk: Option<bulk::Bulk>,
     model_browser: Option<model_browser::Browser>,
     creation: Option<creation::Creation>,
     manager: Option<creation::Manager>,
@@ -369,6 +371,54 @@ impl CpmApp {
         }
     }
 
+    fn apply_bulk_plan(&mut self, plan: cpm_core::BulkPlan) -> Result<usize, String> {
+        let pack = self.pack.as_ref().ok_or("Aucun pack ouvert")?;
+        let overrides = self.documents();
+        let mut prepared = Vec::new();
+        for change in plan.documents {
+            let index = pack
+                .configs()
+                .iter()
+                .position(|p| *p == change.path)
+                .ok_or("Configuration disparue ; préparer à nouveau")?;
+            let current = overrides
+                .get(&change.path)
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| pack.read_config(index))?;
+            if current.source() != change.before.source() {
+                return Err(
+                    "Une configuration a changé depuis le récapitulatif ; préparer à nouveau"
+                        .into(),
+                );
+            }
+            prepared.push((index, change));
+        }
+        if self.editor.is_none()
+            && prepared
+                .iter()
+                .any(|(i, _)| Some(*i) == self.selected_config)
+        {
+            return Err("Éditeur indisponible ; aucune modification appliquée".into());
+        }
+        let count = prepared.len();
+        for (index, change) in prepared {
+            let editor = if self.selected_config == Some(index) {
+                self.editor.as_mut().ok_or("Éditeur indisponible")?
+            } else {
+                self.cached
+                    .entry(index)
+                    .or_insert_with(|| Editor::from_document(change.before, &change.path))
+            };
+            editor.catalog = self.catalog.clone();
+            editor.replace_document(change.after);
+            self.validation.insert(index, editor.issues());
+        }
+        self.status =
+            format!("{count} configuration(s) modifiée(s) en mémoire ; exporter pour enregistrer");
+        Ok(count)
+    }
+
     fn adopt_export(&mut self, path: &std::path::Path) {
         match Pack::open(path) {
             Ok(pack) => {
@@ -602,6 +652,7 @@ impl CpmApp {
             return true;
         }
         self.report.is_some()
+            || self.bulk.is_some()
             || self.export_dialog.is_some()
             || self.properties_editor.is_some()
             || self.creation.is_some()
@@ -727,6 +778,7 @@ impl CpmApp {
             || self.creation.is_some()
             || self.manager.is_some()
             || self.report.is_some()
+            || self.bulk.is_some()
             || self.openmps.open
             || self.openmps.busy()
             || updating
@@ -849,6 +901,7 @@ impl CpmApp {
                     }
                 });
                 ui.menu_button("Outils",|ui|{
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Édition groupée…")).clicked(){self.bulk=Some(bulk::Bulk::default());ui.close();}
                     if ui.button("OpenMPS…").clicked(){self.openmps.begin(None);ui.close();}
 
                     if ui.button("Recherche").clicked(){self.search.open=true;ui.close();}
@@ -1191,6 +1244,23 @@ impl CpmApp {
                 self.pending_scroll = Some(hit.section);
             }
         }
+        if let Some(mut window) = self.bulk.take() {
+            let action = self
+                .pack
+                .as_ref()
+                .map(|pack| window.show(&ctx, pack, self.documents(), self.catalog.clone()))
+                .unwrap_or(bulk::Action::Close);
+            match action {
+                bulk::Action::None => self.bulk = Some(window),
+                bulk::Action::Close => {}
+                bulk::Action::Apply(plan) => {
+                    if let Err(e) = self.apply_bulk_plan(plan) {
+                        window.error = Some(e);
+                        self.bulk = Some(window);
+                    }
+                }
+            }
+        }
         if let Some(mut report) = self.report.take() {
             match report.show(&ctx) {
                 report::Action::None => self.report = Some(report),
@@ -1370,6 +1440,7 @@ impl CpmApp {
                 self.catalog.clone(),
                 self.scene_revision(),
             );
+
         }
         if self.confirm_close {
             egui::Window::new("Modifications non enregistrées")
@@ -2419,5 +2490,74 @@ mod tools_menu_tests {
         assert!(app.report.is_some());
         assert!(app.export_dialog.is_none());
         assert!(app.modal());
+    }
+}
+
+#[cfg(test)]
+mod bulk_apply_tests {
+    use super::*;
+    #[test]
+    fn bulk_changes_preserve_each_file_history_and_conflicts_apply_nothing() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(
+            root.path().join("pack_info.dynx"),
+            "PackName: Demo\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        for p in ["engine_a.dynx", "engine_b.dynx"] {
+            std::fs::write(
+                root.path().join(p),
+                "Power: 100\nMaxRPM: 5000\nBraking: 10\n",
+            )
+            .unwrap();
+        }
+        let mut app = CpmApp::default();
+        app.open_selection(root.path());
+        let request = cpm_core::BulkRequest {
+            paths: ["engine_a.dynx".into(), "engine_b.dynx".into()]
+                .into_iter()
+                .collect(),
+            parameter: "Power".into(),
+            value: "250".into(),
+            ..Default::default()
+        };
+        let plan = app
+            .pack
+            .as_ref()
+            .unwrap()
+            .plan_bulk_edit(&request, &app.documents(), &app.catalog)
+            .unwrap();
+        std::fs::write(
+            root.path().join("engine_b.dynx"),
+            "Power: 999\nMaxRPM: 5000\nBraking: 10\n",
+        )
+        .unwrap();
+        assert!(app.apply_bulk_plan(plan).is_err());
+        assert!(app.cached.is_empty());
+        let plan = app
+            .pack
+            .as_ref()
+            .unwrap()
+            .plan_bulk_edit(&request, &app.documents(), &app.catalog)
+            .unwrap();
+        assert_eq!(app.apply_bulk_plan(plan).unwrap(), 2);
+        let index = app
+            .pack
+            .as_ref()
+            .unwrap()
+            .configs()
+            .iter()
+            .position(|p| p == std::path::Path::new("engine_a.dynx"))
+            .unwrap();
+        let editor = app.cached.get_mut(&index).unwrap();
+        assert!(editor.document.source().contains("Power: 250"));
+        assert!(editor.is_dirty());
+        assert!(editor.undo());
+        assert!(editor.document.source().contains("Power: 100"));
+        assert!(editor.redo());
+        assert!(editor.document.source().contains("Power: 250"));
+        assert!(std::fs::read_to_string(root.path().join("engine_a.dynx"))
+            .unwrap()
+            .contains("Power: 100"));
     }
 }
