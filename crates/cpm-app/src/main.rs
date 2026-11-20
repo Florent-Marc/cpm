@@ -867,7 +867,10 @@ impl CpmApp {
                         Err(error) => self.error = Some(error),
                     }
                 }
-                ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/");
+                ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/")
+                    .on_hover_text("Documentation DynamX : syntaxe et paramètres des packs");
+                ui.hyperlink_to("Aide CPM", "https://github.com/Florent-Marc/cpm/wiki")
+                    .on_hover_text("Guides CPM : installation, création de packs et aperçu 3D");
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
                 }

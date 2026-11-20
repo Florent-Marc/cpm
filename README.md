@@ -3,6 +3,10 @@
 Éditeur de packs [DynamX](https://wiki.dynamx.fr/fr/) en Rust, avec une interface
 de bureau egui. Cette branche contient uniquement la version Rust.
 
+## Aide et documentation
+
+Le [wiki CPM](https://github.com/Florent-Marc/cpm/wiki) accompagne les utilisateurs : premiers pas, création de packs, aperçu 3D et collisions, propriétés et addons, exports et OpenMPS. Dans l’application, **Aide CPM** ouvre ces guides et **Wiki** ouvre la documentation DynamX.
+
 ## Fonctionnalités
 
 - Import de dossiers de packs et d'archives ZIP, DNXPACK ou RAR non chiffrées.

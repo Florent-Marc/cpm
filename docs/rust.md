@@ -46,7 +46,7 @@ Un environnement graphique de bureau et un pilote OpenGL sont nécessaires.
 6. Utiliser **File → Exporter** pour enregistrer le pack entier. Pour un fichier
    `.dynx` isolé, cette commande ouvre un sélecteur de fichier de sortie.
 7. **Wiki**, à côté de **File**, ouvre directement la documentation DynamX
-   dans le navigateur par défaut.
+   dans le navigateur par défaut. **Aide CPM** ouvre le [wiki utilisateur de CPM](https://github.com/Florent-Marc/cpm/wiki).
 
 La navigation ne perd pas les modifications des autres configurations.
 **File → Annuler les modifications du fichier** restaure uniquement le fichier actif
