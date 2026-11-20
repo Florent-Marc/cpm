@@ -10,7 +10,7 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 - Champs adaptés aux types, descriptions au survol, diagnostic cliquable des paramètres et références.
 - Ajout, modification et suppression de paramètres ; signalement des champs
   obligatoires connus et contrôle avant export.
-- Création de packs et configurations ; bouton crayon pour créer, importer ou supprimer des fichiers `.dynx`.
+- Assistant de création par étapes : import OBJ/MTL/textures, propriétés expliquées, roues existantes ou nouvelles, moteur de départ, siège et collision ; bouton crayon pour gérer les fichiers `.dynx`.
 - Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
   explicite d'une sortie existante.
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification
@@ -19,6 +19,8 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 Le bouton **Aperçu 3D**, à côté du nom de la configuration, affiche les modèles OBJ présents dans le pack avec rotation, zoom et déplacement. Les matériaux MTL et leurs textures diffuses sont affichés ; la liste des pièces permet de les masquer ou de les isoler. L’aperçu se met à jour après les modifications, assemble les roues et le volant, affiche les boîtes de collision en fil de fer et propose les variantes diffuses DynamX. La sélection 3D rejoint la configuration ; les flèches permettent de déplacer les pièces et redimensionner les boîtes. Les animations restent à ajouter. Le catalogue des paramètres n'est pas un validateur exhaustif de tous les addons DynamX.
 
 Les nouvelles commandes sont regroupées dans **Outils** : **Recherche**, **Modèles**, **Diagnostic**. Voir le [guide des outils d’édition](docs/editor-tools.md).
+
+Voir aussi le [guide de création pas à pas](docs/creation-wizard.md).
 
 ## Démarrer
 

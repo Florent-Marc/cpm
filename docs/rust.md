@@ -348,7 +348,7 @@ Les textures sont chargées sur le même thread de travail que la géométrie. L
 
 ## Créer et gérer les configurations
 
-**File → Créer** ouvre un formulaire permettant de choisir un nouveau pack ou une configuration : véhicule, moteur, roue, sons, remorque, bateau, hélicoptère, bloc, prop, item, armure ou fichier personnalisé pour un addon.
+**File → Créer** ouvre un assistant guidé permettant de choisir un nouveau pack ou une configuration : véhicule, moteur, roue, sons, remorque, bateau, hélicoptère, bloc, prop, item, armure ou fichier personnalisé pour un addon.
 
 Pour un pack, renseigner le nom, la version, `DcFileVersion` et la description. CPM prépare un brouillon avec son `pack_info.dynx` ; **File → Exporter** permet ensuite de choisir la destination et le format (dossier, ZIP ou DNXPACK). Le brouillon n’est pas ajouté aux packs récents avant son premier export. **File → Abandonner le brouillon** permet de le fermer sans créer de sortie.
 
@@ -386,3 +386,8 @@ Les quaternions de configuration DynamX (`Rotation`, `SuspensionAxis`) sont lus 
 ## Nouveaux outils d’édition
 
 Voir [le guide des outils](editor-tools.md) pour l’historique, la recherche, le diagnostic, l’arbre de modèles, les variantes et les poignées 3D.
+
+
+## Assistant de création
+
+Le nouveau parcours importe les modèles, matériaux et textures en mémoire, prépare les roues et les autres éléments en un seul lot et ne modifie le pack qu’après confirmation du récapitulatif. Voir [le guide de création pas à pas](creation-wizard.md). Les ressources préparées sont utilisables dans l’aperçu avant export. Annuler les ajouts et suppressions retire aussi ces ressources préparées.
