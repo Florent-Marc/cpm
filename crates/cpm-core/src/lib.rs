@@ -42,3 +42,5 @@ pub use openmps::{
     validate_mps_client_archive, validate_mps_key, validate_mps_version, PreparedOpenMps,
     PublicationReport,
 };
+
+mod gltf;

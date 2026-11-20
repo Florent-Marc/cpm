@@ -13,3 +13,5 @@ serde_json = "1"
 glob = "0.3"
 tobj = { version = "4", default-features = false }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "bmp"] }
+gltf = { version = "1.4.1", default-features = false, features = ["utils", "names"] }
+base64 = "0.22"

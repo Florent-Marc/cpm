@@ -165,7 +165,7 @@ impl Preview {
             }
         }
         let mut open = true;
-        egui::Window::new("Aperçu 3D — OBJ").open(&mut open).default_size([760.0,560.0]).min_size([360.0,300.0]).resizable(true).collapsible(false).show(ctx, |ui| {
+        egui::Window::new("Aperçu 3D — modèle").open(&mut open).default_size([760.0,560.0]).min_size([360.0,300.0]).resizable(true).collapsible(false).show(ctx, |ui| {
             ui.label(&self.path);
             ui.horizontal_wrapped(|ui| {
                 if ui.button("Recentrer").clicked() { self.yaw = -0.6; self.pitch=0.25; self.zoom=0.9; self.pan=egui::Vec2::ZERO; }

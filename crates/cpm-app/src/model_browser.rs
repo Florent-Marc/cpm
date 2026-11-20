@@ -21,7 +21,7 @@ impl Browser {
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
             let mut models: BTreeMap<_, Vec<_>> = pack
-                .obj_resources()
+                .model_resources()
                 .into_iter()
                 .map(|p| (p, Vec::new()))
                 .collect();
@@ -38,10 +38,9 @@ impl Browser {
                         .find(|p| p.section.is_none() && p.key == "Model")
                     {
                         if let Ok(asset) = pack.resolve_asset(path, &model.value) {
-                            if asset
-                                .extension()
-                                .is_some_and(|e| e.eq_ignore_ascii_case("obj"))
-                            {
+                            if asset.extension().is_some_and(|e| {
+                                e.eq_ignore_ascii_case("obj") || e.eq_ignore_ascii_case("gltf")
+                            }) {
                                 models.entry(asset).or_default().push((index, path.clone()));
                             }
                         }
@@ -80,7 +79,7 @@ impl Browser {
         }
         let mut open = true;
         let mut selected = None;
-        egui::Window::new("Modèles OBJ du pack").open(&mut open).default_size([500.0,420.0]).show(ctx,|ui|{
+        egui::Window::new("Modèles OBJ / glTF du pack").open(&mut open).default_size([500.0,420.0]).show(ctx,|ui|{
             ui.text_edit_singleline(&mut self.filter);ui.weak("Seul le modèle choisi est chargé en 3D. Les configurations assemblent aussi leurs roues et leur volant.");
             if self.receiver.is_some(){ui.spinner();}
             if let Some(error)=&self.error{ui.colored_label(egui::Color32::LIGHT_RED,error);}
@@ -90,7 +89,7 @@ impl Browser {
                     if !path.to_string_lossy().to_lowercase().contains(&query)&&!configs.iter().any(|(_,p)|p.to_string_lossy().to_lowercase().contains(&query)){continue;}
                     egui::CollapsingHeader::new(path.file_name().unwrap_or_default().to_string_lossy()).id_salt(path).show(ui,|ui|{
                         ui.weak(path.display().to_string());
-                        if ui.button("Aperçu OBJ seul").clicked(){selected=Some(Selection::Asset(path.clone()));}
+                        if ui.button("Aperçu du modèle seul").clicked(){selected=Some(Selection::Asset(path.clone()));}
                         for (index,config) in configs {if ui.button(crate::navigation::config_label(config)).on_hover_text(config.display().to_string()).clicked(){selected=Some(Selection::Config(*index));}}
                     });
                 }

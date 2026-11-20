@@ -25,6 +25,10 @@ Si un MTL ou une image manque, le contrôle indique ce qu’il faut sélectionne
 
 Limites : OBJ de 32 Mio, MTL de 4 Mio, image compressée de 32 Mio, dimensions d’image de 4096 × 4096, au plus 1024 ressources et 256 Mio de ressources préparées dans le pack. Le chargeur 3D conserve ses limites supplémentaires sur les triangles et les pixels décodés.
 
+### Modèles glTF (DynamX bêta)
+
+Cocher **Oui, j’utilise DynamX bêta (autoriser le glTF)** avant de sélectionner un `.gltf` ou de réutiliser un tel modèle pour une nouvelle configuration. Sans confirmation, l’ajout est bloqué. Pour un glTF externe, sélectionner ses buffers `.bin` et ses images ; ses matériaux sont déjà intégrés au JSON. Le GLB n’est pas proposé. Voir le [guide glTF et ses limites](gltf.md).
+
 ## 3. Propriétés
 
 L’assistant utilise le catalogue actif, y compris les paramètres d’addons. Il explique les paramètres au survol et utilise les champs adaptés à leurs types. Les erreurs sont signalées en rouge. Le champ Model est rempli à partir du modèle choisi, plutôt que demandé comme chemin à saisir.

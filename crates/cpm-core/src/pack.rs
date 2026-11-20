@@ -307,6 +307,19 @@ impl Pack {
             .cloned()
             .collect()
     }
+    /// Models supported by the static preview; GLB is intentionally excluded.
+    pub fn model_resources(&self) -> Vec<PathBuf> {
+        self.resources
+            .keys()
+            .chain(self.imported.keys())
+            .filter(|p| {
+                p.extension().is_some_and(|e| {
+                    e.eq_ignore_ascii_case("obj") || e.eq_ignore_ascii_case("gltf")
+                })
+            })
+            .cloned()
+            .collect()
+    }
     pub fn contains_resource(&self, path: &Path) -> bool {
         self.resources.contains_key(path) || self.imported.contains_key(path)
     }

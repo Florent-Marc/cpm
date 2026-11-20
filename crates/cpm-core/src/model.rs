@@ -84,9 +84,9 @@ impl ObjRequest {
         }
         if !candidates[0]
             .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("obj"))
+            .is_some_and(|e| e.eq_ignore_ascii_case("obj") || e.eq_ignore_ascii_case("gltf"))
         {
-            return Err("L’aperçu prend en charge les modèles .obj".into());
+            return Err("L’aperçu prend en charge les modèles .obj et .gltf (DynamX bêta)".into());
         }
         for path in candidates {
             let exists = if let Some(pack) = pack {
@@ -106,9 +106,9 @@ impl ObjRequest {
                 });
             }
         }
-        Err(format!("Modèle OBJ absent du pack : {value}"))
+        Err(format!("Modèle absent du pack : {value}"))
     }
-    fn read(&self, path: &Path, limit: u64) -> Result<Vec<u8>, String> {
+    pub(crate) fn read(&self, path: &Path, limit: u64) -> Result<Vec<u8>, String> {
         if let Some(pack) = &self.pack {
             return pack.read_resource(path, limit);
         }
@@ -185,12 +185,21 @@ impl ObjRequest {
         crate::scene::assemble(self)
     }
     pub(crate) fn load_geometry(&self) -> Result<ObjMesh, String> {
-        ObjMesh::parse_with(&self.read(&self.path, MAX_OBJ_BYTES)?, Some(self))
+        let bytes = self.read(&self.path, MAX_OBJ_BYTES)?;
+        if self
+            .path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("gltf"))
+        {
+            crate::gltf::load(&bytes, &self.path, |p, limit| self.read(p, limit))
+        } else {
+            ObjMesh::parse_with(&bytes, Some(self))
+        }
     }
 }
 
 /// Chemin relatif au fichier qui le référence, en autorisant ../ à l’intérieur du pack.
-fn related_path(base: &Path, value: &str) -> Result<PathBuf, String> {
+pub(crate) fn related_path(base: &Path, value: &str) -> Result<PathBuf, String> {
     let value = value.trim().trim_matches('"').replace('\\', "/");
     if value.is_empty() || value.starts_with('/') || value.contains('\0') {
         return Err("Chemin de ressource invalide".into());
@@ -566,7 +575,7 @@ impl ObjMesh {
     }
 }
 
-fn decode_texture(path: &Path, bytes: Vec<u8>) -> Result<ObjTexture, String> {
+pub(crate) fn decode_texture(path: &Path, bytes: Vec<u8>) -> Result<ObjTexture, String> {
     let format = image::guess_format(&bytes)
         .ok()
         .or_else(|| image::ImageFormat::from_path(path).ok())

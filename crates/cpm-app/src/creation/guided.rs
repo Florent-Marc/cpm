@@ -31,17 +31,36 @@ pub(super) struct ModelChoice {
 }
 impl ModelChoice {
     pub fn path(&self, folder: &Path) -> Option<PathBuf> {
-        self.files
+        let path = self
+            .files
             .obj
             .as_ref()
-            .map(|_| folder.join("model.obj"))
-            .or_else(|| self.existing.clone())
+            .map(|p| {
+                folder.join(
+                    if p.extension()
+                        .is_some_and(|e| e.eq_ignore_ascii_case("gltf"))
+                    {
+                        "model.gltf"
+                    } else {
+                        "model.obj"
+                    },
+                )
+            })
+            .or_else(|| self.existing.clone());
+        path.filter(|p| {
+            !p.extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("gltf"))
+                || self.files.dynamx_beta_confirmed
+        })
     }
     pub fn prepare(
         &self,
         folder: &Path,
         assets: &mut BTreeMap<PathBuf, Vec<u8>>,
     ) -> Result<PathBuf, String> {
+        if self.path(folder).is_none() {
+            return Err("Choisir un modèle et confirmer DynamX bêta pour un glTF".into());
+        }
         if self.files.obj.is_some() {
             let prepared = self.files.prepare(folder)?;
             for (p, b) in prepared.assets {
@@ -53,27 +72,45 @@ impl ModelChoice {
         } else {
             self.existing
                 .clone()
-                .ok_or_else(|| "Choisir un OBJ dans le pack ou importer un modèle".into())
+                .ok_or_else(|| "Choisir un modèle dans le pack ou importer un modèle".into())
         }
     }
     pub fn ui(&mut self, ui: &mut egui::Ui, pack: Option<&Pack>, id: &str) {
-        ui.push_id(id,|ui|{
-            if let Some(pack)=pack {
-                egui::ComboBox::from_id_salt("existing-model").selected_text(self.existing.as_ref().map(|p|p.display().to_string()).unwrap_or("Choisir un OBJ déjà dans le pack…".into())).show_ui(ui,|ui|{
-                    for path in pack.obj_resources(){if ui.selectable_label(self.existing.as_ref()==Some(&path),path.display().to_string()).clicked(){self.existing=Some(path);self.files=ModelFiles::default();}}
+        ui.push_id(id, |ui| {
+            ui.colored_label(egui::Color32::YELLOW, "glTF : utilisez-vous bien la version bêta de DynamX ? Sans confirmation, l’ajout de modèles .gltf est désactivé. GLB non accepté.");
+            ui.checkbox(&mut self.files.dynamx_beta_confirmed, "Oui, j’utilise DynamX bêta (autoriser le glTF)");
+            let beta = self.files.dynamx_beta_confirmed;
+            if let Some(pack) = pack {
+                egui::ComboBox::from_id_salt("existing-model").selected_text(self.existing.as_ref().map(|p|p.display().to_string()).unwrap_or("Choisir un modèle déjà dans le pack…".into())).show_ui(ui,|ui|{
+                    for path in pack.model_resources() {
+                        let allowed = beta || !path.extension().is_some_and(|e|e.eq_ignore_ascii_case("gltf"));
+                        if ui.add_enabled(allowed,egui::Button::selectable(self.existing.as_ref()==Some(&path),path.display().to_string())).clicked(){self.existing=Some(path);self.files=ModelFiles {dynamx_beta_confirmed:beta,..Default::default()};}
+                    }
                 });
             }
-            if ui.button("Choisir un fichier OBJ…").clicked(){if let Some(path)=rfd::FileDialog::new().add_filter("Modèle Wavefront OBJ",&["obj"]).pick_file(){self.existing=None;self.files=ModelFiles{obj:Some(path),..Default::default()};}}
+            if ui.button(if beta {"Choisir un fichier OBJ ou glTF…"}else{"Choisir un fichier OBJ…"}).clicked(){
+                let extensions: &[&str] = if beta {&["obj","gltf"]}else{&["obj"]};
+                if let Some(path)=rfd::FileDialog::new().add_filter("Modèle 3D",extensions).pick_file(){self.existing=None;self.files=ModelFiles {obj:Some(path),dynamx_beta_confirmed:beta,..Default::default()};}
+            }
             if let Some(path)=&self.files.obj {ui.monospace(path.display().to_string());}
             if self.files.obj.is_some(){
-                ui.checkbox(&mut self.files.untextured,"Importer sans matériaux ni textures").on_hover_text("Retire les références aux matériaux dans la copie importée ; vos fichiers originaux sont conservés.");
-                ui.add_enabled_ui(!self.files.untextured,|ui|{
-                    ui.label("Le MTL décrit les matériaux et indique quelles images utiliser. Sélectionnez tous les MTL et toutes les images employés par cet OBJ.");
-                    if ui.button("Ajouter un ou plusieurs MTL…").clicked(){if let Some(paths)=rfd::FileDialog::new().add_filter("Matériaux MTL",&["mtl","mlt"]).pick_files(){for path in paths{if !self.files.materials.contains(&path){self.files.materials.push(path);}}}}
-                    file_list(ui,&mut self.files.materials,"mtls");
-                    if ui.button("Ajouter des textures…").clicked(){if let Some(paths)=rfd::FileDialog::new().add_filter("Textures",&["png","jpg","jpeg","tga","bmp"]).pick_files(){for path in paths{if !self.files.textures.contains(&path){self.files.textures.push(path);}}}}
+                let gltf=self.files.obj.as_ref().is_some_and(|p|p.extension().is_some_and(|e|e.eq_ignore_ascii_case("gltf")));
+                if gltf {
+                    ui.label("Le glTF contient ses matériaux. Ajouter les buffers .bin et les images référencées ; les fichiers intégrés en base64 n’ont pas à être sélectionnés. Aperçu statique sans animations ni rendu PBR complet.");
+                    if ui.button("Ajouter les buffers BIN…").clicked(){if let Some(paths)=rfd::FileDialog::new().add_filter("Buffers glTF",&["bin"]).pick_files(){for path in paths {if !self.files.materials.contains(&path){self.files.materials.push(path);}}}}
+                    file_list(ui,&mut self.files.materials,"buffers");
+                } else {
+                    ui.checkbox(&mut self.files.untextured,"Importer sans matériaux ni textures");
+                    if !self.files.untextured {
+                        ui.label("Le MTL décrit les matériaux. Sélectionner tous les MTL et toutes les images de cet OBJ.");
+                        if ui.button("Ajouter un ou plusieurs MTL…").clicked(){if let Some(paths)=rfd::FileDialog::new().add_filter("Matériaux MTL",&["mtl","mlt"]).pick_files(){for path in paths {if !self.files.materials.contains(&path){self.files.materials.push(path);}}}}
+                        file_list(ui,&mut self.files.materials,"mtls");
+                    }
+                }
+                if gltf || !self.files.untextured {
+                    if ui.button("Ajouter des textures…").clicked(){if let Some(paths)=rfd::FileDialog::new().add_filter("Textures",&["png","jpg","jpeg","tga","bmp"]).pick_files(){for path in paths {if !self.files.textures.contains(&path){self.files.textures.push(path);}}}}
                     file_list(ui,&mut self.files.textures,"textures");
-                });
+                }
             }
         });
     }
@@ -1305,5 +1342,30 @@ mod engine_tests {
                 < document.source().find("SpeedRange: 0 0").unwrap()
         );
         assert!(document.source().contains("RPMPower: 6000 1"));
+    }
+}
+
+#[cfg(test)]
+mod gltf_gate_tests {
+    use super::*;
+    #[test]
+    fn reusing_a_gltf_requires_beta_even_when_skipping_property_errors() {
+        let mut choice = ModelChoice {
+            existing: Some("models/car.gltf".into()),
+            files: ModelFiles::default(),
+        };
+        let folder = Path::new("models/new");
+        assert!(choice.path(folder).is_none());
+        assert!(choice.prepare(folder, &mut BTreeMap::new()).is_err());
+        choice.files.dynamx_beta_confirmed = true;
+        assert_eq!(choice.path(folder), choice.existing);
+        assert_eq!(
+            choice.prepare(folder, &mut BTreeMap::new()).unwrap(),
+            PathBuf::from("models/car.gltf")
+        );
+        choice.files.dynamx_beta_confirmed = false;
+        assert!(choice.prepare(folder, &mut BTreeMap::new()).is_err());
+        choice.existing = Some("models/car.obj".into());
+        assert!(choice.path(folder).is_some());
     }
 }

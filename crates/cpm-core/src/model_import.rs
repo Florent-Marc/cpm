@@ -11,6 +11,8 @@ pub struct ModelFiles {
     pub materials: Vec<PathBuf>,
     pub textures: Vec<PathBuf>,
     pub untextured: bool,
+    /// Explicit confirmation, required only for glTF imports.
+    pub dynamx_beta_confirmed: bool,
 }
 #[derive(Debug)]
 pub struct PreparedModel {
@@ -18,7 +20,7 @@ pub struct PreparedModel {
     pub assets: BTreeMap<PathBuf, Vec<u8>>,
     pub notes: Vec<String>,
 }
-fn read(path: &Path, max: u64) -> Result<Vec<u8>, String> {
+pub(crate) fn read(path: &Path, max: u64) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     File::open(path)
         .map_err(|e| format!("{} : {e}", path.display()))?
@@ -40,7 +42,7 @@ fn base(value: &str) -> String {
         .unwrap_or("")
         .to_lowercase()
 }
-fn selected(paths: &[PathBuf]) -> Result<BTreeMap<String, &PathBuf>, String> {
+pub(crate) fn selected(paths: &[PathBuf]) -> Result<BTreeMap<String, &PathBuf>, String> {
     let mut map = BTreeMap::new();
     for path in paths {
         let name = base(
@@ -60,20 +62,25 @@ fn selected(paths: &[PathBuf]) -> Result<BTreeMap<String, &PathBuf>, String> {
 }
 impl ModelFiles {
     pub fn prepare(&self, folder: &Path) -> Result<PreparedModel, String> {
-        let obj = self.obj.as_ref().ok_or("Choisir un modèle OBJ")?;
-        if !obj
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("obj"))
-        {
-            return Err("Choisir un fichier .obj".into());
-        }
-        // Validate all destination components before reading selected external files.
         let folder = crate::pack::safe_archive_path(&folder.to_string_lossy())?;
         for component in folder.components() {
             crate::export::validate_filename(&component.as_os_str().to_string_lossy())?;
         }
         if self.materials.len() + self.textures.len() > 1023 {
-            return Err("Trop de fichiers sélectionnés (maximum 1024)".into());
+            return Err("Trop de fichiers sélectionnés".into());
+        }
+        let obj = self.obj.as_ref().ok_or("Choisir un modèle OBJ ou glTF")?;
+        if obj
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("gltf"))
+        {
+            return crate::gltf::prepare(self, &folder);
+        }
+        if !obj
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("obj"))
+        {
+            return Err("Choisir un fichier .obj".into());
         }
         selected(&self.materials)?;
         let texture_sources = selected(&self.textures)?;

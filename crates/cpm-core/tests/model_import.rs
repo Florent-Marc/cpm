@@ -22,6 +22,7 @@ fn files(root: &Path) -> ModelFiles {
         materials: vec![root.join("chosen.mtl")],
         textures: vec![root.join("paint.png")],
         untextured: false,
+        dynamx_beta_confirmed: false,
     }
 }
 #[test]
@@ -149,6 +150,7 @@ fn multiple_mtls_and_texture_names_with_spaces_remain_linked_in_preview() {
             source.path().join("blue.png"),
         ],
         untextured: false,
+        dynamx_beta_confirmed: false,
     };
     let prepared = files.prepare(Path::new("models/car")).unwrap();
     let doc = Document::parse(&format!("Model: {}\n", prepared.model.display())).unwrap();

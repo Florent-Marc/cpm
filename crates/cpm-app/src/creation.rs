@@ -300,7 +300,7 @@ impl Creation {
                 if self.kind.has_model()&&(pack.is_none()||self.guide.new_pack){return self.pack_document().map(|_|()).err();}
                 None
             }
-            Step::Assets=>self.path().ok().and_then(|p|self.guide.model.path(&guided::folder(&p))).is_none().then(||"Choisir un OBJ avant de continuer. Le MTL et les images sont facultatifs seulement si le modèle n’en utilise pas, ou si l’import sans matériaux est choisi.".into()),
+            Step::Assets=>self.path().ok().and_then(|p|self.guide.model.path(&guided::folder(&p))).is_none().then(||"Choisir un modèle avant de continuer. Pour un glTF, confirmer l’utilisation de DynamX bêta. Sélectionner aussi ses fichiers BIN et images.".into()),
             Step::Properties=>{
                 if self.guide.allow_incomplete{return None;}
                 let path=self.path().ok()?;let mut document=Document::parse("").unwrap();
@@ -366,7 +366,7 @@ impl Creation {
                         }else{ui.weak(if pack.is_some(){"Les fichiers seront ajoutés au pack ouvert lors de la création, puis sauvegardés à l’export."}else{"Cette configuration sera créée seule ; File → Exporter permettra de l’enregistrer."});}
                     }
                     Step::Assets=>{
-                        ui.label("L’OBJ contient la forme 3D. Le MTL contient les matériaux ; les images sont les textures. Sélectionnez les fichiers utilisés par ce modèle, même s’ils sont dans des dossiers différents.");
+                        ui.label("Choisir un OBJ avec ses MTL et textures, ou un glTF avec ses fichiers BIN et images. Le glTF nécessite DynamX bêta ; le GLB n’est pas accepté.");
                         self.guide.model.ui(ui,target_pack,"object-model");
                         if let Ok(path)=self.path(){if let Some(model)=self.guide.model.path(&guided::folder(&path)){ui.separator();ui.label("Chemin du modèle dans le pack après import");ui.monospace(model.display().to_string());}}
                         ui.weak("Vos originaux ne sont pas modifiés. Les dépendances seront vérifiées et leurs chemins réécrits automatiquement avant la création.");
