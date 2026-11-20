@@ -49,6 +49,9 @@ pub fn input(
                 };
                 if parts.len() == labels.len() {
                     let mut changed = false;
+                    let component_width = ((ui.available_width() - labels.len() as f32 * 30.0)
+                        / labels.len() as f32)
+                        .clamp(35.0, 85.0);
                     let decimal = ParameterDefinition {
                         variable_type: VariableType::Decimal,
                         ..Default::default()
@@ -59,7 +62,7 @@ pub fn input(
                                 ui.label(*label);
                                 ui.push_id(i, |ui| {
                                     ui.scope(|ui| {
-                                        ui.set_max_width(85.0);
+                                        ui.set_max_width(component_width);
                                         changed |=
                                             text_input(ui, part, Some(&decimal), color).changed();
                                     });
@@ -101,7 +104,9 @@ fn text_input(
         edit = edit.text_color(color);
     }
     let response = ui.add(edit);
-    if definition.is_some_and(|d| d.name == "MaxRPM" || d.name == "RPMRange") { ui.small("Unité : tr/min"); }
+    if definition.is_some_and(|d| d.name == "MaxRPM" || d.name == "RPMRange") {
+        ui.small("Unité : tr/min");
+    }
     if buffer.rejected {
         *buffer.value = old;
         ui.ctx().request_repaint();

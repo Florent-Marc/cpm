@@ -74,12 +74,12 @@ impl Bulk {
                 if ui.button("Préparer les modifications").clicked(){prepare=true;}
                 if let Some((key,plan))=&self.plan {if *key==self.key(){
                     ui.separator();ui.label(format!("{} fichier(s) seront modifiés",plan.documents.len()));
-                    egui::ScrollArea::vertical().id_salt("bulk-summary").max_height(220.).show(ui,|ui|{for doc in &plan.documents {ui.collapsing(doc.path.display().to_string(),|ui|{for change in cpm_core::parameter_changes(Some(&doc.before),Some(&doc.after)){ui.label(format!("{} : {} → {}",change.parameter,change.before.as_deref().unwrap_or("(absent)"),change.after.as_deref().unwrap_or("(absent)")));}});}for warning in &plan.warnings{ui.colored_label(egui::Color32::YELLOW,warning);}});
+                    egui::ScrollArea::vertical().id_salt("bulk-summary").max_height(220.).show(ui,|ui|{for doc in &plan.documents {ui.collapsing(doc.path.display().to_string(),|ui|{for change in cpm_core::parameter_changes(Some(&doc.before),Some(&doc.after)){ui.label(format!("{} : {} → {}",change.parameter,change.before.as_deref().unwrap_or("(absent)"),change.after.as_deref().unwrap_or("(absent)")));}});}for warning in &plan.warnings{ui.colored_label(crate::theme::WARNING,warning);}});
                     if ui.add_enabled(!plan.documents.is_empty(),egui::Button::new("Appliquer ces modifications aux fichiers sélectionnés")).clicked(){apply=true;}
                 }}
             });
             if self.worker.is_some(){ui.spinner();ctx.request_repaint_after(std::time::Duration::from_millis(100));}
-                if let Some(e)=&self.error {ui.colored_label(egui::Color32::LIGHT_RED,e);}
+                if let Some(e)=&self.error {ui.colored_label(crate::theme::ERROR,e);}
         });
         if !open {
             return Action::Close;

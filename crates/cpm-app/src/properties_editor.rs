@@ -126,14 +126,14 @@ impl PropertiesEditor {
                             for (index,parameter) in rule.parameters.iter().enumerate(){
                                 let problem=definition_problem(rule,index);
                                 let mut label=egui::RichText::new(&parameter.name);
-                                if problem.is_some(){label=label.color(egui::Color32::LIGHT_RED);}
+                                if problem.is_some(){label=label.color(crate::theme::ERROR);}
                                 if ui.selectable_value(&mut self.parameter,index,label).on_hover_text(problem.unwrap_or_default()).changed(){self.fields_for=None;}
                             }
                         });
                         let problem=definition_problem(rule,self.parameter);
                         if let Some(parameter)=rule.parameters.get_mut(self.parameter){
                             let ui=&mut columns[1];
-                            if let Some(message)=&problem{ui.colored_label(egui::Color32::LIGHT_RED,message);}
+                            if let Some(message)=&problem{ui.colored_label(crate::theme::ERROR,message);}
                             ui.horizontal(|ui|{ui.label("Paramètre");ui.text_edit_singleline(&mut parameter.name);});
                             ui.label("Description (affichée au survol)");
                             ui.add(egui::TextEdit::multiline(&mut parameter.description).desired_rows(3));
@@ -154,7 +154,7 @@ impl PropertiesEditor {
                 }
             }
             ui.separator();
-            if let Some(error)=&self.error{ui.colored_label(egui::Color32::LIGHT_RED,error);}
+            if let Some(error)=&self.error{ui.colored_label(crate::theme::ERROR,error);}
             ui.horizontal_wrapped(|ui|{
                 if ui.button("Enregistrer et appliquer").clicked(){match self.save(){Ok((catalog,warnings))=>action=Action::Applied(catalog,warnings),Err(error)=>self.error=Some(error)}}
                 if ui.button("Fermer sans appliquer").clicked(){action=Action::Close;}

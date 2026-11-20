@@ -164,7 +164,7 @@ impl ExportDialog {
             .show(ctx, |ui| {
                 ui.add_enabled_ui(!busy, |ui| {
                     if self.force {
-                        ui.colored_label(egui::Color32::YELLOW, "Export forcé : les erreurs de configuration sont ignorées. Le pack peut ne pas fonctionner en jeu.");
+                        ui.colored_label(crate::theme::WARNING, "Export forcé : les erreurs de configuration sont ignorées. Le pack peut ne pas fonctionner en jeu.");
                     }
                     ui.label("Dossier de destination");
                     ui.horizontal(|ui| {
@@ -220,7 +220,7 @@ impl ExportDialog {
                             ui.monospace(target.display().to_string());
                         }
                         Err(error) => {
-                            ui.colored_label(egui::Color32::YELLOW, error);
+                            ui.colored_label(crate::theme::WARNING, error);
                         }
                     }
                     ui.separator();
@@ -231,7 +231,7 @@ impl ExportDialog {
                         egui::ScrollArea::vertical().id_salt("export-changes").max_height(220.0).show(ui,|ui|{
                             for change in &review.changes {egui::CollapsingHeader::new(format!("{} · {}",change.kind.label(),change.path.display())).id_salt(&change.path).show(ui,|ui|{
                                 if change.text_only {ui.label("Texte, commentaires ou structure modifiés ; valeurs identiques ou texte non analysable.");}
-                                for value in &change.parameters {ui.label(&value.parameter);ui.horizontal_wrapped(|ui|{ui.colored_label(egui::Color32::LIGHT_RED,format!("Avant : {}",value.before.as_deref().unwrap_or("(absent)")));ui.colored_label(egui::Color32::LIGHT_GREEN,format!("Après : {}",value.after.as_deref().unwrap_or("(absent)")));});}
+                                for value in &change.parameters {ui.label(&value.parameter);ui.horizontal_wrapped(|ui|{ui.colored_label(crate::theme::ERROR,format!("Avant : {}",value.before.as_deref().unwrap_or("(absent)")));ui.colored_label(egui::Color32::LIGHT_GREEN,format!("Après : {}",value.after.as_deref().unwrap_or("(absent)")));});}
                             });}
                         });
                     }
@@ -252,7 +252,7 @@ impl ExportDialog {
                     ctx.request_repaint_after(std::time::Duration::from_millis(100));
                 }
                 if let Some(error) = &self.error {
-                    ui.colored_label(egui::Color32::LIGHT_RED, error);
+                    ui.colored_label(crate::theme::ERROR, error);
                 }
             });
         action

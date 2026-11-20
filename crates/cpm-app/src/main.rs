@@ -500,7 +500,7 @@ impl CpmApp {
                 self.start_validation();
                 self.switch_config(index);
                 self.status =
-                    "Objet et ressources ajoutés — vérifier l’aperçu 3D, puis File → Exporter"
+                    "Objet et ressources ajoutés — vérifier l’aperçu 3D, puis Fichier → Exporter"
                         .into();
             }
             creation::Created::Pack { document, name } => {
@@ -528,7 +528,7 @@ impl CpmApp {
                 self.preview = None;
                 self.start_validation();
                 self.switch_config(0);
-                self.status = "Nouveau pack créé — File → Exporter pour l’enregistrer".into();
+                self.status = "Nouveau pack créé — Fichier → Exporter pour l’enregistrer".into();
             }
             creation::Created::Configuration { path, document } => {
                 if let Some(pack) = &mut self.pack {
@@ -555,7 +555,8 @@ impl CpmApp {
                     self.draft_file = true;
                     self.preview = None;
                     self.status =
-                        "Nouvelle configuration créée — File → Exporter pour l’enregistrer".into();
+                        "Nouvelle configuration créée — Fichier → Exporter pour l’enregistrer"
+                            .into();
                 }
             }
         }
@@ -808,7 +809,7 @@ impl CpmApp {
         }
         egui::Panel::top("toolbar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button("File", |ui| {
+                ui.menu_button("Fichier", |ui| {
                     if ui.add_enabled(self.pack.is_some(),egui::Button::new("Publier sur OpenMPS…")).clicked(){
                         let info=self.documents().get(std::path::Path::new("pack_info.dynx")).cloned().or_else(||self.pack.as_ref().and_then(|p|p.read_config(0).ok()));
                         self.openmps.begin(info.as_ref().map(cpm_core::PackMetadata::from_document));ui.close();
@@ -891,6 +892,32 @@ impl CpmApp {
                         if let Err(error)=self.undo_structure(){self.error=Some(error);}ui.close();
                     }
                     if (self.draft_pack.is_some() || self.draft_file) && ui.button("Abandonner le brouillon").on_hover_text("Ferme le nouveau pack ou fichier et abandonne ses changements en mémoire").clicked(){self.discard_draft();ui.close();}
+                });
+                ui.menu_button("Édition", |ui| {
+                    if let Some(editor)=&mut self.editor {
+                        if ui.add_enabled(editor.can_undo(),egui::Button::new("Annuler · Ctrl+Z")).clicked(){editor.undo();ui.close();}
+                        if ui.add_enabled(editor.can_redo(),egui::Button::new("Rétablir · Ctrl+Y")).clicked(){editor.redo();ui.close();}
+                    }
+                });
+                ui.menu_button("Outils",|ui|{
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Édition groupée…")).clicked(){self.bulk=Some(bulk::Bulk::default());ui.close();}
+                    if ui.button("OpenMPS…").clicked(){self.openmps.begin(None);ui.close();}
+
+                if ui.button("Définitions des paramètres…").clicked() {
+                    match Self::properties_directory() {
+                        Ok(directory) => self.properties_editor = Some(properties_editor::PropertiesEditor::new(directory, &self.catalog)),
+                        Err(error) => self.error = Some(error),
+                    }
+                }
+                    if ui.button("Recherche").clicked(){self.search.open=true;ui.close();}
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Modèles")).clicked(){self.model_browser=self.pack.as_ref().map(|p|model_browser::Browser::new(p.clone(),self.documents()));ui.close();}
+                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Diagnostic")).clicked(){self.report=self.pack.as_ref().map(|p|report::Report::new(p.clone(),self.documents(),self.catalog.clone(),false));ui.close();}
+                });
+                ui.menu_button("Aide", |ui| {
+                    ui.hyperlink_to("Documentation DynamX", "https://wiki.dynamx.fr/fr/");
+                    ui.hyperlink_to("Guide CPM", "https://github.com/Florent-Marc/cpm/wiki");
+                    ui.hyperlink_to("Signaler un bug", bug_report_url());
+                    ui.separator();
                     if ui
                         .add_enabled(
                             !self.updater.checking(),
@@ -902,35 +929,11 @@ impl CpmApp {
                         ui.close();
                     }
                 });
-                ui.menu_button("Outils",|ui|{
-                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Édition groupée…")).clicked(){self.bulk=Some(bulk::Bulk::default());ui.close();}
-                    if ui.button("OpenMPS…").clicked(){self.openmps.begin(None);ui.close();}
-
-                    if ui.button("Recherche").clicked(){self.search.open=true;ui.close();}
-                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Modèles")).clicked(){self.model_browser=self.pack.as_ref().map(|p|model_browser::Browser::new(p.clone(),self.documents()));ui.close();}
-                    if ui.add_enabled(self.pack.is_some(),egui::Button::new("Diagnostic")).clicked(){self.report=self.pack.as_ref().map(|p|report::Report::new(p.clone(),self.documents(),self.catalog.clone(),false));ui.close();}
-                });
-                ui.menu_button("Édition", |ui| {
-                    if let Some(editor)=&mut self.editor {
-                        if ui.add_enabled(editor.can_undo(),egui::Button::new("Annuler · Ctrl+Z")).clicked(){editor.undo();ui.close();}
-                        if ui.add_enabled(editor.can_redo(),egui::Button::new("Rétablir · Ctrl+Y")).clicked(){editor.redo();ui.close();}
-                    }
-                });
-                if ui.button("Propriétés").clicked() {
-                    match Self::properties_directory() {
-                        Ok(directory) => self.properties_editor = Some(properties_editor::PropertiesEditor::new(directory, &self.catalog)),
-                        Err(error) => self.error = Some(error),
-                    }
-                }
-                ui.hyperlink_to("Wiki", "https://wiki.dynamx.fr/fr/")
-                    .on_hover_text("Documentation DynamX : syntaxe et paramètres des packs");
-                ui.hyperlink_to("Aide CPM", "https://github.com/Florent-Marc/cpm/wiki")
-                    .on_hover_text("Guides CPM : installation, création de packs et aperçu 3D");
                 if self.dirty() {
                     ui.label("● Modifications non enregistrées");
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.hyperlink_to("Report bug", bug_report_url());
+                    if ui.add_enabled(self.pack.is_some() || self.editor.is_some(), theme::primary("Exporter")).clicked() { if self.pack.is_some() { self.prepare_export(); } else { self.export_current_file(); } }
                     if let Some(release) = self.updater.available.clone() {
                         if release.can_install() {
                             let can_update = !self.dirty() && !self.editor.as_ref().is_some_and(|editor| editor.custom_parameter.is_some());
@@ -948,19 +951,26 @@ impl CpmApp {
         });
         egui::Panel::bottom("status").show(ui, |ui| {
             if let Some(error) = &self.error {
-                ui.colored_label(egui::Color32::LIGHT_RED, error);
+                ui.colored_label(crate::theme::ERROR, error);
             }
             ui.horizontal(|ui| {
                 ui.label(&self.status);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.small(format!("CPM v{}", env!("CARGO_PKG_VERSION"))).on_hover_text(&self.updater.message);
+                    ui.small(format!("CPM v{}", env!("CARGO_PKG_VERSION")))
+                        .on_hover_text(&self.updater.message);
                 });
             });
-            if updating { ui.horizontal(|ui| { ui.spinner(); ui.label("Téléchargement et vérification de la mise à jour…"); }); }
-            ui.small("Navigation dans le pack : les modifications restent en mémoire. File → Exporter pour sauvegarder le pack complet. Aperçu OBJ disponible à côté du nom de la configuration.");
+            if updating {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("Téléchargement et vérification de la mise à jour…");
+                });
+            }
+            ui.small("Modifications en mémoire · Exporter pour enregistrer le pack.");
         });
         egui::Panel::left("sections")
-            .default_size(220.0)
+            .default_size(270.0)
+            .resizable(true)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.heading("Configurations");
@@ -975,14 +985,14 @@ impl CpmApp {
                 let mut requested = None;
                 egui::ScrollArea::vertical()
                     .id_salt("configs")
-                    .max_height(250.0)
+                    .max_height((ui.available_height() * 0.5).max(120.0))
                     .show(ui, |ui| {
                         if let Some(path) = &self.standalone_path {
                             let issues =
                                 self.editor.as_ref().map(Editor::issues).unwrap_or_default();
                             let mut text = egui::RichText::new(navigation::config_label(path));
                             if !issues.is_empty() {
-                                text = text.color(egui::Color32::LIGHT_RED);
+                                text = text.color(crate::theme::ERROR);
                             }
                             ui.label(text).on_hover_text(format!(
                                 "{}\n{}",
@@ -1117,36 +1127,117 @@ impl CpmApp {
             });
         let mut requested_preview = None;
         egui::CentralPanel::default().show(ui, |ui| {
+            if self.editor.is_none() {
+                ui.add_space(30.0);
+                ui.heading("Bienvenue dans CPM");
+                ui.label("Crée et modifie tes packs DynamX.");
+                ui.add_space(18.0);
+                ui.horizontal_wrapped(|ui| {
+                    if ui.add(theme::primary("Ouvrir un pack…")).clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Packs DynamX", &["zip", "dnxpack", "rar", "dynx"])
+                            .pick_file()
+                        {
+                            self.open_selection(&path);
+                        }
+                    }
+                    if ui.button("Ouvrir un dossier…").clicked() {
+                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                            self.open_selection(&path);
+                        }
+                    }
+                    if ui.button("Créer un pack…").clicked() {
+                        self.creation = Some(creation::Creation::new(false));
+                    }
+                });
+                ui.add_space(24.0);
+                ui.strong("Packs récents");
+                if self.recent.paths.is_empty() {
+                    ui.weak("Les packs que tu ouvriras apparaîtront ici.");
+                }
+                for path in self.recent.paths.clone() {
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(path.file_name().unwrap_or_default().to_string_lossy())
+                            .clicked()
+                        {
+                            self.open_selection(&path);
+                        }
+                        ui.weak(path.parent().unwrap_or(&path).display().to_string());
+                    });
+                }
+                ui.add_space(20.0);
+                ui.hyperlink_to(
+                    "Découvrir le guide CPM",
+                    "https://github.com/Florent-Marc/cpm/wiki",
+                );
+                return;
+            }
             let Some(editor) = &mut self.editor else {
-                ui.heading("Ouvrir un pack DynamX");
-                ui.label("Utilise File → Importer, puis choisis un fichier, un dossier de pack, un pack .dnxpack ou une archive ZIP / RAR.");
-                ui.label("Les commentaires et les champs d'addons sont conservés. Utilise File → Exporter pour enregistrer tes modifications.");
                 return;
             };
             ui.horizontal_wrapped(|ui| {
-                let path = if let (Some(pack),Some(index))=(&self.pack,self.selected_config) { pack.configs()[index].clone() } else { editor.path.clone() };
-                ui.heading(config_name(&path)).on_hover_text(path.display().to_string());
-                let request=cpm_core::ObjRequest::resolve(self.pack.as_ref(),&path,&editor.document);
-                let hint=if self.gl.is_none(){"Le moteur OpenGL de l’aperçu n’est pas disponible".to_owned()}else{request.as_ref().map(|r|format!("Ouvrir {}",r.path.display())).unwrap_or_else(|e|e.clone())};
-                if ui.add_enabled(request.is_ok() && self.gl.is_some(),egui::Button::new("Aperçu 3D")).on_hover_text(hint).clicked() {
-                    if let Ok(request)=request { requested_preview=Some((request,path.clone())); }
+                let path = if let (Some(pack), Some(index)) = (&self.pack, self.selected_config) {
+                    pack.configs()[index].clone()
+                } else {
+                    editor.path.clone()
+                };
+                ui.heading(config_name(&path))
+                    .on_hover_text(path.display().to_string());
+                let request =
+                    cpm_core::ObjRequest::resolve(self.pack.as_ref(), &path, &editor.document);
+                let hint = if self.gl.is_none() {
+                    "Le moteur OpenGL de l’aperçu n’est pas disponible".to_owned()
+                } else {
+                    request
+                        .as_ref()
+                        .map(|r| format!("Ouvrir {}", r.path.display()))
+                        .unwrap_or_else(|e| e.clone())
+                };
+                if ui
+                    .add_enabled(
+                        request.is_ok() && self.gl.is_some(),
+                        egui::Button::new("Aperçu 3D"),
+                    )
+                    .on_hover_text(hint)
+                    .clicked()
+                {
+                    if let Ok(request) = request {
+                        requested_preview = Some((request, path.clone()));
+                    }
                 }
             });
             ui.label("Propriétés");
             let issues = editor.issues();
             if !issues.is_empty() {
-                ui.colored_label(egui::Color32::LIGHT_RED, format!("! {} erreur(s) de paramètres", issues.len()))
-                    .on_hover_text(issues.join("\n"));
+                ui.colored_label(
+                    crate::theme::ERROR,
+                    format!("! {} erreur(s) de paramètres", issues.len()),
+                )
+                .on_hover_text(issues.join("\n"));
             }
-            if editor.is_pack_info { ui.label(format!("Pack : {}", cpm_core::PackMetadata::from_document(&editor.document).name)); }
+            if editor.is_pack_info {
+                ui.label(format!(
+                    "Pack : {}",
+                    cpm_core::PackMetadata::from_document(&editor.document).name
+                ));
+            }
             let warnings = editor.warnings();
-            if !warnings.is_empty() { ui.colored_label(egui::Color32::YELLOW, format!("! {} avertissement(s)", warnings.len())).on_hover_text(warnings.join("\n")); }
+            if !warnings.is_empty() {
+                ui.colored_label(
+                    crate::theme::WARNING,
+                    format!("! {} avertissement(s)", warnings.len()),
+                )
+                .on_hover_text(warnings.join("\n"));
+            }
             let document_id = (&self.open_path, self.selected_config);
             let jump = self.pending_scroll.take();
             ui.push_id(document_id, |ui| {
-                egui::ScrollArea::vertical().id_salt("document-properties").show(ui, |ui| {
-                    show_document(ui, editor, &mut self.error, jump);
-                });
+                egui::ScrollArea::vertical()
+                    .id_salt("document-properties")
+                    .show(ui, |ui| {
+                        show_document(ui, editor, &mut self.error, jump);
+                    });
             });
         });
         if let Some((request, path)) = requested_preview {
@@ -1657,12 +1748,12 @@ fn diagnostic_text(
         .iter()
         .any(|d| d.severity == cpm_core::Severity::Error)
     {
-        label.color(egui::Color32::LIGHT_RED)
+        label.color(crate::theme::ERROR)
     } else if diagnostics
         .iter()
         .any(|d| d.severity == cpm_core::Severity::Warning)
     {
-        label.color(egui::Color32::YELLOW)
+        label.color(crate::theme::WARNING)
     } else {
         label
     }
@@ -1822,9 +1913,9 @@ fn show_properties(
                     .iter()
                     .any(|d| d.severity == cpm_core::Severity::Error)
                 {
-                    Some(egui::Color32::LIGHT_RED)
+                    Some(crate::theme::ERROR)
                 } else if !problems.is_empty() {
-                    Some(egui::Color32::YELLOW)
+                    Some(crate::theme::WARNING)
                 } else {
                     None
                 };
@@ -2006,11 +2097,15 @@ mod tests {
         };
         let _ = draw(&mut editor);
         let output = draw(&mut editor);
-        assert!(has_color(&output.shapes, "Power", egui::Color32::LIGHT_RED));
         assert!(has_color(
             &output.shapes,
-            "Braking — absent",
-            egui::Color32::LIGHT_RED
+            "! Power · 1",
+            crate::theme::ERROR
+        ));
+        assert!(has_color(
+            &output.shapes,
+            "! Braking — absent · 1",
+            crate::theme::ERROR
         ));
         let mut catalog = (*editor.catalog).clone();
         catalog.files[0]
@@ -2026,21 +2121,29 @@ mod tests {
             .severity = cpm_core::Severity::Warning;
         editor.catalog = std::sync::Arc::new(catalog);
         let output = draw(&mut editor);
-        assert!(has_color(&output.shapes, "Power", egui::Color32::YELLOW));
+        assert!(has_color(
+            &output.shapes,
+            "! Power · 1",
+            crate::theme::WARNING
+        ));
         assert!(!has_color(
             &output.shapes,
-            "Power",
-            egui::Color32::LIGHT_RED
+            "! Power · 1",
+            crate::theme::ERROR
         ));
         editor.document.set_value(0, "1000").unwrap();
         editor.values[0] = "1000".into();
         let output = draw(&mut editor);
         assert!(!has_color(
             &output.shapes,
-            "Power",
-            egui::Color32::LIGHT_RED
+            "! Power · 1",
+            crate::theme::ERROR
         ));
-        assert!(!has_color(&output.shapes, "Power", egui::Color32::YELLOW));
+        assert!(!has_color(
+            &output.shapes,
+            "! Power · 1",
+            crate::theme::WARNING
+        ));
     }
 
     #[test]
@@ -2516,6 +2619,30 @@ mod tools_menu_tests {
                 _ => assert!(app.report.is_some()),
             }
         }
+    }
+    #[test]
+    fn welcome_and_primary_export_keep_creation_and_export_workflows() {
+        let ctx = egui::Context::default();
+        theme::apply(&ctx);
+        let mut app = CpmApp::default();
+        frame(&mut app, &ctx, vec![]);
+        let shapes = frame(&mut app, &ctx, vec![]);
+        let create = text_center(&shapes, "Créer un pack…");
+        click(&mut app, &ctx, create);
+        assert!(app.creation.is_some());
+        app.creation = None;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("pack_info.dynx"),
+            "PackName: Demo\nDcFileVersion: 12.5.0\n",
+        )
+        .unwrap();
+        app.open_selection(dir.path());
+        frame(&mut app, &ctx, vec![]);
+        let shapes = frame(&mut app, &ctx, vec![]);
+        let export = text_center(&shapes, "Exporter");
+        click(&mut app, &ctx, export);
+        assert!(app.report.is_some());
     }
     #[test]
     fn export_starts_with_report_and_modal_blocks_mutations() {

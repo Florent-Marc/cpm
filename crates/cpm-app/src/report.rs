@@ -58,14 +58,14 @@ impl Report {
             ui.label(format!("{errors} erreur(s) · {} avertissement(s)",self.issues.len()-errors));
             ui.weak("Clique une ligne pour ouvrir la configuration et sa section. Relance le contrôle après correction.");
             if self.receiver.is_some(){ui.spinner();ui.label("Analyse des configurations et références…");}
-            if let Some(error)=&self.error{ui.colored_label(egui::Color32::LIGHT_RED,error);}
+            if let Some(error)=&self.error{ui.colored_label(crate::theme::ERROR,error);}
             egui::ScrollArea::vertical().max_height(340.0).show(ui,|ui| {
                 for issue in &self.issues {
-                    let color=if issue.severity==Severity::Error{egui::Color32::LIGHT_RED}else{egui::Color32::YELLOW};
+                    let color=if issue.severity==Severity::Error{crate::theme::ERROR}else{crate::theme::WARNING};
                     if ui.button(egui::RichText::new(format!("{} · {} : {}",issue.path.display(),issue.parameter,issue.message)).color(color)).clicked(){action=Action::Jump(issue.clone());}
                 }
             });
-            if self.export && errors > 0 { ui.colored_label(egui::Color32::YELLOW, "Forcer ignore les erreurs de configuration ; le pack exporté peut ne pas fonctionner en jeu."); }
+            if self.export && errors > 0 { ui.colored_label(crate::theme::WARNING, "Forcer ignore les erreurs de configuration ; le pack exporté peut ne pas fonctionner en jeu."); }
             ui.horizontal(|ui| {
                 let ready = self.receiver.is_none() && self.error.is_none();
                 if self.export {
