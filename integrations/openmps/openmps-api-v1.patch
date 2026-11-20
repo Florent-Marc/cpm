@@ -1,0 +1,645 @@
+From de49bbf0b95cfc270dd815f5c8412097b9dac946 Mon Sep 17 00:00:00 2001
+From: CPM contributor <noreply@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 12:08:54 +0100
+Subject: [PATCH 1/2] Add authenticated immutable publication API for CPM
+
+---
+ .gitignore          |   4 +
+ .htaccess           |   9 +++
+ api/lib.php         | 185 ++++++++++++++++++++++++++++++++++++++++++++
+ api/v1.php          |   4 +
+ get.php             |  17 +++-
+ index.php           |   9 ++-
+ installer.php       |   3 +
+ pack_manager.php    |  25 +++---
+ tools/api_token.php |  19 +++++
+ 9 files changed, 260 insertions(+), 15 deletions(-)
+ create mode 100644 .gitignore
+ create mode 100644 api/lib.php
+ create mode 100644 api/v1.php
+ create mode 100644 tools/api_token.php
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..f58f2fe
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++/api-tokens.php
++/api-tokens.php.lock
++/var/openmps-api/
++__pycache__/
+diff --git a/.htaccess b/.htaccess
+index 58b5952..54a94c1 100644
+--- a/.htaccess
++++ b/.htaccess
+@@ -24,3 +24,12 @@ Options -Indexes
+     php_value post_max_size 512M
+     php_value memory_limit 512M
+ </IfModule>
++
++# Administration state is never public; forward Bearer headers under Apache/FastCGI.
++<IfModule mod_rewrite.c>
++    RewriteRule ^var/openmps-api(?:/|$) - [F,L]
++</IfModule>
++<Files "api-tokens.php">
++    Require all denied
++</Files>
++SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+diff --git a/api/lib.php b/api/lib.php
+new file mode 100644
+index 0000000..9131a2e
+--- /dev/null
++++ b/api/lib.php
+@@ -0,0 +1,185 @@
++<?php
++// OpenMPS administration API v1. Game-facing MPS access keys are NOT administration tokens.
++require_once __DIR__ . '/../config.php';
++require_once __DIR__ . '/../pack_manager.php';
++
++class MpsApiError extends RuntimeException {
++    public $status;
++    public $errorCode;
++    public function __construct(int $status, string $code, string $message) {
++        parent::__construct($message); $this->status = $status; $this->errorCode = $code;
++    }
++}
++function mps_api_fail(int $status, string $code, string $message): void { throw new MpsApiError($status, $code, $message); }
++function mps_api_tokens_file(): string { return getenv('OPENMPS_API_TOKEN_FILE') ?: MPS_ROOT_DIR . '/api-tokens.php'; }
++function mps_api_read_tokens(): array {
++    $file = mps_api_tokens_file();
++    if (!is_file($file)) return [];
++    clearstatcache(true, $file);
++    if (function_exists('opcache_invalidate')) opcache_invalidate($file, true);
++    $tokens = require $file;
++    return is_array($tokens) ? $tokens : [];
++}
++function mps_api_auth(string $scope): array {
++    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
++    if (!preg_match('/^Bearer (omps_[A-Za-z0-9_-]{43})$/D', $header, $match)) mps_api_fail(401, 'unauthorized', 'An administration token is required.');
++    $hash = hash('sha256', $match[1]);
++    foreach (mps_api_read_tokens() as $id => $token) {
++        if (empty($token['revoked']) && isset($token['hash']) && hash_equals($token['hash'], $hash)) {
++            if (!in_array($scope, $token['scopes'] ?? [], true)) mps_api_fail(403, 'scope_required', 'This token cannot perform this operation.');
++            return ['id' => $id, 'label' => $token['label'], 'scopes' => $token['scopes']];
++        }
++    }
++    mps_api_fail(401, 'unauthorized', 'The administration token is invalid or revoked.');
++}
++function mps_api_key(string $value): string {
++    if (!preg_match('/^[a-z0-9][a-z0-9_-]{0,63}$/D', $value)) mps_api_fail(400, 'invalid_pack_key', 'Pack key must use lowercase letters, digits, underscores or hyphens (1–64 characters).');
++    return $value;
++}
++function mps_api_version(string $value): string {
++    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/D', $value) || substr($value, -1) === '.') mps_api_fail(400, 'invalid_version', 'Invalid pack version (1–64 portable characters).');
++    return $value;
++}
++function mps_api_public_url(): string {
++    $base = mps_get_base_url();
++    if (empty(SERVER_PUBLIC_URL)) $base = preg_replace('#/api/$#', '/', $base);
++    if (!filter_var($base, FILTER_VALIDATE_URL) || !in_array(parse_url($base, PHP_URL_SCHEME), ['http', 'https'], true) || parse_url($base, PHP_URL_USER) !== null || parse_url($base, PHP_URL_QUERY) !== null || parse_url($base, PHP_URL_FRAGMENT) !== null) mps_api_fail(500, 'public_url', 'Configure a valid SERVER_PUBLIC_URL.');
++    return rtrim($base, '/') . '/';
++}
++function mps_api_max_upload(): int { return max(1024, min(536870912, (int)(getenv('OPENMPS_API_MAX_UPLOAD_BYTES') ?: 536870912))); }
++function mps_api_state_dir(): string {
++    $path = MPS_ROOT_DIR . '/var/openmps-api';
++    if (!is_dir($path) && !mkdir($path, 0700, true) && !is_dir($path)) mps_api_fail(500, 'state_directory', 'Cannot create API state directory.');
++    return $path;
++}
++function mps_api_meta_path(string $key, string $version): string { return mps_api_state_dir() . '/' . hash('sha256', $key . ':' . $version) . '.json'; }
++function mps_api_metadata(string $key, string $version): ?array {
++    $path = mps_api_meta_path($key, $version);
++    return is_file($path) ? json_decode(file_get_contents($path), true) : null;
++}
++function mps_api_remove_tree(string $path): void {
++    if (is_link($path) || !is_dir($path)) { if (file_exists($path) || is_link($path)) unlink($path); return; }
++    foreach (scandir($path) as $name) if ($name !== '.' && $name !== '..') mps_api_remove_tree($path . '/' . $name);
++    rmdir($path);
++}
++function mps_api_safe_path(string $name): string {
++    $name = str_replace('\\', '/', $name);
++    if ($name === '' || $name[0] === '/' || strpos($name, ':') !== false || preg_match('/[\x00-\x1f\x7f]/', $name) || !preg_match('//u', $name)) mps_api_fail(422, 'unsafe_path', 'Archive contains an unsafe path.');
++    $parts = explode('/', rtrim($name, '/'));
++    foreach ($parts as $part) {
++        if ($part === '' || $part === '.' || $part === '..' || $part[0] === '.' || preg_match('/\.(?:php[0-9]?|phtml|phar)(?:\.|$)/i', $part) || preg_match('/[<>"|?*]/', $part) || preg_match('/[. ]$/', $part) || preg_match('/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i', $part)) mps_api_fail(422, 'unsafe_path', 'Archive contains a non-portable path.');
++    }
++    return implode('/', $parts);
++}
++function mps_api_extract(string $archive, string $destination): void {
++    $zip = new ZipArchive();
++    if ($zip->open($archive) !== true) mps_api_fail(422, 'invalid_zip', 'Cannot read ZIP archive.');
++    try {
++        if ($zip->numFiles > 10000) mps_api_fail(422, 'zip_limit', 'Archive has too many entries.');
++        $seen = []; $total = 0;
++        for ($i = 0; $i < $zip->numFiles; $i++) {
++            $stat = $zip->statIndex($i); $raw = $stat['name']; $dir = substr($raw, -1) === '/'; $name = mps_api_safe_path($raw); $lower = strtolower($name);
++            if (isset($seen[$lower])) mps_api_fail(422, 'duplicate_path', 'Archive contains a duplicate path.');
++            $seen[$lower] = true;
++            $ops = 0; $attrs = 0; $zip->getExternalAttributesIndex($i, $ops, $attrs);
++            $mode = ($attrs >> 16) & 0170000;
++            if ($mode === 0120000 || ($mode !== 0 && $mode !== 0100000 && $mode !== 0040000)) mps_api_fail(422, 'zip_link', 'Links and special files are not accepted.');
++            if (!empty($stat['encryption_method'])) mps_api_fail(422, 'encrypted_zip', 'Encrypted source archives are not accepted.');
++            if ($dir) continue;
++            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
++            $allowed = ['dynx','json','obj','mtl','png','jpg','jpeg','tga','bmp','gif','webp','gltf','glb','bin','ogg','wav','dc','lang','txt','properties'];
++            if (!in_array($ext, $allowed, true)) mps_api_fail(422, 'unsupported_file', 'Unsupported pack file: ' . $name);
++            if (strpos($name, 'assets/') !== 0 && $ext !== 'dynx') mps_api_fail(422, 'resource_layout', 'Put models, materials, textures and sounds under assets/<domain>/: ' . $name);
++            if ($stat['size'] > 134217728) mps_api_fail(422, 'zip_limit', 'A file exceeds 128 MiB.');
++            $total += $stat['size']; if ($total > 1073741824) mps_api_fail(422, 'zip_limit', 'Uncompressed archive exceeds 1 GiB.');
++            $target = $destination . '/' . $name;
++            if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0700, true)) mps_api_fail(422, 'path_conflict', 'Conflicting archive paths.');
++            $in = $zip->getStream($raw); $out = fopen($target, 'xb');
++            if (!$in || !$out) mps_api_fail(422, 'extract', 'Cannot extract pack entry.');
++            try { $count = stream_copy_to_stream($in, $out, $stat['size'] + 1); } finally { fclose($in); fclose($out); }
++            if ($count !== $stat['size']) mps_api_fail(422, 'zip_size', 'Archive entry size mismatch.');
++        }
++        if (!is_file($destination . '/pack_info.dynx')) mps_api_fail(422, 'pack_info', 'pack_info.dynx must be at the archive root.');
++    } finally { $zip->close(); }
++}
++function mps_api_pack_info(string $file, string $key, string $version): void {
++    if (filesize($file) > 8388608) mps_api_fail(422, 'pack_info', 'pack_info.dynx is too large.');
++    $text = file_get_contents($file);
++    foreach (['PackName' => $key, 'PackVersion' => $version] as $field => $expected) {
++        preg_match_all('/^\s*' . $field . '\s*:\s*([^\r\n]*)$/m', $text, $matches);
++        if (count($matches[1]) !== 1 || trim($matches[1][0]) !== $expected) mps_api_fail(422, 'metadata_mismatch', $field . ' must match the requested pack key/version.');
++    }
++    if (!preg_match('/^\s*DcFileVersion\s*:\s*\S+/m', $text)) mps_api_fail(422, 'pack_info', 'DcFileVersion is required.');
++}
++function mps_api_publish(string $archive, string $key, string $version, string $digest, string $accessKey): array {
++    mps_api_key($key); mps_api_version($version);
++    if (!preg_match('/^[a-f0-9]{64}$/D', $digest) || !hash_equals($digest, hash_file('sha256', $archive))) mps_api_fail(422, 'checksum', 'Archive checksum mismatch.');
++    if (!mps_is_key_allowed($accessKey)) mps_api_fail(422, 'access_key', 'The game-facing MPS access key is not accepted by this server.');
++    $state = mps_api_state_dir(); $lock = fopen($state . '/' . hash('sha256', $key . ':' . $version) . '.lock', 'c');
++    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) mps_api_fail(409, 'busy', 'This version is currently being published. Retry later.');
++    $stage = null;
++    try {
++        $target = MPS_PACKS_DIR . '/' . $key . '/' . $version; $existing = mps_api_metadata($key, $version);
++        if (file_exists($target)) {
++            if ($existing && hash_equals($existing['source_sha256'], $digest) && hash_equals($existing['access_key_sha256'] ?? '', hash('sha256', $accessKey)) && $existing['public_url'] === mps_api_public_url() && is_file($target . '/' . $existing['client_file'])) { $existing['idempotent'] = true; return $existing; }
++            mps_api_fail(409, 'version_exists', 'This version already exists. Publish a new version instead.');
++        }
++        $parent = dirname($target); if (!is_dir($parent) && !mkdir($parent, 0700, true)) mps_api_fail(500, 'storage', 'Cannot create pack directory.');
++        if (is_link($parent)) mps_api_fail(500, 'storage', 'Pack directory must not be a symbolic link.');
++        $stage = $parent . '/.api-stage-' . bin2hex(random_bytes(12)); if (!mkdir($stage, 0700)) mps_api_fail(500, 'storage', 'Cannot prepare pack directory.');
++        mps_api_extract($archive, $stage); mps_api_pack_info($stage . '/pack_info.dynx', $key, $version);
++        $base = mps_api_public_url(); $scan = mps_scan_pack_directory($stage, $key);
++        mps_generate_desc_file($stage, $key, $scan);
++        mps_generate_mps_repositories_json($stage, $key, $version, $accessKey, $base);
++        $client = mps_generate_client_zip($stage, $key, $version, [], $base);
++        $repo = mps_get_or_build_repo_zip($key, $version, '1.3.0', null, $stage, $base);
++        if (!$client || !$repo) mps_api_fail(500, 'generation', 'Cannot generate MPS archives.');
++        $metadata = ['pack_key'=>$key,'pack_version'=>$version,'source_sha256'=>$digest,'access_key_sha256'=>hash('sha256',$accessKey),'client_file'=>basename($client),'client_sha256'=>hash_file('sha256',$client),'client_size'=>filesize($client),'files_count'=>count($scan['files']),'domains'=>$scan['domains'],'public_url'=>$base,'published_at'=>gmdate('c'),'idempotent'=>false];
++        $metaFile = mps_api_meta_path($key, $version); $pendingMeta = $state . '/.meta-' . bin2hex(random_bytes(12));
++        if (file_put_contents($pendingMeta, json_encode($metadata, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES), LOCK_EX) === false) mps_api_fail(500,'storage','Cannot prepare publication receipt.');
++        if (file_exists($target) || !rename($stage, $target)) { unlink($pendingMeta); mps_api_fail(409, 'version_exists', 'Version appeared during publication; nothing was overwritten.'); }
++        $stage = null;
++        if (!rename($pendingMeta,$metaFile)) { mps_api_remove_tree($target); unlink($pendingMeta); mps_api_fail(500,'storage','Cannot save publication receipt.'); }
++        return $metadata;
++    } finally { if ($stage !== null && is_dir($stage)) mps_api_remove_tree($stage); flock($lock, LOCK_UN); fclose($lock); }
++}
++function mps_api_json(array $data, int $status = 200): void {
++    http_response_code($status); header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store'); header('X-Content-Type-Options: nosniff');
++    echo json_encode($data, JSON_UNESCAPED_SLASHES); exit;
++}
++function mps_api_run(): void {
++    $temp = null;
++    try {
++        $action = $_GET['action'] ?? 'capabilities'; $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
++        mps_api_auth($action === 'publish' ? 'publish' : 'read');
++        if ($action === 'publish' && $method === 'POST') {
++            $length = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
++            if ($length <= 0 || $length > mps_api_max_upload()) mps_api_fail(413, 'upload_limit', 'Missing length or upload exceeds the server limit.');
++            if (strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0])) !== 'application/zip') mps_api_fail(415,'content_type','Send a ZIP body with Content-Type application/zip.');
++            $temp = tempnam(sys_get_temp_dir(), 'openmps-api-'); $in=fopen('php://input','rb');$out=fopen($temp,'wb');
++            try { $count=stream_copy_to_stream($in,$out,$length+1); } finally {fclose($in);fclose($out);}
++            if ($count !== $length) mps_api_fail(400,'body_length','Upload was incomplete.');
++            $result=mps_api_publish($temp,$_SERVER['HTTP_X_OPENMPS_PACK_KEY']??'',$_SERVER['HTTP_X_OPENMPS_PACK_VERSION']??'',$_SERVER['HTTP_X_OPENMPS_SHA256']??'',$_SERVER['HTTP_X_OPENMPS_ACCESS_KEY']??'legacy');
++            unlink($temp); $temp=null; mps_api_json(['success'=>true,'publication'=>$result]);
++        }
++        if ($method !== 'GET') mps_api_fail(405,'method','Use GET for reading or POST for publishing.');
++        if ($action === 'capabilities') mps_api_json(['success'=>true,'api_version'=>1,'protocol'=>'openmps-admin/1','mps_version'=>'1.3.0','public_url'=>mps_api_public_url(),'max_upload_bytes'=>mps_api_max_upload(),'immutable_versions'=>true]);
++        if ($action === 'packs') {
++            $packs=[];foreach(mps_get_all_packs() as $pack){$meta=mps_api_metadata($pack['key'],$pack['version']);$packs[]=['pack_key'=>$pack['key'],'pack_version'=>$pack['version'],'client_size'=>$pack['client_zip_size'],'client_sha256'=>$meta['client_sha256']??null,'files_count'=>$pack['files_count']];}
++            mps_api_json(['success'=>true,'packs'=>$packs]);
++        }
++        if ($action === 'client') {
++            $key=mps_api_key($_GET['pack_key']??'');$version=mps_api_version($_GET['pack_version']??'');$file=MPS_PACKS_DIR.'/'.$key.'/'.$version.'/client-'.$key.'-'.$version.'.zip';
++            if (!is_file($file)||is_link($file)) mps_api_fail(404,'not_found','Client archive not found.');
++            header('Content-Type: application/zip');header('Cache-Control: no-store');header('Content-Disposition: attachment; filename="client-'.$key.'-'.$version.'.zip"');header('Content-Length: '.filesize($file));header('X-OpenMPS-SHA256: '.hash_file('sha256',$file));readfile($file);exit;
++        }
++        mps_api_fail(404,'not_found','Unknown API action.');
++    } catch (MpsApiError $e) {
++        if($temp!==null&&is_file($temp))unlink($temp);
++        mps_api_json(['success'=>false,'code'=>$e->errorCode,'error'=>$e->getMessage()],$e->status);
++    } catch (Throwable $e) {
++        if($temp!==null&&is_file($temp))unlink($temp);
++        error_log('OpenMPS API internal error: '.get_class($e));
++        mps_api_json(['success'=>false,'code'=>'internal_error','error'=>'Server operation failed; check server logs.'],500);
++    }
++}
+diff --git a/api/v1.php b/api/v1.php
+new file mode 100644
+index 0000000..26f351a
+--- /dev/null
++++ b/api/v1.php
+@@ -0,0 +1,4 @@
++<?php
++ini_set('display_errors', '0');
++require_once __DIR__ . '/lib.php';
++mps_api_run();
+diff --git a/get.php b/get.php
+index b2eeb60..0bf9423 100644
+--- a/get.php
++++ b/get.php
+@@ -46,6 +46,8 @@ if ($packVersion === false || empty($packVersion)) {
+     $b64Version  = base64_encode($packVersion);
+ }
+ 
++if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/D', $packKey) || !preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/D', $packVersion)) { http_response_code(400); exit('Invalid pack key or version.'); }
++
+ $packDir = MPS_PACKS_DIR . '/' . $packKey . '/' . $packVersion;
+ if (!is_dir($packDir)) {
+     $found = false;
+@@ -70,8 +72,15 @@ if (!is_dir($packDir)) {
+     }
+ }
+ 
+-$cleanPath = str_replace(['..', "\0", '\\'], ['', '', '/'], $filePath);
+-$cleanPath = ltrim($cleanPath, '/');
++// Resolve dot segments inside the pack, never by deleting '..' substrings.
++if (strpos($filePath, "\0") !== false) { http_response_code(400); exit('Invalid resource path.'); }
++$segments=[];
++foreach (explode('/', str_replace('\\','/',$filePath)) as $segment) {
++    if ($segment==='' || $segment==='.') continue;
++    if ($segment==='..') { if (!$segments) { http_response_code(400); exit('Resource path leaves the pack.'); } array_pop($segments); }
++    else $segments[]=$segment;
++}
++$cleanPath=implode('/',$segments);
+ 
+ $isRepoRequest = (
+     empty($cleanPath) ||
+@@ -104,6 +113,10 @@ if ($isRepoRequest) {
+ 
+ $safeFilePath = preg_replace('#^custom/[^/]+/#i', '', $cleanPath);
+ $targetFile = $packDir . '/' . $safeFilePath;
++$resolved=realpath($targetFile);$root=realpath($packDir);
++if ($resolved===false || $root===false || strpos($resolved,$root.DIRECTORY_SEPARATOR)!==0) { http_response_code(404); exit('Resource not found.'); }
++$targetFile=$resolved;
++
+ 
+ if (!file_exists($targetFile) || is_dir($targetFile)) {
+     http_response_code(404);
+diff --git a/index.php b/index.php
+index c6c5219..9c193bf 100644
+--- a/index.php
++++ b/index.php
+@@ -1,13 +1,12 @@
+ <?php
+ 
+-if (session_status() === PHP_SESSION_NONE) {
+-    session_start();
+-}
+-
+ require_once __DIR__ . '/config.php';
+ require_once __DIR__ . '/pack_manager.php';
+ 
+ $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
++if (preg_match('#(?:^|/)(?:var/openmps-api(?:/|$)|api-tokens\.php(?:$|/))#', $uri)) { http_response_code(404); exit; }
++if (preg_match('#/api/v1\.php$#', $uri)) { require __DIR__ . '/api/v1.php'; exit; }
++
+ 
+ if (preg_match('#/get/([^/]+)/([^/]+)/([^/]+)(?:/(.*))?$#', $uri, $matches)) {
+     $_GET['mps_version'] = $matches[1];
+@@ -33,6 +32,8 @@ if (file_exists($potentialFile) && is_file($potentialFile) && !preg_match('#\.(p
+     return false;
+ }
+ 
++if (session_status() === PHP_SESSION_NONE) { session_start(); }
++
+ $action = $_GET['action'] ?? $_POST['action'] ?? '';
+ 
+ if ($action === 'logout') {
+diff --git a/installer.php b/installer.php
+index 2d6105c..4ab889c 100644
+--- a/installer.php
++++ b/installer.php
+@@ -267,6 +267,9 @@ $requiredFiles = [
+     $rootDir . '/index.php',
+     $rootDir . '/pack_manager.php',
+     $rootDir . '/get.php',
++    $rootDir . '/api/v1.php',
++    $rootDir . '/api/lib.php',
++    $rootDir . '/tools/api_token.php',
+     $rootDir . '/1.3.0/home.php',
+     $rootDir . '/loader/EncryptedMPSResourceLoader.class'
+ ];
+diff --git a/pack_manager.php b/pack_manager.php
+index df3cb63..27664d2 100644
+--- a/pack_manager.php
++++ b/pack_manager.php
+@@ -127,11 +127,18 @@ function mps_generate_mps_repositories_json(
+     return $json;
+ }
+ 
++// Only configuration files belong in the players' archive; resources are served by MPS.
++function mps_is_client_configuration(string $path): bool {
++    $path=str_replace('\\','/',$path);
++    return strpos(strtolower($path),'assets/')!==0 && preg_match('/\.dynx$/i',$path)===1;
++}
++
+ function mps_generate_client_zip(
+     string $packDir,
+     string $packKey,
+     string $packVersion,
+-    array $extraFiles = []
++    array $extraFiles = [],
++    ?string $publicBaseUrl = null
+ ): ?string {
+     if (!class_exists('ZipArchive')) {
+         return null;
+@@ -174,7 +181,7 @@ function mps_generate_client_zip(
+     $included = ['MpsRepositories.json' => true, 'pack_info.dynx' => true];
+ 
+     foreach ($extraFiles as $relName => $fullPath) {
+-        if (file_exists($fullPath) && is_file($fullPath)) {
++        if (mps_is_client_configuration($relName) && file_exists($fullPath) && is_file($fullPath)) {
+             $zip->addFile($fullPath, $relName);
+             $included[$relName] = true;
+         }
+@@ -221,14 +228,14 @@ function mps_generate_client_zip(
+                 continue;
+             }
+ 
+-            if (!isset($included[$relPath])) {
++            if (mps_is_client_configuration($relPath) && !isset($included[$relPath])) {
+                 $zip->addFile($fullPath, $relPath);
+                 $included[$relPath] = true;
+             }
+         }
+     }
+ 
+-    $mainUrl = mps_get_base_url();
++    $mainUrl = $publicBaseUrl ?? mps_get_base_url();
+     $readme = "=== DynamX / WesterLife MPS Client Pack ===\r\n"
+             . "Pack       : {$packKey}\r\n"
+             . "Version    : {$packVersion}\r\n"
+@@ -245,12 +252,12 @@ function mps_generate_client_zip(
+     return $clientZipPath;
+ }
+ 
+-function mps_get_or_build_repo_zip(string $packKey, string $packVersion, string $mpsVersion = '1.3.0', ?string $b64Version = null): ?string {
++function mps_get_or_build_repo_zip(string $packKey, string $packVersion, string $mpsVersion = '1.3.0', ?string $b64Version = null, ?string $directory = null, ?string $publicBaseUrl = null): ?string {
+     if (!class_exists('ZipArchive')) {
+         return null;
+     }
+ 
+-    $packDir = MPS_PACKS_DIR . '/' . $packKey . '/' . $packVersion;
++    $packDir = $directory ?? (MPS_PACKS_DIR . '/' . $packKey . '/' . $packVersion);
+     if (!is_dir($packDir)) {
+         return null;
+     }
+@@ -265,7 +272,7 @@ function mps_get_or_build_repo_zip(string $packKey, string $packVersion, string
+     $descPath = mps_generate_desc_file($packDir, $packKey, $scan);
+     $plainDesc = file_get_contents($descPath);
+ 
+-    $baseUrl = mps_get_base_url();
++    $baseUrl = $publicBaseUrl ?? mps_get_base_url();
+     $repoUrl = rtrim($baseUrl, '/') . '/get/' . $mpsVersion . '/' . $packKey . '/' . $b64Version;
+     $descKey = mps_compute_desc_key($repoUrl);
+     $encryptedDesc = mps_encrypt_aes_ecb($plainDesc, $descKey);
+@@ -606,13 +613,13 @@ function mps_get_all_packs(): array {
+ 
+     $packFolders = scandir(MPS_PACKS_DIR);
+     foreach ($packFolders as $packFolder) {
+-        if ($packFolder === '.' || $packFolder === '..') continue;
++        if ($packFolder === '.' || $packFolder === '..' || $packFolder[0] === '.') continue;
+         $packPath = MPS_PACKS_DIR . '/' . $packFolder;
+         if (!is_dir($packPath)) continue;
+ 
+         $versions = scandir($packPath);
+         foreach ($versions as $v) {
+-            if ($v === '.' || $v === '..') continue;
++            if ($v === '.' || $v === '..' || $v[0] === '.') continue;
+             $vPath = $packPath . '/' . $v;
+             if (!is_dir($vPath)) continue;
+ 
+diff --git a/tools/api_token.php b/tools/api_token.php
+new file mode 100644
+index 0000000..324b4ac
+--- /dev/null
++++ b/tools/api_token.php
+@@ -0,0 +1,19 @@
++<?php
++if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
++require_once __DIR__ . '/../api/lib.php';
++try {
++    $path=mps_api_tokens_file();if(!is_dir(dirname($path)))mkdir(dirname($path),0700,true);
++    $lock=fopen($path.'.lock','c');if(!$lock||!flock($lock,LOCK_EX))throw new RuntimeException('Cannot lock token store');
++    $tokens=mps_api_read_tokens();$action=$argv[1]??'help';
++    if($action==='list'){foreach($tokens as $id=>$token)echo $id."\t".$token['label']."\t".(!empty($token['revoked'])?'revoked':implode(',',$token['scopes'])).PHP_EOL;exit;}
++    if($action==='create'){
++        $label=trim($argv[2]??'CPM');if($label===''||strlen($label)>80||preg_match('/[\x00-\x1f\x7f]/',$label))throw new RuntimeException('Invalid label');
++        $scopes=explode(',',$argv[3]??'read,publish');if(array_diff($scopes,['read','publish'])||!$scopes)throw new RuntimeException('Scopes: read,publish');
++        $raw='omps_'.rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');$id=bin2hex(random_bytes(8));
++        $tokens[$id]=['label'=>$label,'hash'=>hash('sha256',$raw),'scopes'=>array_values(array_unique($scopes)),'created_at'=>gmdate('c'),'revoked'=>false];
++    }elseif($action==='revoke'){$id=$argv[2]??'';if(!isset($tokens[$id]))throw new RuntimeException('Unknown token ID');$tokens[$id]['revoked']=true;
++    }else{echo "Usage: php tools/api_token.php create LABEL [read,publish]\n       php tools/api_token.php list\n       php tools/api_token.php revoke ID\n";exit;}
++    $temp=tempnam(dirname($path),'.api-token-');chmod($temp,0600);file_put_contents($temp,"<?php\nreturn ".var_export($tokens,true).";\n",LOCK_EX);
++    if(!rename($temp,$path)){unlink($temp);throw new RuntimeException('Cannot save tokens');}chmod($path,0600);
++    if(isset($raw))echo "Token ID: $id\nToken (shown once): $raw\n";else echo "Revoked: $id\n";
++} catch(Throwable $e){fwrite(STDERR,$e->getMessage().PHP_EOL);exit(1);}
+-- 
+2.56.1
+
+
+From 4fe2848194e7384b6839df1c3f408ee5fc0d66be Mon Sep 17 00:00:00 2001
+From: CPM contributor <noreply@users.noreply.github.com>
+Date: Fri, 20 Nov 2026 12:08:54 +0100
+Subject: [PATCH 2/2] Document and exercise the OpenMPS administration API
+
+---
+ API.md            |  63 +++++++++++++++++++++++++++++
+ tests/test_api.py | 101 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 164 insertions(+)
+ create mode 100644 API.md
+ create mode 100644 tests/test_api.py
+
+diff --git a/API.md b/API.md
+new file mode 100644
+index 0000000..5152abb
+--- /dev/null
++++ b/API.md
+@@ -0,0 +1,63 @@
++# Administration API v1 (CPM)
++
++Optional API for editor publication, separate from the existing game-facing MPS 1.3.0 protocol and dashboard login. Existing local exports in CPM do not require this API.
++
++## Install and connect
++
++Apply the companion changes to OpenMPS, enable PHP OpenSSL and ZipArchive, and configure `SERVER_PUBLIC_URL` in `config.php` to the externally reachable site root, including its installation subdirectory and trailing slash. Use HTTPS for administration; CPM permits plain HTTP only on loopback for development. The web/PHP user needs write access to `packs/`, `var/openmps-api/` and its temporary upload directory.
++
++Create a token **on the server**:
++
++```sh
++php tools/api_token.php create CPM
++php tools/api_token.php list
++php tools/api_token.php revoke TOKEN_ID
++```
++
++The token is displayed once. The store contains a SHA-256 digest, label, scopes and revocation state. Default scopes are `read,publish`; a download-only token can use `create Players read`. `OPENMPS_API_TOKEN_FILE` optionally places the PHP token store outside the web root. Ensure CLI and web PHP use the same location, and that the web user can read it. Never commit the token store or put tokens into URLs. CLI token rotation and revocation do not change the game-facing access key.
++
++In CPM choose **Outils → OpenMPS…**, enter the site URL and token, and test the connection. Profiles persist the name and URL only; paste the token again after restarting CPM. Publish requires an explicit button press after the compatibility report. A new version is required for different content or publication options.
++
++Apache: keep the supplied `.htaccess` with rewrite and authorization-header forwarding enabled. Nginx or another web server must explicitly deny requests to `var/openmps-api/` and `api-tokens.php`, forward the `Authorization` header to PHP, serve `api/v1.php`, and retain the existing `/get/` rewrite. For example, for an installation at the site root:
++
++```nginx
++location ^~ /var/openmps-api/ { deny all; }
++location = /api-tokens.php { deny all; }
++# In the existing PHP/FastCGI location:
++# fastcgi_param HTTP_AUTHORIZATION $http_authorization;
++```
++
++Adapt prefixes for a subdirectory installation. Set the reverse proxy body limit and request timeouts for the intended pack sizes. `OPENMPS_API_MAX_UPLOAD_BYTES` can lower the API's default 512 MiB upload limit. No remote deployment is performed by this patch.
++
++## HTTP contract
++
++Endpoint: `<site-root>/api/v1.php`. All requests require `Authorization: Bearer omps_…`; dashboard sessions and MPS game access keys cannot authenticate this API. Responses are JSON with `success`, except a successful ZIP download.
++
++| Method / action query | Scope | Result |
++| --- | --- | --- |
++| GET `?action=capabilities` | read | API/protocol version, public URL, upload limit, immutable-version flag |
++| GET `?action=packs` | read | `packs` array of pack keys, versions, ZIP sizes, file counts and available SHA-256 hashes |
++| POST `?action=publish` | publish | Raw ZIP body; publication receipt under `publication` |
++| GET `?action=client&pack_key=demo&pack_version=1.0` | read | Players ZIP, `X-OpenMPS-SHA256` and Content-Length |
++
++Publish headers:
++
++- `Content-Type: application/zip` and a valid `Content-Length`.
++- `X-OpenMPS-Pack-Key`: 1–64 lowercase letters/digits/underscore/hyphen, starting with a letter or digit.
++- `X-OpenMPS-Pack-Version`: 1–64 portable letters/digits/underscore/hyphen/dot, starting with a letter/digit and not ending with a dot.
++- `X-OpenMPS-SHA256`: lowercase hexadecimal SHA-256 of the ZIP.
++- `X-OpenMPS-Access-Key`: game-facing key accepted by the existing OpenMPS configuration; default `legacy`. This is intentionally included in the players' MpsRepositories.json and is **not** an admin credential.
++
++`pack_info.dynx` must be at the root, with matching PackName/PackVersion and DcFileVersion. Configurations remain outside `assets/`; models, textures, materials and sounds belong under `assets/<domain>/`. ZIP extraction rejects traversal, links, scripts, duplicate paths ignoring case, unsupported extensions, over 10,000 entries, individual files over 128 MiB and over 1 GiB uncompressed. Players ZIP generation excludes root models/textures, including dashboard extra-file inputs.
++
++A per-version lock and hidden staging directory prepare the description, repository ZIP, players ZIP and receipt before making the version visible. Existing versions are never replaced by the API. Retrying the same source ZIP, game key and public URL returns the existing receipt (`idempotent: true`). Different content/options returns HTTP 409. This guarantee covers API writes; the existing administrator dashboard remains a separate management interface.
++
++Common failures: 400 invalid identifier/length; 401 missing/revoked token; 403 insufficient scope; 409 existing version or concurrent publication; 413 upload limit; 415 wrong content type; 422 invalid archive/metadata/checksum/game key. JSON errors provide `code` and `error`. A network timeout after upload may leave a successfully published version: refresh versions before retrying.
++
++## Tests
++
++```sh
++python3 tests/test_api.py
++```
++
++Uses a temporary copy, temporary CLI-issued tokens and a real loopback PHP server, with no real account. Set `OPENMPS_TEST_PHP` and the JSON array `OPENMPS_TEST_PHP_ARGS` for an alternate PHP binary/extensions. Validated with PHP 8.4 plus OpenSSL/ZipArchive. Game loading itself requires a separate Minecraft/DynamX test.
+diff --git a/tests/test_api.py b/tests/test_api.py
+new file mode 100644
+index 0000000..935c68a
+--- /dev/null
++++ b/tests/test_api.py
+@@ -0,0 +1,101 @@
++"""End-to-end API contract tests; only temporary packs and a loopback PHP server."""
++import base64, hashlib, io, json, os, pathlib, re, shutil, socket, stat, subprocess, tempfile, time, unittest, urllib.error, urllib.request, zipfile
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++PHP=os.environ.get('OPENMPS_TEST_PHP','php')
++PHP_ARGS=json.loads(os.environ.get('OPENMPS_TEST_PHP_ARGS','[]'))
++class ApiTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.temp=tempfile.TemporaryDirectory();cls.site=pathlib.Path(cls.temp.name)/'site';shutil.copytree(ROOT,cls.site,ignore=shutil.ignore_patterns('.git','__pycache__'))
++        cls.env=os.environ.copy();cls.env['OPENMPS_API_TOKEN_FILE']=str(cls.site/'api-tokens.php');cls.env['TMPDIR']=cls.temp.name
++        def token(label,scopes):
++            output=subprocess.check_output([PHP,*PHP_ARGS,str(cls.site/'tools/api_token.php'),'create',label,scopes],env=cls.env,text=True)
++            return re.search(r'Token ID: (\w+)',output)[1],re.search(r'Token \(shown once\): (omps_\S+)',output)[1]
++        cls.id,cls.token=token('integration','read,publish');cls.read_id,cls.read_token=token('reader','read')
++        with socket.socket() as s:s.bind(('127.0.0.1',0));cls.port=s.getsockname()[1]
++        cls.url=f'http://127.0.0.1:{cls.port}/';cls.log=open(pathlib.Path(cls.temp.name)/'server.log','w+')
++        cls.process=subprocess.Popen([PHP,*PHP_ARGS,'-S',f'127.0.0.1:{cls.port}','-t',str(cls.site),str(cls.site/'index.php')],env=cls.env,stdout=cls.log,stderr=cls.log)
++        for _ in range(100):
++            try:cls.request('capabilities',auth=False);break
++            except OSError:time.sleep(.05)
++        else:raise RuntimeError('PHP server did not start')
++    @classmethod
++    def tearDownClass(cls):cls.process.terminate();cls.process.wait(timeout=10);cls.log.flush();cls.log.seek(0);print(cls.log.read()[-6500:]) if os.environ.get('OPENMPS_TEST_DEBUG') else None;cls.log.close();cls.temp.cleanup()
++    @classmethod
++    def request(cls,action,body=None,auth=True,token=None,headers=None,params=''):
++        h={'Authorization':'Bearer '+(token or cls.token)} if auth else {}
++        if headers:h.update(headers)
++        request=urllib.request.Request(cls.url+'api/v1.php?action='+action+params,data=body,headers=h)
++        try:
++            with urllib.request.urlopen(request,timeout=20) as response:return response.status,response.read(),dict(response.headers)
++        except urllib.error.HTTPError as e:return e.code,e.read(),dict(e.headers)
++    @staticmethod
++    def archive(key='demo',version='1.0',extra=None):
++        out=io.BytesIO()
++        with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
++            z.writestr('pack_info.dynx',f'PackName: {key}\nPackVersion: {version}\nDcFileVersion: 12.5.0\n')
++            z.writestr('vehicle_car.dynx',f'Name: Car\nModel: {key}:model.obj\n')
++            z.writestr(f'assets/{key}/model.obj','v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n')
++            for name,value in (extra or {}).items():z.writestr(name,value)
++        return out.getvalue()
++    @classmethod
++    def publish(cls,key,version,body=None,token=None,digest=None,access_key='legacy'):
++        body=body if body is not None else cls.archive(key,version)
++        return cls.request('publish',body,token=token,headers={'Content-Type':'application/zip','X-OpenMPS-Pack-Key':key,'X-OpenMPS-Pack-Version':version,'X-OpenMPS-SHA256':digest or hashlib.sha256(body).hexdigest(),'X-OpenMPS-Access-Key':access_key})
++    def test_authentication_scopes_and_capabilities(self):
++        self.assertEqual(self.request('capabilities',auth=False)[0],401)
++        self.assertEqual(self.request('capabilities',token='omps_'+'x'*43)[0],401)
++        code,body,_=self.request('capabilities');self.assertEqual(code,200);data=json.loads(body);self.assertEqual(data['api_version'],1);self.assertEqual(data['public_url'],self.url);self.assertTrue(data['immutable_versions'])
++        self.assertEqual(self.publish('scopetest','1.0',token=self.read_token)[0],403)
++    def test_publish_download_idempotency_and_game_resource_routes(self):
++        body=self.archive('roundtrip','1.0');code,result,_=self.publish('roundtrip','1.0',body);self.assertEqual(code,200,result);receipt=json.loads(result)['publication']
++        code,client,headers=self.request('client',params='&pack_key=roundtrip&pack_version=1.0');self.assertEqual(code,200);self.assertEqual(hashlib.sha256(client).hexdigest(),receipt['client_sha256']);self.assertEqual(headers['X-OpenMPS-SHA256'],receipt['client_sha256'])
++        with zipfile.ZipFile(io.BytesIO(client)) as z:
++            self.assertEqual(set(z.namelist()),{'pack_info.dynx','vehicle_car.dynx','MpsRepositories.json','README_INSTALLATION.txt'})
++            config=json.loads(z.read('MpsRepositories.json'));self.assertEqual(config['mainUrl'],self.url);self.assertEqual(config['accessKey'],'legacy');self.assertNotIn(self.token,str(config))
++        code,result,_=self.publish('roundtrip','1.0',body);self.assertEqual(code,200,result);self.assertTrue(json.loads(result)['publication']['idempotent'])
++        changed=self.archive('roundtrip','1.0',{'assets/roundtrip/new.txt':'different'});self.assertEqual(self.publish('roundtrip','1.0',changed)[0],409)
++        self.assertEqual(self.publish('roundtrip','2.0')[0],200)
++        code,packs,_=self.request('packs');self.assertEqual(code,200);self.assertTrue(any(p['pack_key']=='roundtrip' and p['pack_version']=='2.0' for p in json.loads(packs)['packs']))
++        version=base64.b64encode(b'1.0').decode()
++        with urllib.request.urlopen(self.url+f'get/1.3.0/roundtrip/{version}/assets/roundtrip/model.obj') as response:self.assertIn(b'v 1 0 0',response.read())
++        with urllib.request.urlopen(self.url+f'get/1.3.0/roundtrip/{version}') as response:
++            with zipfile.ZipFile(io.BytesIO(response.read())) as z:self.assertFalse(z.read('roundtrip.desc').startswith(b'Id='))
++    def test_bad_archives_are_rejected_without_partial_version(self):
++        cases=[('badpath',{'../escape.txt':'bad'}),('badlayout',{'models/car.obj':'private'}),('badscript',{'assets/badscript/evil.php':'<?php'}),('badcase',{'ASSETS/badcase/model.obj':'duplicate'}),('suffixscript',{'assets/suffixscript/evil.php.png':'bad'})]
++        for key,extra in cases:
++            with self.subTest(key=key):
++                code,body,_=self.publish(key,'1.0',self.archive(key,'1.0',extra));self.assertEqual(code,422,body);self.assertFalse((self.site/'packs'/key/'1.0').exists());self.assertFalse(list((self.site/'packs'/key).glob('.api-stage-*')))
++        self.assertEqual(self.publish('mismatch','1.0',self.archive('different','1.0'))[0],422)
++        self.assertEqual(self.publish('checksum','1.0',digest='0'*64)[0],422)
++        self.assertEqual(self.publish('badkey','1.0',access_key='not-allowed')[0],422)
++        self.assertEqual(self.publish('../outside','1.0')[0],400)
++        self.assertEqual(self.publish('version','../outside')[0],400)
++        self.assertFalse((self.site/'packs'/'escape.txt').exists())
++    def test_symlinks_and_resource_escape_are_rejected(self):
++        body=io.BytesIO(self.archive('links','1.0'))
++        with zipfile.ZipFile(body,'a') as z:
++            link=zipfile.ZipInfo('assets/links/link.obj');link.create_system=3;link.external_attr=(stat.S_IFLNK|0o777)<<16;z.writestr(link,'../../config.php')
++        self.assertEqual(self.publish('links','1.0',body.getvalue())[0],422)
++        self.assertFalse((self.site/'packs/links/1.0').exists())
++        code,result,_=self.publish('paths','1.0');self.assertEqual(code,200,result)
++        version=base64.b64encode(b'1.0').decode()
++        with urllib.request.urlopen(self.url+f'get/1.3.0/paths/{version}/assets/paths/sub/../model.obj') as response:self.assertIn(b'v 1 0 0',response.read())
++        with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(self.url+f'get/1.3.0/paths/{version}/../../../config.php')
++        self.assertEqual(caught.exception.code,400)
++    def test_token_revocation_and_private_state(self):
++        output=subprocess.check_output([PHP,*PHP_ARGS,str(self.site/'tools/api_token.php'),'create','revocable','read'],env=self.env,text=True)
++        token=re.search(r'Token \(shown once\): (omps_\S+)',output)[1];id=re.search(r'Token ID: (\w+)',output)[1]
++        self.assertEqual(self.request('packs',token=token)[0],200)
++        subprocess.check_call([PHP,*PHP_ARGS,str(self.site/'tools/api_token.php'),'revoke',id],env=self.env,stdout=subprocess.DEVNULL)
++        self.assertEqual(self.request('packs',token=token)[0],401)
++        self.assertNotIn(token,(self.site/'api-tokens.php').read_text())
++        for path in ['api-tokens.php','var/openmps-api/unknown.json']:
++            with self.assertRaises(urllib.error.HTTPError) as caught:urllib.request.urlopen(self.url+path)
++            self.assertEqual(caught.exception.code,404)
++    def test_legacy_client_builder_never_embeds_root_model_or_texture_extras(self):
++        folder=self.site/'legacy-fixture';folder.mkdir();(folder/'pack_info.dynx').write_text('PackName: legacy\nDcFileVersion: 12.5.0\n');(folder/'model.obj').write_text('private');(folder/'texture.png').write_bytes(b'private');(folder/'vehicle_car.dynx').write_text('Name: Car\n')
++        code='require $argv[1]; echo mps_generate_client_zip($argv[2],"legacy","1.0",["model.obj"=>$argv[2]."/model.obj","texture.png"=>$argv[2]."/texture.png"],"http://localhost/");'
++        client=subprocess.check_output([PHP,*PHP_ARGS,'-r',code,str(self.site/'pack_manager.php'),str(folder)],env=self.env,text=True)
++        with zipfile.ZipFile(client) as z:self.assertNotIn('model.obj',z.namelist());self.assertNotIn('texture.png',z.namelist());self.assertIn('vehicle_car.dynx',z.namelist())
++if __name__=='__main__':unittest.main()
+-- 
+2.56.1
+

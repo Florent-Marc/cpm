@@ -13,6 +13,7 @@ de bureau egui. Cette branche contient uniquement la version Rust.
 - Assistant de création par étapes : import OBJ/MTL/textures, propriétés expliquées, roues existantes ou nouvelles, moteur de départ, siège et collision ; bouton crayon pour gérer les fichiers `.dynx`.
 - Export complet en dossier, ZIP ou DNXPACK, avec métadonnées et remplacement
   explicite d'une sortie existante.
+- Publication facultative sur OpenMPS : profils, diagnostic sur copie, versions distantes et ZIP joueurs vérifié. Voir le [guide OpenMPS](docs/openmps.md).
 - Liens vers le wiki et les rapports de bugs, version affichée et vérification
   des nouvelles releases Rust.
 
