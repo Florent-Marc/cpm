@@ -340,3 +340,37 @@ fn new_configuration_paths_are_safe_and_export_validates_added_documents() {
         .unwrap();
     assert!(!pack.has_structure_changes());
 }
+
+#[test]
+fn forced_export_keeps_invalid_values_but_never_bypasses_destination_checks() {
+    let temp = fixture();
+    let pack = Pack::open(&temp.path().join("source")).unwrap();
+    let mut documents = BTreeMap::new();
+    documents.insert(
+        PathBuf::from("engine_car.dynx"),
+        Document::parse("Power: invalid\nMaxRPM: 6000\nBraking: 100\n").unwrap(),
+    );
+    let mut output = options(temp.path(), ExportFormat::Zip);
+    let catalog = cpm_core::ParameterCatalog::builtin();
+    assert!(pack
+        .export_with_catalog(&output, &documents, &catalog)
+        .is_err());
+    let saved = pack
+        .export_with_policy(&output, &documents, &catalog, true)
+        .unwrap();
+    assert!(String::from_utf8(read_resource(&saved, "engine_car.dynx"))
+        .unwrap()
+        .contains("Power: invalid"));
+    let bytes = fs::read(&saved).unwrap();
+    assert!(pack
+        .export_with_policy(&output, &documents, &catalog, true)
+        .is_err());
+    assert_eq!(fs::read(&saved).unwrap(), bytes);
+    output.output_name = "../escape".into();
+    assert!(pack
+        .export_with_policy(&output, &documents, &catalog, true)
+        .is_err());
+    assert!(fs::read_to_string(pack.source().join("engine_car.dynx"))
+        .unwrap()
+        .contains("Power: 1000"));
+}

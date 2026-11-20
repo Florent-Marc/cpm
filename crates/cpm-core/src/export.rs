@@ -112,6 +112,17 @@ impl Pack {
         documents: &BTreeMap<PathBuf, Document>,
         catalog: &ParameterCatalog,
     ) -> Result<PathBuf, String> {
+        self.export_with_policy(options, documents, catalog, false)
+    }
+
+    /// Force skips configuration diagnostics only; path, read and replacement checks remain mandatory.
+    pub fn export_with_policy(
+        &self,
+        options: &ExportOptions,
+        documents: &BTreeMap<PathBuf, Document>,
+        catalog: &ParameterCatalog,
+        force: bool,
+    ) -> Result<PathBuf, String> {
         let parent =
             fs::canonicalize(&options.destination).map_err(|e| format!("Destination : {e}"))?;
         if !parent.is_dir() {
@@ -183,7 +194,7 @@ impl Pack {
                 Err(error) => validation_errors.push(format!("{} : {error}", path.display())),
             }
         }
-        if !validation_errors.is_empty() {
+        if !force && !validation_errors.is_empty() {
             return Err(format!(
                 "Export bloqué : corriger les configurations en rouge.\n{}",
                 validation_errors.join("\n")

@@ -72,3 +72,9 @@ Sans texture correspondante, le matériau conserve sa texture diffuse par défau
 Les flèches suivent les axes du fichier DynamX et tiennent compte de ScaleModifier. Un axe dirigé vers la caméra peut ne pas être manipulable : changer de vue. Les demi-dimensions restent positives (minimum 0,001). Les alias anciens Position/Scale sont conservés et les composantes non modifiées gardent leur texte d’origine.
 
 Le déplacement nécessite une Position explicite valide. Un volant placé automatiquement depuis l’OBJ doit d’abord recevoir une Position adaptée dans sa configuration. L’outil ne transforme pas automatiquement un pivot implicite en pivot manuel. Si la configuration a changé pendant un geste, l’application refuse l’écriture basée sur l’ancien état : attendre l’actualisation puis recommencer.
+
+## Corriger ou forcer l’export
+
+Dans le diagnostic lancé par **File → Exporter**, **Corriger** ferme la fenêtre et rejoint la première erreur (ou le premier avertissement) dans la configuration. Une ligne du diagnostic rejoint toujours directement le problème choisi. Relancer l’export après correction.
+
+Si des erreurs de configuration subsistent, **Forcer l’export** ouvre les options d’export sans exiger leur correction. La fenêtre rappelle que le pack peut ne pas fonctionner en jeu. Ce choix s’applique uniquement à cet export ; un nouvel export repart du diagnostic normal. Le nom de sortie, les chemins, les limites de lecture et l’autorisation explicite de remplacement restent contrôlés. Une métadonnée illisible ou une opération de fichier impossible peut donc encore empêcher l’export. Sans erreur, **Continuer vers l’export** conserve le parcours normal. La publication OpenMPS garde sa validation obligatoire.

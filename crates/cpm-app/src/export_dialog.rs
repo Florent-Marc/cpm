@@ -12,6 +12,7 @@ pub enum Action {
 
 pub struct ExportDialog {
     pub options: ExportOptions,
+    pub force: bool,
     destination_text: String,
     pub error: Option<String>,
     worker: Option<Receiver<Result<PathBuf, String>>>,
@@ -47,6 +48,7 @@ impl ExportDialog {
                 replace_existing: false,
                 metadata,
             },
+            force: false,
             error: None,
             worker: None,
         }
@@ -68,11 +70,12 @@ impl ExportDialog {
             return;
         }
         let options = self.options.clone();
+        let force = self.force;
         let (sender, receiver) = mpsc::channel();
         self.worker = Some(receiver);
         self.error = None;
         std::thread::spawn(move || {
-            let result = pack.export_with_catalog(&options, &documents, &catalog);
+            let result = pack.export_with_policy(&options, &documents, &catalog, force);
             let _ = sender.send(result);
         });
     }
@@ -97,6 +100,9 @@ impl ExportDialog {
             .default_width(580.0)
             .show(ctx, |ui| {
                 ui.add_enabled_ui(!busy, |ui| {
+                    if self.force {
+                        ui.colored_label(egui::Color32::YELLOW, "Export forcé : les erreurs de configuration sont ignorées. Le pack peut ne pas fonctionner en jeu.");
+                    }
                     ui.label("Dossier de destination");
                     ui.horizontal(|ui| {
                         if ui

@@ -1186,7 +1186,12 @@ impl CpmApp {
             match report.show(&ctx) {
                 report::Action::None => self.report = Some(report),
                 report::Action::Close => {}
-                report::Action::Export => self.prepare_export_options(),
+                report::Action::Export { force } => {
+                    self.prepare_export_options();
+                    if let Some(dialog) = &mut self.export_dialog {
+                        dialog.force = force;
+                    }
+                }
                 report::Action::Jump(issue) => {
                     if let Some(index) = self
                         .pack
