@@ -1463,7 +1463,7 @@ impl CpmApp {
         if self
             .preview
             .as_ref()
-            .is_some_and(|p| (p.live || p.reload_requested) && !p.busy())
+            .is_some_and(|p| (p.live || p.reload_requested) && !p.busy() && !p.manipulating())
             && self
                 .preview_due
                 .is_some_and(|at| at.elapsed() >= std::time::Duration::from_millis(350))
@@ -1489,6 +1489,9 @@ impl CpmApp {
             {
                 preview.selected = self.selected_section;
             }
+            let fast_collision =
+                self.preview_due.is_none() && self.preview_signature == self.scene_revision();
+            let mut collision_applied = false;
             if preview.show(&ctx, self.gl.as_ref()) {
                 for edit in preview.take_edits() {
                     if self.report.is_some()
@@ -1513,12 +1516,28 @@ impl CpmApp {
                     {
                         match editor.apply_gizmo(&edit) {
                             Ok(()) => {
-                                preview.reload_requested = true;
+                                let is_collision = editor
+                                    .document
+                                    .sections()
+                                    .get(edit.section)
+                                    .is_some_and(|s| {
+                                        s.name.to_ascii_lowercase().starts_with("shape")
+                                    });
+                                preview.sync_document(editor.document.clone());
+                                if is_collision && fast_collision {
+                                    collision_applied = true;
+                                } else {
+                                    preview.reload_requested = true;
+                                }
                                 self.status = "Placement 3D appliqué · Ctrl+Z pour annuler".into();
                             }
                             Err(error) => self.error = Some(error),
                         }
                     }
+                }
+                if collision_applied && !preview.reload_requested {
+                    self.preview_signature = self.scene_revision();
+                    self.preview_due = None;
                 }
                 if let Some(section) = preview.take_selection().filter(|_| preview.interactive) {
                     if let Some(index) = self

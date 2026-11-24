@@ -42,3 +42,5 @@ L’aperçu s’ouvre dans une fenêtre native séparée : déplacer sa barre de
 Les options, variantes, pièces et avertissements occupent une colonne défilante à gauche. Sa largeur est réglable en glissant la séparation. La vue 3D reste à droite sur la hauteur disponible, même avec beaucoup de pièces. Les commandes de caméra et les outils restent au-dessus.
 
 Sur un environnement qui ne prend pas en charge plusieurs fenêtres natives, egui affiche une fenêtre intégrée de secours.
+
+Le déplacement et le redimensionnement des boîtes de collision affichent un aperçu en direct pendant le glissement. Les lignes sont recalculées seules, dans le même repère de caméra ; les modèles et textures ne sont pas rechargés pour ce placement. La configuration est validée au relâchement et Ctrl+Z annule le geste complet. Une actualisation complète en attente est différée pendant un glissement.

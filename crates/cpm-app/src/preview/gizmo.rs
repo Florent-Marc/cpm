@@ -152,6 +152,24 @@ impl Gizmo {
             );
         });
     }
+    pub fn preview_document(&self, document: &Document) -> Option<Document> {
+        let drag = self.drag.as_ref()?;
+        let mut tokens = drag.origin.clone();
+        tokens[drag.axis] = drag.current.to_string();
+        let mut draft = document.clone();
+        if let Some(index) = draft
+            .properties()
+            .iter()
+            .position(|p| p.section == Some(drag.section) && p.key == drag.key)
+        {
+            draft.set_value(index, &tokens.join(" ")).ok()?;
+        } else {
+            draft
+                .add_property(Some(drag.section), &drag.key, &tokens.join(" "))
+                .ok()?;
+        }
+        Some(draft)
+    }
     pub fn active(&self) -> bool {
         self.drag.is_some()
     }
@@ -180,7 +198,7 @@ impl Gizmo {
             return None;
         };
         let resize = self.tool == Tool::Resize;
-        let control = match control(document, section, resize) {
+        let mut control = match control(document, section, resize) {
             Ok(c) => c,
             Err(error) => {
                 self.drag = None;
@@ -194,6 +212,13 @@ impl Gizmo {
                 return None;
             }
         };
+        if let Some(drag) = self
+            .drag
+            .as_ref()
+            .filter(|d| d.section == section && !d.resize)
+        {
+            control.position[drag.axis] = drag.current;
+        }
         let world = config_world(control.position, control.scale);
         let origin = picking::project(mesh.normalize_point(world), view, rect).0;
         let colors = [
@@ -401,6 +426,14 @@ mod interaction_tests {
             vec![egui::Event::PointerMoved(endpoint + Vec2::new(40.0, 0.0))]
         )
         .is_none());
+        let live = gizmo
+            .preview_document(&doc)
+            .expect("live placement during drag");
+        assert_ne!(live.source(), doc.source());
+        assert_eq!(doc.properties()[0].value, "0 0 0");
+        let wires = mesh.preview_collisions(&live);
+        assert_eq!(wires.len(), 1);
+        assert_ne!(wires[0].vertices, mesh.preview_collisions(&doc)[0].vertices);
         let edit = frame(
             &ctx,
             &mut gizmo,

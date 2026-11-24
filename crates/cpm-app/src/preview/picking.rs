@@ -35,6 +35,29 @@ pub(super) fn segment_distance(point: Pos2, a: Pos2, b: Pos2) -> f32 {
     }
     point.distance(a + edge * ((point - a).dot(edge) / length).clamp(0.0, 1.0))
 }
+pub(super) fn pick_wires(
+    wires: &[cpm_core::CollisionWire],
+    view: View,
+    rect: Rect,
+    point: Pos2,
+) -> Option<Option<usize>> {
+    let mut closest = 6.0;
+    let mut section = None;
+    for wire in wires {
+        for edge in wire.vertices.as_chunks::<2>().0 {
+            let distance = segment_distance(
+                point,
+                project(edge[0], view, rect).0,
+                project(edge[1], view, rect).0,
+            );
+            if distance < closest {
+                closest = distance;
+                section = Some(Some(wire.section));
+            }
+        }
+    }
+    section
+}
 pub(super) fn pick(
     mesh: &ObjMesh,
     visible: &[bool],

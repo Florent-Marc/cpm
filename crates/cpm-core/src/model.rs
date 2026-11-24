@@ -278,6 +278,10 @@ pub struct ObjMesh {
     pub objects: usize,
 }
 impl ObjMesh {
+    /// Rebuild only collision lines using the existing camera normalization.
+    pub fn preview_collisions(&self, document: &Document) -> Vec<CollisionWire> {
+        crate::scene::preview_collisions(self, document)
+    }
     pub fn normalize_point(&self, world: [f64; 3]) -> [f32; 3] {
         std::array::from_fn(|i| ((world[i] - self.center[i]) / self.radius) as f32)
     }

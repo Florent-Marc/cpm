@@ -529,3 +529,48 @@ fn selects_dynamx_tagged_diffuse_maps_and_material_variants() {
         vec!["Default", "blue", "green"]
     );
 }
+
+#[test]
+fn collision_preview_keeps_camera_normalization_and_needs_no_model_reload() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("pack_info.dynx"), "PackName: Test\n").unwrap();
+    fs::write(root.path().join("car.obj"), OBJ).unwrap();
+    let mut doc=Document::parse("Model: car.obj\nScaleModifier: 2 3 4\nShape_body{\nPosition: 0 0 0\nScale: 1 1 1\n}\nShape_other{\nPosition: 2 0 0\nScale: 1 1 1\n}\n").unwrap();
+    let pack = Pack::open(root.path()).unwrap();
+    let mesh = ObjRequest::resolve(Some(&pack), Path::new("vehicle_test.dynx"), &doc)
+        .unwrap()
+        .load()
+        .unwrap();
+    let original = mesh.preview_collisions(&doc);
+    assert_eq!(original[0].vertices, mesh.collisions[0].vertices);
+    fs::remove_file(root.path().join("car.obj")).unwrap();
+    let position = doc
+        .properties()
+        .iter()
+        .position(|p| p.section == Some(0) && p.key == "Position")
+        .unwrap();
+    doc.set_value(position, "1 0 0").unwrap();
+    let moved = mesh.preview_collisions(&doc);
+    assert_ne!(moved[0].vertices, original[0].vertices);
+    assert_eq!(moved[1].vertices, original[1].vertices);
+    for (a, b) in moved[0].vertices.iter().zip(&original[0].vertices) {
+        assert!(
+            (a[0]
+                - b[0]
+                - (mesh.normalize_point([2.0, 0.0, 0.0])[0] - mesh.normalize_point([0.0; 3])[0]))
+                .abs()
+                < 1e-5
+        );
+        assert_eq!(a[1], b[1]);
+        assert_eq!(a[2], b[2]);
+    }
+    let size = doc
+        .properties()
+        .iter()
+        .position(|p| p.section == Some(0) && p.key == "Scale")
+        .unwrap();
+    doc.set_value(size, "2 1 1").unwrap();
+    let resized = mesh.preview_collisions(&doc);
+    assert_ne!(resized[0].vertices, moved[0].vertices);
+    assert_eq!(resized[1].vertices, original[1].vertices);
+}

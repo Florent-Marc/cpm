@@ -463,6 +463,26 @@ fn steering(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
     }
 }
 fn collision_boxes(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
+    let (collisions, warnings) = build_collisions(document, scale);
+    scene.collisions.extend(collisions);
+    scene.warnings.extend(warnings);
+}
+pub(crate) fn preview_collisions(mesh: &ObjMesh, document: &Document) -> Vec<crate::CollisionWire> {
+    let Ok(scale) = scale(document) else {
+        return Vec::new();
+    };
+    let (mut wires, _) = build_collisions(document, scale);
+    for point in wires.iter_mut().flat_map(|wire| &mut wire.vertices) {
+        *point = mesh.normalize_point(point.map(f64::from));
+    }
+    wires
+}
+fn build_collisions(
+    document: &Document,
+    scale: [f64; 3],
+) -> (Vec<crate::CollisionWire>, Vec<String>) {
+    let mut collisions = Vec::new();
+    let mut warnings = Vec::new();
     let shapes: Vec<_> = document
         .sections()
         .iter()
@@ -470,9 +490,7 @@ fn collision_boxes(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
         .filter(|(_, s)| s.parent.is_none() && s.name.to_ascii_lowercase().starts_with("shape"))
         .collect();
     if shapes.len() > 1024 {
-        scene
-            .warnings
-            .push("Affichage limité aux 1024 premières boîtes de collision".into());
+        warnings.push("Affichage limité aux 1024 premières boîtes de collision".into());
     }
     for (section, info) in shapes.into_iter().take(1024) {
         let result = (|| -> Result<crate::CollisionWire, String> {
@@ -526,8 +544,9 @@ fn collision_boxes(scene: &mut ObjMesh, document: &Document, scale: [f64; 3]) {
             })
         })();
         match result {
-            Ok(wire) => scene.collisions.push(wire),
-            Err(error) => scene.warnings.push(format!("{} : {error}", info.name)),
+            Ok(wire) => collisions.push(wire),
+            Err(error) => warnings.push(format!("{} : {error}", info.name)),
         }
     }
+    (collisions, warnings)
 }

@@ -18,6 +18,8 @@ pub struct Preview {
     pub interactive: bool,
     pub live: bool,
     document: cpm_core::Document,
+    collision_source: String,
+    collision_wires: Vec<cpm_core::CollisionWire>,
     gizmo: gizmo::Gizmo,
     edits: Vec<GizmoEdit>,
     pub variant: usize,
@@ -56,6 +58,8 @@ impl Preview {
             interactive: true,
             live: true,
             document,
+            collision_source: String::new(),
+            collision_wires: Vec::new(),
             gizmo: gizmo::Gizmo::default(),
             edits: Vec::new(),
             variant: 0,
@@ -86,6 +90,12 @@ impl Preview {
     pub fn take_selection(&mut self) -> Option<Option<usize>> {
         self.selection_changed.take()
     }
+    pub fn manipulating(&self) -> bool {
+        self.gizmo.active()
+    }
+    pub fn sync_document(&mut self, document: cpm_core::Document) {
+        self.document = document;
+    }
     pub fn busy(&self) -> bool {
         self.receiver.is_some()
     }
@@ -109,7 +119,7 @@ impl Preview {
         self.geometry = None;
     }
     pub fn show(&mut self, ctx: &egui::Context, gl: Option<&Arc<glow::Context>>) -> bool {
-        if let Some(receiver) = &self.receiver {
+        if let Some(receiver) = self.receiver.as_ref().filter(|_| !self.gizmo.active()) {
             match receiver.try_recv() {
                 Ok(result) => {
                     self.receiver = None;
@@ -155,6 +165,7 @@ impl Preview {
                         self.warnings = mesh.warnings.clone();
                         let gl = gl.ok_or("Le moteur OpenGL de l’aperçu n’est pas disponible")?;
                         let gpu = GpuMesh::new(gl.clone(), &mesh)?;
+                        self.collision_source.clear();
                         self.geometry = Some(Arc::new(mesh));
                         Ok(gpu)
                     });
@@ -329,10 +340,8 @@ impl Preview {
                     (&self.geometry, response.interact_pointer_pos())
                 {
                     let visible: Vec<_> = self.parts.iter().map(|p| p.visible).collect();
-                    if let Some(section) = picking::pick(
-                        geometry,
-                        &visible,
-                        self.show_collisions,
+                    if let Some(section) = picking::pick_wires(
+                        &self.collision_wires,
                         View {
                             yaw: self.yaw,
                             pitch: self.pitch,
@@ -341,7 +350,23 @@ impl Preview {
                         },
                         rect,
                         pos,
-                    ) {
+                    )
+                    .filter(|_| self.show_collisions)
+                    .or_else(|| {
+                        picking::pick(
+                            geometry,
+                            &visible,
+                            false,
+                            View {
+                                yaw: self.yaw,
+                                pitch: self.pitch,
+                                zoom: self.zoom,
+                                pan: self.pan,
+                            },
+                            rect,
+                            pos,
+                        )
+                    }) {
                         self.selected = section;
                         self.selection_changed = Some(section);
                     }
@@ -357,7 +382,7 @@ impl Preview {
                 };
                 let visible: Vec<_> = self.parts.iter().map(|p| p.visible).collect();
                 let textures = self.use_textures;
-                let collisions = self.show_collisions;
+                let collisions = false;
                 let selected = self.selected;
                 let aspect = rect.width() / rect.height();
                 let callback = egui_glow::CallbackFn::new(move |_info, painter| {
@@ -383,6 +408,45 @@ impl Preview {
                             .draw(ui, geometry, &self.document, self.selected, view, rect)
                     {
                         self.edits.push(edit);
+                    }
+                }
+                if self.show_collisions {
+                    if let Some(geometry) = &self.geometry {
+                        let mut draft = self.gizmo.preview_document(&self.document);
+                        if let Some(edit) = self.edits.last() {
+                            let draft = draft.get_or_insert_with(|| self.document.clone());
+                            if let Some(index) = draft
+                                .properties()
+                                .iter()
+                                .position(|p| p.section == Some(edit.section) && p.key == edit.key)
+                            {
+                                let _ = draft.set_value(index, &edit.value);
+                            } else {
+                                let _ =
+                                    draft.add_property(Some(edit.section), &edit.key, &edit.value);
+                            }
+                        }
+                        let document = draft.as_ref().unwrap_or(&self.document);
+                        if self.collision_source != document.source() {
+                            self.collision_wires = geometry.preview_collisions(document);
+                            self.collision_source = document.source().into();
+                        }
+                        for wire in &self.collision_wires {
+                            let color = if self.selected == Some(wire.section) {
+                                egui::Color32::from_rgb(255, 166, 26)
+                            } else {
+                                egui::Color32::from_rgb(64, 255, 89)
+                            };
+                            for edge in wire.vertices.as_chunks::<2>().0 {
+                                ui.painter().with_clip_rect(rect).line_segment(
+                                    [
+                                        picking::project(edge[0], view, rect).0,
+                                        picking::project(edge[1], view, rect).0,
+                                    ],
+                                    egui::Stroke::new(1.5, color),
+                                );
+                            }
+                        }
                     }
                 }
             }
