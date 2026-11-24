@@ -9,6 +9,10 @@ Le [wiki CPM](https://github.com/Florent-Marc/cpm/wiki) accompagne les utilisate
 
 Le [guide de l’interface](docs/interface.md) présente les menus, l’accueil et les onglets OpenMPS.
 
+## Téléchargements Windows et Linux
+
+Les [releases](https://github.com/Florent-Marc/cpm/releases) proposent un installateur Windows x64, un exécutable portable Windows et une archive Linux x86_64. Voir le [guide Linux](docs/linux.md). Les définitions DynamX et BasicsAddon sont incluses et restent personnalisables dans `properties/`.
+
 ## Fonctionnalités
 
 - Import de dossiers de packs et d'archives ZIP, DNXPACK ou RAR non chiffrées.

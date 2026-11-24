@@ -378,14 +378,21 @@ impl ParameterCatalog {
             }
         }
         Self {
-            files: vec![NamedCatalogFile {
-                filename: "dynamx.json".into(),
-                catalog: CatalogFile {
-                    schema_version: 1,
-                    label: "DynamX".into(),
-                    rules,
+            files: vec![
+                NamedCatalogFile {
+                    filename: "dynamx.json".into(),
+                    catalog: CatalogFile {
+                        schema_version: 1,
+                        label: "DynamX".into(),
+                        rules,
+                    },
                 },
-            }],
+                NamedCatalogFile {
+                    filename: "basics-addon.json".into(),
+                    catalog: serde_json::from_str(include_str!("../catalogs/basics-addon.json"))
+                        .expect("catalogue BasicsAddon valide"),
+                },
+            ],
         }
     }
 }
@@ -576,8 +583,10 @@ impl CatalogStore {
         fs::create_dir_all(&self.directory)
             .map_err(|e| format!("{} : {e}", self.directory.display()))?;
         let builtin = ParameterCatalog::builtin();
-        if !self.directory.join("dynamx.json").exists() {
-            self.save_file(&builtin.files[0])?;
+        for file in &builtin.files {
+            if !self.directory.join(&file.filename).exists() {
+                self.save_file(file)?;
+            }
         }
         let mut paths: Vec<_> = fs::read_dir(&self.directory)
             .map_err(|e| e.to_string())?

@@ -1,0 +1,611 @@
+{
+  "schema_version": 1,
+  "label": "BasicsAddon",
+  "rules": [
+    {
+      "file_pattern": "vehicle_*.dynx",
+      "section_pattern": "BasicsAddon*",
+      "parameters": [
+        {
+          "name": "HornSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Son du klaxon, sous la forme domaine:son.",
+          "aliases": [
+            "KlaxonSound"
+          ]
+        },
+        {
+          "name": "HornCooldown",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Délai entre deux klaxons, en ticks.",
+          "default_value": "20",
+          "aliases": [
+            "KlaxonCooldown"
+          ]
+        },
+        {
+          "name": "SirenSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : SirenSound"
+        },
+        {
+          "name": "SirenDistance",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : SirenDistance",
+          "default_value": "50"
+        },
+        {
+          "name": "SirenLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "DRLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "HeadLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "BackLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "BrakeLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "ReverseLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "TurnSignalLeftLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "TurnSignalRightLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "IndicatorsSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : IndicatorsSound"
+        },
+        {
+          "name": "LockSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : LockSound"
+        }
+      ]
+    },
+    {
+      "file_pattern": "vehicle_*.dynx",
+      "section_pattern": "ImmatriculationPlate*",
+      "parameters": [
+        {
+          "name": "Position",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Position de cette pièce."
+        },
+        {
+          "name": "Scale",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Échelle de cette pièce."
+        },
+        {
+          "name": "Rotation",
+          "variable_type": "vector3",
+          "required": true,
+          "severity": "error",
+          "allow_empty": false,
+          "description": "Rotation en trois composantes pour cet affichage BasicsAddon.",
+          "default_value": "0 0 0"
+        },
+        {
+          "name": "Font",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Font",
+          "default_value": "dynamx_basics:e"
+        },
+        {
+          "name": "Color",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Color",
+          "default_value": "10 10 10"
+        },
+        {
+          "name": "DependsOnNode",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : DependsOnNode"
+        },
+        {
+          "name": "Pattern",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Pattern",
+          "default_value": "aa-111-aa"
+        },
+        {
+          "name": "LineSpacing",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : LineSpacing",
+          "default_value": "0"
+        }
+      ]
+    },
+    {
+      "file_pattern": "vehicle_*.dynx",
+      "section_pattern": "SpeedDisplay*",
+      "parameters": [
+        {
+          "name": "Position",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Position de cette pièce."
+        },
+        {
+          "name": "Scale",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Échelle de cette pièce."
+        },
+        {
+          "name": "Rotation",
+          "variable_type": "vector3",
+          "required": true,
+          "severity": "error",
+          "allow_empty": false,
+          "description": "Rotation en trois composantes pour cet affichage BasicsAddon.",
+          "default_value": "0 0 0"
+        },
+        {
+          "name": "Font",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Font",
+          "default_value": "dynamx_basics:e"
+        },
+        {
+          "name": "Color",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Color",
+          "default_value": "10 10 10"
+        },
+        {
+          "name": "DependsOnNode",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : DependsOnNode"
+        }
+      ]
+    },
+    {
+      "file_pattern": "helicopter_*.dynx",
+      "section_pattern": "BasicsAddon*",
+      "parameters": [
+        {
+          "name": "HornSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Son du klaxon, sous la forme domaine:son.",
+          "aliases": [
+            "KlaxonSound"
+          ]
+        },
+        {
+          "name": "HornCooldown",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Délai entre deux klaxons, en ticks.",
+          "default_value": "20",
+          "aliases": [
+            "KlaxonCooldown"
+          ]
+        },
+        {
+          "name": "SirenSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : SirenSound"
+        },
+        {
+          "name": "SirenDistance",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : SirenDistance",
+          "default_value": "50"
+        },
+        {
+          "name": "SirenLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "DRLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "HeadLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "BackLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "BrakeLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "ReverseLightsSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "TurnSignalLeftLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "TurnSignalRightLightSource",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Identifiant de source lumineuse BasicsAddon.",
+          "default_value": "0"
+        },
+        {
+          "name": "IndicatorsSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : IndicatorsSound"
+        },
+        {
+          "name": "LockSound",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : LockSound"
+        }
+      ]
+    },
+    {
+      "file_pattern": "helicopter_*.dynx",
+      "section_pattern": "ImmatriculationPlate*",
+      "parameters": [
+        {
+          "name": "Position",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Position de cette pièce."
+        },
+        {
+          "name": "Scale",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Échelle de cette pièce."
+        },
+        {
+          "name": "Rotation",
+          "variable_type": "vector3",
+          "required": true,
+          "severity": "error",
+          "allow_empty": false,
+          "description": "Rotation en trois composantes pour cet affichage BasicsAddon.",
+          "default_value": "0 0 0"
+        },
+        {
+          "name": "Font",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Font",
+          "default_value": "dynamx_basics:e"
+        },
+        {
+          "name": "Color",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Color",
+          "default_value": "10 10 10"
+        },
+        {
+          "name": "DependsOnNode",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : DependsOnNode"
+        },
+        {
+          "name": "Pattern",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Pattern",
+          "default_value": "aa-111-aa"
+        },
+        {
+          "name": "LineSpacing",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : LineSpacing",
+          "default_value": "0"
+        }
+      ]
+    },
+    {
+      "file_pattern": "helicopter_*.dynx",
+      "section_pattern": "SpeedDisplay*",
+      "parameters": [
+        {
+          "name": "Position",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Position de cette pièce."
+        },
+        {
+          "name": "Scale",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Échelle de cette pièce."
+        },
+        {
+          "name": "Rotation",
+          "variable_type": "vector3",
+          "required": true,
+          "severity": "error",
+          "allow_empty": false,
+          "description": "Rotation en trois composantes pour cet affichage BasicsAddon.",
+          "default_value": "0 0 0"
+        },
+        {
+          "name": "Font",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Font",
+          "default_value": "dynamx_basics:e"
+        },
+        {
+          "name": "Color",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Color",
+          "default_value": "10 10 10"
+        },
+        {
+          "name": "DependsOnNode",
+          "variable_type": "text",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : DependsOnNode"
+        }
+      ]
+    },
+    {
+      "file_pattern": "vehicle_*.dynx",
+      "section_pattern": "FuelTank*",
+      "parameters": [
+        {
+          "name": "Position",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Position"
+        },
+        {
+          "name": "Scale",
+          "variable_type": "vector3",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : Scale"
+        },
+        {
+          "name": "TankSize",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Capacité du réservoir.",
+          "default_value": "100"
+        },
+        {
+          "name": "FuelConsumption",
+          "variable_type": "decimal",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Consommation par seconde au régime maximal.",
+          "default_value": "1"
+        }
+      ]
+    },
+    {
+      "file_pattern": "item_*.dynx",
+      "section_pattern": "basicsitem",
+      "parameters": [
+        {
+          "name": "IsVehicleKey",
+          "variable_type": "boolean",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : IsVehicleKey",
+          "default_value": "false"
+        },
+        {
+          "name": "IsMultiKey",
+          "variable_type": "boolean",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : IsMultiKey",
+          "default_value": "false"
+        },
+        {
+          "name": "FuelCapacity",
+          "variable_type": "integer",
+          "required": false,
+          "severity": "error",
+          "allow_empty": true,
+          "description": "Paramètre BasicsAddon : FuelCapacity",
+          "default_value": "0"
+        }
+      ]
+    }
+  ]
+}

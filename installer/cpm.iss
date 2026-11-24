@@ -36,6 +36,7 @@ Name: "desktopicon"; Description: "Créer un raccourci sur le bureau"; Flags: un
 
 [Files]
 Source: "..\target\release\cpm.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\release\properties\*.json"; DestDir: "{app}\properties"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\CPM"; Filename: "{app}\cpm.exe"; WorkingDir: "{app}"

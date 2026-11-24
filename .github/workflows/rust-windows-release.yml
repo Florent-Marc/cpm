@@ -1,28 +1,29 @@
-name: CPM Rust Windows
+name: CPM Rust Windows and Linux
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish version after both platform builds pass
+        type: boolean
+        default: false
   push:
     tags:
       - 'rust-v*'
-  release:
-    types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: cpm-windows-${{ github.event.release.tag_name || github.ref_name }}
+  group: cpm-release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   windows:
-    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'rust-v')
     runs-on: windows-2025
     env:
       RUSTUP_TOOLCHAIN: stable
       RUSTFLAGS: '-C target-feature=+crt-static'
-      RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust stable
@@ -32,7 +33,7 @@ jobs:
         run: |
           $metadata = cargo metadata --locked --no-deps --format-version 1 | ConvertFrom-Json
           $version = ($metadata.packages | Where-Object name -eq 'cpm-app').version
-          if (($env:GITHUB_REF_TYPE -eq 'tag' -or $env:GITHUB_EVENT_NAME -eq 'release') -and $env:RELEASE_TAG -ne "rust-v$version") {
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "rust-v$version") {
             throw "Le tag doit correspondre a la version Cargo : rust-v$version"
           }
           "CPM_VERSION=$version" >> $env:GITHUB_ENV
@@ -49,6 +50,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force release
           Copy-Item target/release/cpm.exe release/cpm-windows-x86_64.exe
+      - name: Export bundled DynamX and BasicsAddon catalogues
+        run: cargo run --locked --release -p cpm-core --example export_catalogs -- release/properties
       - name: Build installer
         shell: pwsh
         run: |
@@ -64,31 +67,100 @@ jobs:
           $process = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$destination`"" -Wait -PassThru
           if ($process.ExitCode -ne 0 -or -not (Test-Path "$destination\cpm.exe")) { throw "Installation de test echouee" }
           if ((Get-FileHash "$destination\cpm.exe").Hash -ne (Get-FileHash target/release/cpm.exe).Hash) { throw "Executable installe different du build" }
+          if (-not (Test-Path "$destination\properties\dynamx.json") -or -not (Test-Path "$destination\properties\basics-addon.json")) { throw "Catalogues installes manquants" }
           $uninstaller = Join-Path $destination 'unins000.exe'
           $process = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
           if ($process.ExitCode -ne 0 -or (Test-Path "$destination\cpm.exe")) { throw "Desinstallation de test echouee" }
-      - name: Generate SHA-256 checksums
-        shell: pwsh
-        run: |
-          Get-ChildItem release/*.exe | Sort-Object Name | ForEach-Object {
-            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($_.Name)"
-          } | Set-Content release/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v7
         with:
           name: cpm-windows-x86_64
+          path: release/cpm-*.exe
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-22.04
+    env:
+      RUSTUP_TOOLCHAIN: stable
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Linux desktop and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgl1-mesa-dev libgl1-mesa-dri xvfb
+      - name: Install Rust stable
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Check release version
+        run: |
+          version=$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="cpm-app"))')
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "$GITHUB_REF_NAME" = "rust-v$version"; fi
+          echo "CPM_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --locked --release --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked --release --workspace
+      - name: Build Linux executable
+        run: cargo build --locked --release -p cpm-app
+      - name: Smoke test desktop startup with software OpenGL
+        run: |
+          set +e
+          timeout 12s xvfb-run -a target/release/cpm > startup.log 2>&1
+          code=$?
+          set -e
+          cat startup.log
+          test "$code" -eq 124
+          test -s target/release/properties/dynamx.json
+          test -s target/release/properties/basics-addon.json
+      - name: Package portable Linux application
+        run: |
+          mkdir -p release package/CPM
+          cp target/release/cpm release/cpm-linux-x86_64
+          cp target/release/cpm package/CPM/cpm
+          cargo run --locked --release -p cpm-core --example export_catalogs -- package/CPM/properties
+          cp docs/linux.md package/CPM/LIRE-MOI.md
+          cp crates/cpm-app/assets/cpm.png package/CPM/cpm.png
+          chmod +x package/CPM/cpm release/cpm-linux-x86_64
+          tar -czf release/cpm-linux-x86_64.tar.gz -C package CPM
+          tar -tzf release/cpm-linux-x86_64.tar.gz
+          ldd target/release/cpm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cpm-linux-x86_64
           path: release/*
           if-no-files-found: error
-      - name: Publish tagged Rust release
-        if: startsWith(github.ref, 'refs/tags/rust-v') || github.event_name == 'release'
+
+  publish:
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/rust-v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: cpm-*-x86_64
+          path: release
+          merge-multiple: true
+      - name: Verify both platforms and publish a complete release
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: pwsh
         run: |
-          gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload "$env:RELEASE_TAG" release/cpm-windows-x86_64.exe release/cpm-setup-windows-x86_64.exe release/SHA256SUMS.txt --repo "$env:GITHUB_REPOSITORY" --clobber
-          } else {
-            gh release create "$env:RELEASE_TAG" release/cpm-windows-x86_64.exe release/cpm-setup-windows-x86_64.exe release/SHA256SUMS.txt --repo "$env:GITHUB_REPOSITORY" --title "CPM Rust v$env:CPM_VERSION" --notes-file "docs/release-notes-v$env:CPM_VERSION.md" --verify-tag
-          }
-          if ($LASTEXITCODE -ne 0) { throw "Publication de la release echouee" }
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          tag="rust-v$version"
+          test -s release/cpm-windows-x86_64.exe
+          test -s release/cpm-setup-windows-x86_64.exe
+          test -s release/cpm-linux-x86_64
+          test -s release/cpm-linux-x86_64.tar.gz
+          (cd release && sha256sum cpm-* > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # A published version is immutable; retries can finish only its draft.
+            test "$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+            gh release upload "$tag" release/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" release/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CPM v$version — Windows et Linux" --notes-file "docs/release-notes-v$version.md" --draft
+          fi
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest

@@ -54,7 +54,7 @@ fn builtin_roundtrip_and_addon_override_survive_restart() {
     std::fs::write(store.directory.join("broken.json"), "{broken").unwrap();
     let loaded = store.load().unwrap();
     assert_eq!(loaded.warnings.len(), 1);
-    assert_eq!(loaded.catalog.files.len(), 2);
+    assert_eq!(loaded.catalog.files.len(), 3);
     let mut invalid = addon.clone();
     invalid.filename = "../escape.json".into();
     assert!(store.save_file(&invalid).is_err());
@@ -170,4 +170,48 @@ fn descriptions_are_backward_compatible_editable_and_preserve_explicit_empty_tex
     let legacy: ParameterDefinition =
         serde_json::from_str(r#"{"name":"CustomNumber","variable_type":"integer"}"#).unwrap();
     assert!(legacy.description.is_empty());
+}
+
+#[test]
+fn bundled_addon_is_seeded_once_and_scoped_to_supported_objects() {
+    let root = tempfile::tempdir().unwrap();
+    let store = CatalogStore {
+        directory: root.path().join("properties"),
+    };
+    let loaded = store.load().unwrap();
+    assert!(store.directory.join("dynamx.json").is_file());
+    assert!(store.directory.join("basics-addon.json").is_file());
+    let vehicle = Document::parse("BasicsAddon{\n}\n").unwrap();
+    assert!(loaded
+        .catalog
+        .parameters(Path::new("vehicle_demo.dynx"), &vehicle, Some(0))
+        .iter()
+        .any(|p| p.name == "HornSound"));
+    assert!(!loaded
+        .catalog
+        .parameters(Path::new("armor_demo.dynx"), &vehicle, Some(0))
+        .iter()
+        .any(|p| p.name == "HornSound"));
+    let mut custom = loaded
+        .catalog
+        .files
+        .iter()
+        .find(|p| p.filename == "basics-addon.json")
+        .unwrap()
+        .clone();
+    custom.catalog.label = "Mon BasicsAddon".into();
+    store.save_file(&custom).unwrap();
+    assert_eq!(
+        store
+            .load()
+            .unwrap()
+            .catalog
+            .files
+            .iter()
+            .find(|p| p.filename == "basics-addon.json")
+            .unwrap()
+            .catalog
+            .label,
+        "Mon BasicsAddon"
+    );
 }
