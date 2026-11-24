@@ -736,7 +736,11 @@ impl Creation {
         let guide = &self.guide;
         if self.kind.has_model() {
             let model = guide.model.prepare(&folder(&path), &mut assets)?;
-            set(&mut document, "Model", &model.to_string_lossy())?;
+            set(
+                &mut document,
+                "Model",
+                &model.to_string_lossy().replace('\\', "/"),
+            )?;
         }
         let mut extra = String::new();
         if self.kind.has_wheels() {
@@ -770,7 +774,11 @@ impl Creation {
                         let model = guide
                             .wheel_model
                             .prepare(&folder(&wheel_path), &mut assets)?;
-                        set(&mut wheel, "Model", &model.to_string_lossy())?;
+                        set(
+                            &mut wheel,
+                            "Model",
+                            &model.to_string_lossy().replace('\\', "/"),
+                        )?;
                     }
                     configurations.push((wheel_path.clone(), wheel));
                     Some(wheel_path)
