@@ -254,7 +254,7 @@ impl Preview {
             ui.label(&self.statistics);
         });
         ui.add_enabled_ui(self.interactive, |ui| self.gizmo.toolbar(ui));
-        ui.small("Glisser : tourner · Molette : zoomer · Bouton droit : déplacer");
+        ui.small("Clic : sélectionner · Glisser hors poignées : tourner · Molette : zoomer · Bouton droit : déplacer");
 
         egui::Panel::left("preview-options").default_size(260.0).min_size(200.0).max_size((ui.available_width()*0.48).max(200.0)).resizable(true).show(ui, |ui| {
             egui::ScrollArea::vertical().id_salt("preview-controls").show(ui, |ui| {
@@ -318,24 +318,21 @@ impl Preview {
             }
             ui.painter()
                 .rect_filled(rect, 4.0, egui::Color32::from_rgb(24, 28, 35));
-            if self.gizmo.tool == gizmo::Tool::Orbit
-                && !self.gizmo.active()
-                && response.dragged_by(egui::PointerButton::Primary)
-            {
+            if !self.gizmo.active() && response.dragged_by(egui::PointerButton::Primary) {
                 let delta = response.drag_motion();
                 self.yaw += delta.x * 0.01;
                 self.pitch = (self.pitch + delta.y * 0.01).clamp(-1.55, 1.55);
             }
-            if response.dragged_by(egui::PointerButton::Secondary) {
+            if !self.gizmo.active() && response.dragged_by(egui::PointerButton::Secondary) {
                 let delta = response.drag_motion();
                 self.pan +=
                     egui::vec2(delta.x * 2.0 / rect.width(), -delta.y * 2.0 / rect.height());
             }
-            if response.hovered() {
+            if !self.gizmo.active() && response.hovered() {
                 let scroll = ui.input(|i| i.smooth_scroll_delta.y);
                 self.zoom = (self.zoom * (scroll * 0.002).exp()).clamp(0.1, 8.0);
             }
-            if self.interactive && response.clicked() && self.gizmo.tool == gizmo::Tool::Orbit {
+            if self.interactive && !self.gizmo.active() && response.clicked() {
                 if let (Some(geometry), Some(pos)) =
                     (&self.geometry, response.interact_pointer_pos())
                 {
@@ -372,14 +369,14 @@ impl Preview {
                     }
                 }
             }
+            let view = View {
+                yaw: self.yaw,
+                pitch: self.pitch,
+                zoom: self.zoom,
+                pan: self.pan,
+            };
             if let Some(mesh) = &self.mesh {
                 let mesh = mesh.clone();
-                let view = View {
-                    yaw: self.yaw,
-                    pitch: self.pitch,
-                    zoom: self.zoom,
-                    pan: self.pan,
-                };
                 let visible: Vec<_> = self.parts.iter().map(|p| p.visible).collect();
                 let textures = self.use_textures;
                 let collisions = false;
@@ -402,50 +399,49 @@ impl Preview {
                     rect,
                     callback: Arc::new(callback),
                 });
-                if let Some(geometry) = self.geometry.as_ref().filter(|_| self.interactive) {
-                    if let Some(edit) =
-                        self.gizmo
-                            .draw(ui, geometry, &self.document, self.selected, view, rect)
-                    {
-                        self.edits.push(edit);
-                    }
+            }
+            if let Some(geometry) = self.geometry.as_ref().filter(|_| self.interactive) {
+                if let Some(edit) =
+                    self.gizmo
+                        .draw(ui, geometry, &self.document, self.selected, view, rect)
+                {
+                    self.edits.push(edit);
                 }
-                if self.show_collisions {
-                    if let Some(geometry) = &self.geometry {
-                        let mut draft = self.gizmo.preview_document(&self.document);
-                        if let Some(edit) = self.edits.last() {
-                            let draft = draft.get_or_insert_with(|| self.document.clone());
-                            if let Some(index) = draft
-                                .properties()
-                                .iter()
-                                .position(|p| p.section == Some(edit.section) && p.key == edit.key)
-                            {
-                                let _ = draft.set_value(index, &edit.value);
-                            } else {
-                                let _ =
-                                    draft.add_property(Some(edit.section), &edit.key, &edit.value);
-                            }
+            }
+            if self.show_collisions {
+                if let Some(geometry) = &self.geometry {
+                    let mut draft = self.gizmo.preview_document(&self.document);
+                    if let Some(edit) = self.edits.last() {
+                        let draft = draft.get_or_insert_with(|| self.document.clone());
+                        if let Some(index) = draft
+                            .properties()
+                            .iter()
+                            .position(|p| p.section == Some(edit.section) && p.key == edit.key)
+                        {
+                            let _ = draft.set_value(index, &edit.value);
+                        } else {
+                            let _ = draft.add_property(Some(edit.section), &edit.key, &edit.value);
                         }
-                        let document = draft.as_ref().unwrap_or(&self.document);
-                        if self.collision_source != document.source() {
-                            self.collision_wires = geometry.preview_collisions(document);
-                            self.collision_source = document.source().into();
-                        }
-                        for wire in &self.collision_wires {
-                            let color = if self.selected == Some(wire.section) {
-                                egui::Color32::from_rgb(255, 166, 26)
-                            } else {
-                                egui::Color32::from_rgb(64, 255, 89)
-                            };
-                            for edge in wire.vertices.as_chunks::<2>().0 {
-                                ui.painter().with_clip_rect(rect).line_segment(
-                                    [
-                                        picking::project(edge[0], view, rect).0,
-                                        picking::project(edge[1], view, rect).0,
-                                    ],
-                                    egui::Stroke::new(1.5, color),
-                                );
-                            }
+                    }
+                    let document = draft.as_ref().unwrap_or(&self.document);
+                    if self.collision_source != document.source() {
+                        self.collision_wires = geometry.preview_collisions(document);
+                        self.collision_source = document.source().into();
+                    }
+                    for wire in &self.collision_wires {
+                        let color = if self.selected == Some(wire.section) {
+                            egui::Color32::from_rgb(255, 166, 26)
+                        } else {
+                            egui::Color32::from_rgb(64, 255, 89)
+                        };
+                        for edge in wire.vertices.as_chunks::<2>().0 {
+                            ui.painter().with_clip_rect(rect).line_segment(
+                                [
+                                    picking::project(edge[0], view, rect).0,
+                                    picking::project(edge[1], view, rect).0,
+                                ],
+                                egui::Stroke::new(1.5, color),
+                            );
                         }
                     }
                 }
@@ -1020,5 +1016,120 @@ mod window_tests {
         assert!(!preview.live);
         assert!(!preview.parts[0].visible);
         assert!(preview.scene_rect.height() > 300.0);
+    }
+    fn pointer(pos: egui::Pos2, pressed: bool) -> egui::Event {
+        egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        }
+    }
+    #[test]
+    fn move_and_resize_allow_camera_selection_and_exclusive_handle_drag() {
+        for tool in [gizmo::Tool::Move, gizmo::Tool::Resize] {
+            let ctx = egui::Context::default();
+            crate::theme::apply(&ctx);
+            let mut preview = fixture(&ctx);
+            preview.parts.clear();
+            preview.geometry = Some(Arc::new(
+                ObjMesh::parse(b"v -10 -10 0\nv 10 -10 0\nv 0 10 0\nf 1 2 3\n").unwrap(),
+            ));
+            preview.document = cpm_core::Document::parse("Shape_a{\nPosition: 0 0 0\nScale: 1 1 1\n}\nShape_b{\nPosition: 4 2 0\nScale: 1 1 1\n}\n").unwrap();
+            let original = preview.document.source().to_owned();
+            preview.selected = Some(0);
+            preview.show_collisions = true;
+            preview.gizmo.tool = tool;
+            frame(&mut preview, &ctx, vec![]);
+            frame(&mut preview, &ctx, vec![]);
+            let start = preview.scene_rect.left_top() + egui::vec2(25.0, 25.0);
+            let yaw = preview.yaw;
+            frame(&mut preview, &ctx, vec![egui::Event::PointerMoved(start)]);
+            frame(&mut preview, &ctx, vec![pointer(start, true)]);
+            frame(
+                &mut preview,
+                &ctx,
+                vec![egui::Event::PointerMoved(start + egui::vec2(45.0, 20.0))],
+            );
+            assert_ne!(
+                preview.yaw, yaw,
+                "orbit must remain available in both edit tools"
+            );
+            frame(
+                &mut preview,
+                &ctx,
+                vec![pointer(start + egui::vec2(45.0, 20.0), false)],
+            );
+            assert!(preview.take_edits().is_empty());
+            let view = View {
+                yaw: preview.yaw,
+                pitch: preview.pitch,
+                zoom: preview.zoom,
+                pan: preview.pan,
+            };
+            let point = preview.collision_wires[1]
+                .vertices
+                .iter()
+                .map(|p| picking::project(*p, view, preview.scene_rect).0)
+                .find(|p| {
+                    preview.scene_rect.contains(*p)
+                        && picking::pick_wires(
+                            &preview.collision_wires,
+                            view,
+                            preview.scene_rect,
+                            *p,
+                        ) == Some(Some(1))
+                })
+                .unwrap();
+            frame(&mut preview, &ctx, vec![egui::Event::PointerMoved(point)]);
+            frame(&mut preview, &ctx, vec![pointer(point, true)]);
+            frame(&mut preview, &ctx, vec![pointer(point, false)]);
+            assert_eq!(
+                preview.selected,
+                Some(1),
+                "click selects another box without changing tools"
+            );
+            frame(&mut preview, &ctx, vec![]);
+            let mesh = preview.geometry.as_ref().unwrap();
+            let origin = picking::project(
+                mesh.normalize_point(gizmo::config_world([4.0, 2.0, 0.0], [1.0; 3])),
+                view,
+                preview.scene_rect,
+            )
+            .0;
+            let unit = picking::project(
+                mesh.normalize_point(gizmo::config_world([5.0, 2.0, 0.0], [1.0; 3])),
+                view,
+                preview.scene_rect,
+            )
+            .0 - origin;
+            let endpoint = origin + unit.normalized() * 75.0;
+            let yaw = preview.yaw;
+            frame(
+                &mut preview,
+                &ctx,
+                vec![egui::Event::PointerMoved(endpoint)],
+            );
+            frame(&mut preview, &ctx, vec![pointer(endpoint, true)]);
+            frame(
+                &mut preview,
+                &ctx,
+                vec![egui::Event::PointerMoved(
+                    endpoint + unit.normalized() * 25.0,
+                )],
+            );
+            assert!(preview.manipulating());
+            assert_eq!(preview.yaw, yaw, "handle drag must not rotate the camera");
+            frame(
+                &mut preview,
+                &ctx,
+                vec![pointer(endpoint + unit.normalized() * 25.0, false)],
+            );
+            let edits = preview.take_edits();
+            assert_eq!(edits.len(), 1);
+            assert_eq!(edits[0].section, 1);
+            assert_eq!(preview.document.source(), original);
+            assert!(preview.gizmo.tool == tool);
+        }
     }
 }

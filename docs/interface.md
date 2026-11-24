@@ -44,3 +44,5 @@ Les options, variantes, pièces et avertissements occupent une colonne défilant
 Sur un environnement qui ne prend pas en charge plusieurs fenêtres natives, egui affiche une fenêtre intégrée de secours.
 
 Le déplacement et le redimensionnement des boîtes de collision affichent un aperçu en direct pendant le glissement. Les lignes sont recalculées seules, dans le même repère de caméra ; les modèles et textures ne sont pas rechargés pour ce placement. La configuration est validée au relâchement et Ctrl+Z annule le geste complet. Une actualisation complète en attente est différée pendant un glissement.
+
+Dans les modes **Déplacer** et **Taille (boîte)**, cliquer sur une pièce ou une ligne de collision permet de changer de sélection sans quitter le mode. Glisser dans la vue hors des poignées tourne la caméra ; glisser une poignée agit sur l’axe correspondant. Le bouton droit déplace la caméra et la molette zoome. La caméra reste fixe pendant la manipulation d’une poignée.
