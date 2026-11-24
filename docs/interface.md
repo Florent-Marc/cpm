@@ -32,3 +32,13 @@ Les onglets ne publient rien à eux seuls. Le changement de serveur et les actio
 ## Présentation
 
 L’interface utilise un thème sombre commun, des espacements et hauteurs de champs réguliers, des arrondis cohérents et un accent bleu pour les actions principales. Les erreurs utilisent un texte clair et un symbole ; les informations secondaires restent discrètes.
+
+## Aperçu 3D sur un deuxième écran
+
+L’aperçu s’ouvre dans une fenêtre native séparée : déplacer sa barre de titre vers l’écran souhaité, puis la redimensionner ou l’agrandir comme une fenêtre classique. Fermer cette fenêtre ferme uniquement l’aperçu.
+
+**Intégrer à CPM** ramène l’aperçu dans la fenêtre principale. **Détacher la fenêtre…** le ressort dans une fenêtre séparée. Le passage entre ces modes conserve la caméra, le zoom, les pièces visibles, les textures et les réglages de collision. L’actualisation automatique et les outils de déplacement des collisions utilisent le même état dans les deux modes.
+
+Les options, variantes, pièces et avertissements occupent une colonne défilante à gauche. Sa largeur est réglable en glissant la séparation. La vue 3D reste à droite sur la hauteur disponible, même avec beaucoup de pièces. Les commandes de caméra et les outils restent au-dessus.
+
+Sur un environnement qui ne prend pas en charge plusieurs fenêtres natives, egui affiche une fenêtre intégrée de secours.

@@ -10,6 +10,10 @@ use std::sync::{
 };
 
 pub struct Preview {
+    detached: bool,
+    close_requested: bool,
+    #[cfg(test)]
+    scene_rect: egui::Rect,
     cancel: Arc<AtomicBool>,
     pub interactive: bool,
     pub live: bool,
@@ -44,6 +48,10 @@ impl Preview {
         let path = request.path.display().to_string();
         let (receiver, cancel) = background(request, ctx);
         Self {
+            detached: true,
+            close_requested: false,
+            #[cfg(test)]
+            scene_rect: egui::Rect::NOTHING,
             cancel,
             interactive: true,
             live: true,
@@ -165,18 +173,80 @@ impl Preview {
             }
         }
         let mut open = true;
-        egui::Window::new("Aperçu 3D — modèle").open(&mut open).default_size([760.0,560.0]).min_size([360.0,300.0]).resizable(true).collapsible(false).show(ctx, |ui| {
-            ui.label(&self.path);
-            ui.horizontal_wrapped(|ui| {
-                if ui.button("Recentrer").clicked() { self.yaw = -0.6; self.pitch=0.25; self.zoom=0.9; self.pan=egui::Vec2::ZERO; }
-                if ui.button("Face").clicked() { self.yaw=0.0; self.pitch=0.0; }
-                if ui.button("Côté").clicked() { self.yaw=std::f32::consts::FRAC_PI_2; self.pitch=0.0; }
-                if ui.button("Dessus").clicked() { self.yaw=0.0; self.pitch=std::f32::consts::FRAC_PI_2; }
-                ui.label(&self.statistics);
-            });
-            ui.add_enabled_ui(self.interactive,|ui|self.gizmo.toolbar(ui));
-            ui.label("Glisser : tourner · Molette : zoomer · Glisser avec le bouton droit : déplacer");
-            ui.weak("Matériaux, roues et volant — aperçu statique, variantes diffuses DynamX. Actualisation après une courte pause de saisie.");
+        if self.detached {
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("cpm-model-preview"),
+                egui::ViewportBuilder::default()
+                    .with_title("CPM — Aperçu 3D")
+                    .with_inner_size([1100.0, 760.0])
+                    .with_min_inner_size([640.0, 400.0]),
+                |ui, _class| {
+                    if ui.ctx().input(|i| i.viewport().close_requested()) {
+                        open = false;
+                    }
+                    egui::CentralPanel::default().show(ui, |ui| self.contents(ui));
+                },
+            );
+        } else {
+            egui::Window::new("Aperçu 3D — modèle")
+                .open(&mut open)
+                .default_size([1000.0, 700.0])
+                .min_size([600.0, 400.0])
+                .resizable(true)
+                .collapsible(false)
+                .show(ctx, |ui| self.contents(ui));
+        }
+        open && !self.close_requested
+    }
+    fn contents(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal_wrapped(|ui| {
+            let label = if self.detached {
+                "Intégrer à CPM"
+            } else {
+                "Détacher la fenêtre…"
+            };
+            if ui
+                .button(label)
+                .on_hover_text("Une fenêtre séparée peut être déplacée sur un autre écran")
+                .clicked()
+            {
+                self.detached = !self.detached;
+                ui.ctx().request_repaint();
+                ui.ctx().request_repaint_of(egui::ViewportId::ROOT);
+            }
+            if ui.button("Fermer l’aperçu").clicked() {
+                self.close_requested = true;
+                ui.ctx().request_repaint_of(egui::ViewportId::ROOT);
+            }
+            ui.add(egui::Label::new(&self.path).truncate())
+                .on_hover_text(&self.path);
+        });
+        ui.horizontal_wrapped(|ui| {
+            if ui.button("Recentrer").clicked() {
+                self.yaw = -0.6;
+                self.pitch = 0.25;
+                self.zoom = 0.9;
+                self.pan = egui::Vec2::ZERO;
+            }
+            if ui.button("Face").clicked() {
+                self.yaw = 0.0;
+                self.pitch = 0.0;
+            }
+            if ui.button("Côté").clicked() {
+                self.yaw = std::f32::consts::FRAC_PI_2;
+                self.pitch = 0.0;
+            }
+            if ui.button("Dessus").clicked() {
+                self.yaw = 0.0;
+                self.pitch = std::f32::consts::FRAC_PI_2;
+            }
+            ui.label(&self.statistics);
+        });
+        ui.add_enabled_ui(self.interactive, |ui| self.gizmo.toolbar(ui));
+        ui.small("Glisser : tourner · Molette : zoomer · Bouton droit : déplacer");
+
+        egui::Panel::left("preview-options").default_size(260.0).min_size(200.0).max_size((ui.available_width()*0.48).max(200.0)).resizable(true).show(ui, |ui| {
+            egui::ScrollArea::vertical().id_salt("preview-controls").show(ui, |ui| {
             ui.checkbox(&mut self.live,"Actualisation automatique");
             if self.variant_names.len()>1 {
                 let before=self.variant;
@@ -185,18 +255,18 @@ impl Preview {
                 });
                 if before!=self.variant{self.reload_requested=true;ui.ctx().request_repaint();}
             }
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 ui.checkbox(&mut self.use_textures,"Afficher les textures");
                 ui.checkbox(&mut self.show_collisions,format!("Afficher les collisions ({})",self.collision_names.len())).on_hover_text(format!("Boîtes Shape… en fil de fer, visibles à travers le modèle. Les collisions générées automatiquement ne sont pas affichées.\n{}",self.collision_names.join("\n")));
             });
             if !self.parts.is_empty() {
                 egui::CollapsingHeader::new(format!("Pièces ({})",self.parts.len())).default_open(true).show(ui,|ui| {
-                    ui.horizontal(|ui| {
+                    ui.horizontal_wrapped(|ui| {
                         if ui.button("Tout afficher").clicked(){for p in &mut self.parts{p.visible=true;}}
                         if ui.button("Tout masquer").clicked(){for p in &mut self.parts{p.visible=false;}}
                     });
                     let mut isolate=None;
-                    egui::ScrollArea::vertical().id_salt("obj-parts").max_height(125.0).show(ui,|ui| {
+                    egui::ScrollArea::vertical().id_salt("obj-parts").show(ui,|ui| {
                         let mut groups:std::collections::BTreeMap<String,Vec<usize>>=std::collections::BTreeMap::new();
                         for (index,part) in self.parts.iter().enumerate(){groups.entry(part.name.split_once('/').map(|(group,_)|group.to_owned()).unwrap_or("Modèle principal".into())).or_default().push(index);}
                         for (group,indices) in groups {
@@ -205,7 +275,7 @@ impl Preview {
                                     let part=&mut self.parts[index];
                                     ui.push_id(index,|ui|{ui.horizontal(|ui|{
                                         ui.checkbox(&mut part.visible,"");
-                                        if ui.selectable_label(part.section.is_some()&&self.selected==part.section,part.name.split_once('/').map(|(_,name)|name).unwrap_or(&part.name)).on_hover_text(&part.details).clicked(){self.selected=part.section;self.selection_changed=Some(part.section);}
+                                        if ui.add(egui::Button::selectable(part.section.is_some()&&self.selected==part.section,part.name.split_once('/').map(|(_,name)|name).unwrap_or(&part.name)).truncate()).on_hover_text(&part.details).clicked(){self.selected=part.section;self.selection_changed=Some(part.section);}
                                         if ui.small_button("Isoler").clicked(){isolate=Some(index);}
                                     });});
                                 }
@@ -222,39 +292,101 @@ impl Preview {
             }
             if self.receiver.is_some() { ui.spinner(); ui.label("Chargement du modèle…"); }
             if let Some(error) = &self.error { ui.colored_label(egui::Color32::LIGHT_RED,error); }
-            let size=egui::vec2(ui.available_width().max(1.0), ui.available_height().max(180.0));
-            let (rect,response)=ui.allocate_exact_size(size,egui::Sense::click_and_drag());
-            ui.painter().rect_filled(rect,4.0,egui::Color32::from_rgb(24,28,35));
-            if self.gizmo.tool==gizmo::Tool::Orbit && !self.gizmo.active() && response.dragged_by(egui::PointerButton::Primary) {
-                let delta=response.drag_motion(); self.yaw+=delta.x*0.01; self.pitch=(self.pitch+delta.y*0.01).clamp(-1.55,1.55);
+
+            });
+        });
+        egui::CentralPanel::default().show(ui, |ui| {
+            let size = egui::vec2(
+                ui.available_width().max(1.0),
+                ui.available_height().max(1.0),
+            );
+            let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click_and_drag());
+            #[cfg(test)]
+            {
+                self.scene_rect = rect;
+            }
+            ui.painter()
+                .rect_filled(rect, 4.0, egui::Color32::from_rgb(24, 28, 35));
+            if self.gizmo.tool == gizmo::Tool::Orbit
+                && !self.gizmo.active()
+                && response.dragged_by(egui::PointerButton::Primary)
+            {
+                let delta = response.drag_motion();
+                self.yaw += delta.x * 0.01;
+                self.pitch = (self.pitch + delta.y * 0.01).clamp(-1.55, 1.55);
             }
             if response.dragged_by(egui::PointerButton::Secondary) {
-                let delta=response.drag_motion(); self.pan+=egui::vec2(delta.x*2.0/rect.width(),-delta.y*2.0/rect.height());
+                let delta = response.drag_motion();
+                self.pan +=
+                    egui::vec2(delta.x * 2.0 / rect.width(), -delta.y * 2.0 / rect.height());
             }
             if response.hovered() {
-                let scroll=ui.input(|i|i.smooth_scroll_delta.y);
-                self.zoom=(self.zoom*(scroll*0.002).exp()).clamp(0.1,8.0);
+                let scroll = ui.input(|i| i.smooth_scroll_delta.y);
+                self.zoom = (self.zoom * (scroll * 0.002).exp()).clamp(0.1, 8.0);
             }
-            if self.interactive && response.clicked() && self.gizmo.tool==gizmo::Tool::Orbit {
-                if let (Some(geometry),Some(pos))=(&self.geometry,response.interact_pointer_pos()) {
-                    let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();
-                    if let Some(section)=picking::pick(geometry,&visible,self.show_collisions,View{yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan},rect,pos) {
-                        self.selected=section;self.selection_changed=Some(section);
+            if self.interactive && response.clicked() && self.gizmo.tool == gizmo::Tool::Orbit {
+                if let (Some(geometry), Some(pos)) =
+                    (&self.geometry, response.interact_pointer_pos())
+                {
+                    let visible: Vec<_> = self.parts.iter().map(|p| p.visible).collect();
+                    if let Some(section) = picking::pick(
+                        geometry,
+                        &visible,
+                        self.show_collisions,
+                        View {
+                            yaw: self.yaw,
+                            pitch: self.pitch,
+                            zoom: self.zoom,
+                            pan: self.pan,
+                        },
+                        rect,
+                        pos,
+                    ) {
+                        self.selected = section;
+                        self.selection_changed = Some(section);
                     }
                 }
             }
             if let Some(mesh) = &self.mesh {
-                let mesh=mesh.clone(); let view=View {yaw:self.yaw,pitch:self.pitch,zoom:self.zoom,pan:self.pan};
-                let visible:Vec<_>=self.parts.iter().map(|p|p.visible).collect();let textures=self.use_textures;let collisions=self.show_collisions;let selected=self.selected;
-                let aspect=rect.width()/rect.height();
-                let callback=egui_glow::CallbackFn::new(move |_info,painter| { mesh.paint(painter.gl(),view,aspect,&visible,DrawOptions{use_textures:textures,show_collisions:collisions,selected}); });
-                ui.painter().add(egui::PaintCallback {rect,callback:Arc::new(callback)});
-                if let Some(geometry)=self.geometry.as_ref().filter(|_|self.interactive) {
-                    if let Some(edit)=self.gizmo.draw(ui,geometry,&self.document,self.selected,view,rect){self.edits.push(edit);}
+                let mesh = mesh.clone();
+                let view = View {
+                    yaw: self.yaw,
+                    pitch: self.pitch,
+                    zoom: self.zoom,
+                    pan: self.pan,
+                };
+                let visible: Vec<_> = self.parts.iter().map(|p| p.visible).collect();
+                let textures = self.use_textures;
+                let collisions = self.show_collisions;
+                let selected = self.selected;
+                let aspect = rect.width() / rect.height();
+                let callback = egui_glow::CallbackFn::new(move |_info, painter| {
+                    mesh.paint(
+                        painter.gl(),
+                        view,
+                        aspect,
+                        &visible,
+                        DrawOptions {
+                            use_textures: textures,
+                            show_collisions: collisions,
+                            selected,
+                        },
+                    );
+                });
+                ui.painter().add(egui::PaintCallback {
+                    rect,
+                    callback: Arc::new(callback),
+                });
+                if let Some(geometry) = self.geometry.as_ref().filter(|_| self.interactive) {
+                    if let Some(edit) =
+                        self.gizmo
+                            .draw(ui, geometry, &self.document, self.selected, view, rect)
+                    {
+                        self.edits.push(edit);
+                    }
                 }
             }
         });
-        open
     }
 }
 
@@ -717,4 +849,112 @@ fn background(
     });
     ready.notify_one();
     (receiver, cancel)
+}
+
+#[cfg(test)]
+mod window_tests {
+    use super::*;
+    fn fixture(ctx: &egui::Context) -> Preview {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("pack_info.dynx"), "PackName: Test\n").unwrap();
+        std::fs::write(
+            root.path().join("car.obj"),
+            "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+        )
+        .unwrap();
+        let pack = cpm_core::Pack::open(root.path()).unwrap();
+        let doc = cpm_core::Document::parse("Model: car.obj\n").unwrap();
+        let request =
+            ObjRequest::resolve(Some(&pack), std::path::Path::new("vehicle_test.dynx"), &doc)
+                .unwrap();
+        let mut preview = Preview::open(request, ctx);
+        preview.cancel.store(true, Ordering::Relaxed);
+        preview.receiver = None;
+        preview.parts = (0..100)
+            .map(|i| PartVisibility {
+                section: Some(i),
+                name: format!("Piece_{i}"),
+                visible: true,
+                details: String::new(),
+            })
+            .collect();
+        preview
+    }
+    fn frame(
+        preview: &mut Preview,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> Vec<egui::epaint::ClippedShape> {
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1500.0, 1000.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |_| {
+                assert!(preview.show(ctx, None));
+            },
+        );
+        output.textures_delta.clear();
+        output.shapes
+    }
+    fn find(shape: &egui::epaint::Shape, label: &str) -> Option<egui::Pos2> {
+        match shape {
+            egui::epaint::Shape::Text(t) if t.galley.job.text == label => {
+                Some(t.pos + t.galley.rect.center().to_vec2())
+            }
+            egui::epaint::Shape::Vec(v) => v.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    #[test]
+    fn reattachment_preserves_camera_visibility_and_full_height_canvas() {
+        let ctx = egui::Context::default();
+        crate::theme::apply(&ctx);
+        let mut preview = fixture(&ctx);
+        assert!(preview.detached);
+        preview.yaw = 1.1;
+        preview.zoom = 1.7;
+        preview.live = false;
+        preview.parts[0].visible = false;
+        frame(&mut preview, &ctx, vec![]);
+        let shapes = frame(&mut preview, &ctx, vec![]);
+        let options = shapes
+            .iter()
+            .find_map(|s| find(&s.shape, "Actualisation automatique"))
+            .unwrap();
+        assert!(preview.scene_rect.left() > options.x);
+        assert!(preview.scene_rect.height() > 300.0);
+        let pos = shapes
+            .iter()
+            .find_map(|s| find(&s.shape, "Intégrer à CPM"))
+            .unwrap();
+        frame(&mut preview, &ctx, vec![egui::Event::PointerMoved(pos)]);
+        for pressed in [true, false] {
+            frame(
+                &mut preview,
+                &ctx,
+                vec![egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+        }
+        assert!(!preview.detached);
+        frame(&mut preview, &ctx, vec![]);
+        let shapes = frame(&mut preview, &ctx, vec![]);
+        assert!(shapes
+            .iter()
+            .any(|s| find(&s.shape, "Détacher la fenêtre…").is_some()));
+        assert_eq!(preview.yaw, 1.1);
+        assert_eq!(preview.zoom, 1.7);
+        assert!(!preview.live);
+        assert!(!preview.parts[0].visible);
+        assert!(preview.scene_rect.height() > 300.0);
+    }
 }
